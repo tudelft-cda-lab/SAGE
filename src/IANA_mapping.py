@@ -1,7 +1,8 @@
 import requests
 import csv
 
-IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
+IANA_CSV_FILE = \
+    "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
 
 
 def load_IANA_mapping(source=IANA_CSV_FILE):

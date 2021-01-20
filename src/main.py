@@ -1,6 +1,5 @@
+import sys
 import os
-import os.path
-import math
 import matplotlib.style
 import matplotlib as mpl
 
@@ -13,29 +12,32 @@ from src.attack_graph_generation import loadmodel, encode_sequences, find_severe
 from src.flexfringe import generate_traces, flexfringe
 
 mpl.style.use('default')
-import subprocess
-import sys
-import graphviz
-from IPython.display import Image, display
-import json
-import re
-from collections import defaultdict
 
-if len(sys.argv) < 5:
-    print(
-        'USAGE: ag-gen.py {path/to/json/files} {experiment-name} {alert-filtering-window (def=1.0)} {alert-aggr-window (def=150)} {mode}')
-    sys.exit()
-folder = sys.argv[1]
-expname = sys.argv[2]
-t = float(sys.argv[3])
-w = int(sys.argv[4])
-rev = False
-if len(sys.argv) >= 6:
-    rev = sys.argv[5]
+# if len(sys.argv) < 5:
+#     print(
+#         'USAGE: ag-gen.py {path/to/json/files} {experiment-name} {alert-filtering-window (def=1.0)} {alert-aggr-window (def=150)} {mode}')
+#     sys.exit()
+# folder = sys.argv[1]
+# expname = sys.argv[2]
+# t = float(sys.argv[3])
+# w = int(sys.argv[4])
+# rev = False
+# if len(sys.argv) >= 6:
+#     rev = sys.argv[5]
 
-saddr = 'C:\\Users\\anadeem1\\Downloads\\dfasat\\data\\'  # path_to_flexfringe installation
-outaddress = ""  # "C:\\Users\\anadeem1\\Downloads\\dfasat\\"
-path_to_ini = "C:\\Users\\anadeem1\\Downloads\\dfasat\\ini\\batch-likelihoodRIT.ini"
+folder = "./data/cptc_18/"
+expname="test_1"
+t = 1.0
+w = 150
+rev = 2018
+
+# saddr = 'C:\\Users\\anadeem1\\Downloads\\dfasat\\data\\'  # path_to_flexfringe installation
+# outaddress = ""  # "C:\\Users\\anadeem1\\Downloads\\dfasat\\"
+# path_to_ini = "C:\\Users\\anadeem1\\Downloads\\dfasat\\ini\\batch-likelihoodRIT.ini"
+
+saddr = "C:\\Users\\Geert\\Desktop\\Thesis\\flexfringe\\flexfringe.exe"
+outaddress = "C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\out"
+path_to_ini = "C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\data\\s_pdfa.ini"
 
 modelname = expname + '.txt'  # 'test-trace-uni-serGroup.txt'
 datafile = expname + '.txt'  # 'trace-uni-serGroup.txt'

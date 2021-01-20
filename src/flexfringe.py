@@ -6,7 +6,7 @@ from src.common import most_frequent
 from src.mappings import ser_inv, small_mapping
 
 FLEXFRINGE_PATH = "C:\\Users\\anadeem1\\Downloads\\dfasat\\cmake-build-release\\flexfringe.exe"
-DEFAULT_INI = "C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\defaults\\s_pdfa.ini"
+DEFAULT_INI = "C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\data\\s_pdfa.ini"
 
 
 ## 27 Aug 2020: Generating traces for flexfringe
