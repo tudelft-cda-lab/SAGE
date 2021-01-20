@@ -1,0 +1,7 @@
+seaborn
+pandas
+requests
+matplotlib
+numpy
+graphviz
+jupyter
