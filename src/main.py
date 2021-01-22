@@ -26,17 +26,17 @@ mpl.style.use('default')
 #     rev = sys.argv[5]
 
 folder = "./data/cptc_18/"
-expname="test_1"
+expname = "test_1"
 t = 1.0
 w = 150
-rev = 2018
+rev = "2018"
 
 # saddr = 'C:\\Users\\anadeem1\\Downloads\\dfasat\\data\\'  # path_to_flexfringe installation
 # outaddress = ""  # "C:\\Users\\anadeem1\\Downloads\\dfasat\\"
 # path_to_ini = "C:\\Users\\anadeem1\\Downloads\\dfasat\\ini\\batch-likelihoodRIT.ini"
 
 saddr = "C:\\Users\\Geert\\Desktop\\Thesis\\flexfringe\\flexfringe.exe"
-outaddress = "C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\out"
+outaddress = "C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\out\\"
 path_to_ini = "C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\data\\s_pdfa.ini"
 
 modelname = expname + '.txt'  # 'test-trace-uni-serGroup.txt'

@@ -169,11 +169,11 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
 
             # say unknown if cant resolve it
             port = 'unknown' if (
-                    dp not in port_services.keys() or port_services[dp] == 'unknown') else \
-                port_services[dp]['name']
+                        dp not in port_services.keys() or port_services[dp] == 'unknown') else \
+            port_services[dp]['name']
 
             if (source, dest) not in host_alerts.keys() and (
-                    dest, source) not in host_alerts.keys():
+            dest, source) not in host_alerts.keys():
                 host_alerts[(source, dest)] = []
                 # print(tid, (source,dest), 'first', ev[8])
                 s_t[str(tid) + "|" + str(source) + "->" + str(dest)] = ev[8]
@@ -322,7 +322,7 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
                     yax = [mcats.index(ep[2])] * len(xax)
                     thickness = ep[4]
                     lsize = ((thickness - tmin) / (tmax - tmin)) * (5 - 0.5) + 0.5 if (
-                                                                                              tmax - tmin) != 0.0 else 0.5
+                                                                                                  tmax - tmin) != 0.0 else 0.5
                     # lsize = np.log(thickness) + 1 TODO: Either take log or normalize between [0.5 5]
                     msize = (lsize * 2) + 1
                     ax.plot(xax, yax, color=mcols[macro_inv[micro2macro[micro[ep[2]]]]],

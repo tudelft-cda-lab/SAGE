@@ -135,93 +135,93 @@ def parse(unparsed_data, alert_labels=None, slim=False, YEAR='2018'):
 
 
 def removeDup(unparse, plot=False, t=1.0):
-    if plot:
-        orig, removed = dict(), dict()
+    # if plot:
+    #     orig, removed = dict(), dict()
+    #
+    #     for _unparse in unparse:
+    #
+    #         li = [x[9] for x in _unparse]
+    #
+    #         for i in li:
+    #             orig[i] = orig.get(i, 0) + 1
+    #         print(orig.keys())
+    #
+    #         li = [_unparse[x] for x in range(1, len(_unparse)) if _unparse[x][9] != 999 and not (
+    #                     _unparse[x][0] <= t  # Diff from previous alert is less than x sec
+    #                     and _unparse[x][1] == _unparse[x - 1][1]  # same srcIP
+    #                     and _unparse[x][3] == _unparse[x - 1][3]  # same destIP
+    #                     and _unparse[x][5] == _unparse[x - 1][5]  # same suricata category
+    #                     and _unparse[x][2] == _unparse[x - 1][2]  # same srcPort
+    #                     and _unparse[x][4] == _unparse[x - 1][4]  # same destPort
+    #                     )]
+    #         li = [x[9] for x in li]
+    #         for i in li:
+    #             removed[i] = removed.get(i, 0) + 1
+    #         print(removed.keys())
+    #
+    # else:
 
-        for _unparse in unparse:
-
-            li = [x[9] for x in _unparse]
-
-            for i in li:
-                orig[i] = orig.get(i, 0) + 1
-            print(orig.keys())
-
-            li = [_unparse[x] for x in range(1, len(_unparse)) if _unparse[x][9] != 999 and not (
-                    _unparse[x][0] <= t  # Diff from previous alert is less than x sec
-                    and _unparse[x][1] == _unparse[x - 1][1]  # same srcIP
-                    and _unparse[x][3] == _unparse[x - 1][3]  # same destIP
-                    and _unparse[x][5] == _unparse[x - 1][5]  # same suricata category
-                    and _unparse[x][2] == _unparse[x - 1][2]  # same srcPort
-                    and _unparse[x][4] == _unparse[x - 1][4]  # same destPort
-            )]
-            li = [x[9] for x in li]
-            for i in li:
-                removed[i] = removed.get(i, 0) + 1
-            print(removed.keys())
-
-    else:
-
-        li = [unparse[x] for x in range(1, len(unparse)) if unparse[x][9] != 999 and not (
+    li = [unparse[x] for x in range(1, len(unparse)) if unparse[x][9] != 999 and not (
                 unparse[x][0] <= t  # Diff from previous alert is less than x sec
                 and unparse[x][1] == unparse[x - 1][1]  # same srcIP
                 and unparse[x][3] == unparse[x - 1][3]  # same destIP
                 and unparse[x][5] == unparse[x - 1][5]  # same suricata category
                 and unparse[x][2] == unparse[x - 1][2]  # same srcPort
                 and unparse[x][4] == unparse[x - 1][4]  # same destPort
-        )]
-        rem = [(unparse[x][9]) for x in range(1, len(unparse)) if
-               (unparse[x][0] <= t  # Diff from previous alert is less than x sec
-                and unparse[x][1] == unparse[x - 1][1]  # same srcIP
-                and unparse[x][3] == unparse[x - 1][3]  # same destIP
-                and unparse[x][5] == unparse[x - 1][5]  # same suricata category
-                and unparse[x][2] == unparse[x - 1][2]  # same srcPort
-                and unparse[x][4] == unparse[x - 1][4]  # same destPort
                 )]
-    if plot:
-        print(orig)
-        print(removed)
-        b1 = dict(sorted(orig.items()))
-        b2 = dict(sorted(removed.items()))
-        print(b1.keys())
-        print(b2.keys())
-        # libraries
-        import numpy as np
-        import matplotlib.pyplot as plt
-        import matplotlib.style
-        import matplotlib as mpl
-        mpl.style.use('default')
-
-        fig = plt.figure(figsize=(20, 20))
-
-        # set width of bar
-        barWidth = 0.4
-
-        # set height of bar
-        bars1 = [(x) for x in b1.values()]
-        bars2 = [(x) for x in b2.values()]
-
-        # Set position of bar on X axis
-        r1 = np.arange(len(bars1))
-        print(r1)
-        r2 = [x + barWidth for x in r1]
-        print('--', r2)
-
-        # Make the plot
-        plt.bar(r1, bars1, color='skyblue', width=barWidth, edgecolor='white', label='Raw')
-        plt.bar(r2, bars2, color='salmon', width=barWidth, edgecolor='white', label='Cleaned')
-
-        labs = [micro[x].split('.')[1] for x in b1.keys()]
-        # print([x for x in b1.keys()])
-        # print('ticks', [r + barWidth for r in range(len(b1.keys()))])
-        # Add xticks on the middle of the group bars
-        plt.ylabel('Frequency', fontweight='bold', fontsize='20')
-        plt.xlabel('Alert categories', fontweight='bold', fontsize='20')
-        plt.xticks([x for x in r1], labs, fontsize='20', rotation='vertical')
-        plt.yticks(fontsize='20')
-        plt.title('High-frequency Alert Filtering', fontweight='bold', fontsize='20')
-        # Create legend & Show graphic
-        plt.legend(prop={'size': 20})
-        plt.show()
+    rem = [(unparse[x][9]) for x in range(1, len(unparse)) if
+           (unparse[x][0] <= t  # Diff from previous alert is less than x sec
+            and unparse[x][1] == unparse[x - 1][1]  # same srcIP
+            and unparse[x][3] == unparse[x - 1][3]  # same destIP
+            and unparse[x][5] == unparse[x - 1][5]  # same suricata category
+            and unparse[x][2] == unparse[x - 1][2]  # same srcPort
+            and unparse[x][4] == unparse[x - 1][4]  # same destPort
+            )]
+    # if plot:
+    #     print(orig)
+    #     print(removed)
+    #     b1 = dict(sorted(orig.items()))
+    #     b2 = dict(sorted(removed.items()))
+    #     print(b1.keys())
+    #     print(b2.keys())
+    #     # libraries
+    #     import numpy as np
+    #     import matplotlib.pyplot as plt
+    #     import matplotlib.style
+    #     import matplotlib as mpl
+    #     mpl.style.use('default')
+    #
+    #     fig = plt.figure(figsize=(20, 20))
+    #
+    #     # set width of bar
+    #     barWidth = 0.4
+    #
+    #     # set height of bar
+    #     bars1 = [(x) for x in b1.values()]
+    #     bars2 = [(x) for x in b2.values()]
+    #
+    #     # Set position of bar on X axis
+    #     r1 = np.arange(len(bars1))
+    #     print(r1)
+    #     r2 = [x + barWidth for x in r1]
+    #     print('--', r2)
+    #
+    #     # Make the plot
+    #     plt.bar(r1, bars1, color='skyblue', width=barWidth, edgecolor='white', label='Raw')
+    #     plt.bar(r2, bars2, color='salmon', width=barWidth, edgecolor='white', label='Cleaned')
+    #
+    #     labs = [micro[x].split('.')[1] for x in b1.keys()]
+    #     # print([x for x in b1.keys()])
+    #     # print('ticks', [r + barWidth for r in range(len(b1.keys()))])
+    #     # Add xticks on the middle of the group bars
+    #     plt.ylabel('Frequency', fontweight='bold', fontsize='20')
+    #     plt.xlabel('Alert categories', fontweight='bold', fontsize='20')
+    #     plt.xticks([x for x in r1], labs, fontsize='20', rotation='vertical')
+    #     plt.yticks(fontsize='20')
+    #     plt.title('High-frequency Alert Filtering', fontweight='bold', fontsize='20')
+    #     # Create legend & Show graphic
+    #     plt.legend(prop={'size': 20})
+    #     plt.show()
 
     print('Filtered # alerts (remaining)', len(li))
     return li
@@ -240,7 +240,9 @@ def load_data(path, t, mode=False):
         if not mode:
             unparse_ = parse(readfile(f), [], False)
         else:
-            unparse_ = parse(reversed(readfile(f)), [], False, mode)
+            # TODO: Check out why reversed was used here
+            unparse_ = parse(readfile(f), [], False, mode)
+            # unparse_ = parse(reversed(readfile(f)), [], False, mode)
         unparse_ = removeDup(unparse_, t=t)
         unparse.append(unparse_)
 

@@ -2,6 +2,7 @@ import os
 import re
 import json
 from collections import defaultdict
+import math
 
 from src.common import most_frequent
 from src.mappings import macro_inv, micro2macro, rev_smallmapping, micro
@@ -108,13 +109,13 @@ def traverse(dfa, sinks, sequence, statelist=False):
                 if not statelist:
                     return dfa[state]["type"] == "1"
                 else:
-                    return (dfa[state]["type"] == "1", stlst)
+                    return dfa[state]["type"] == "1", stlst
         stlst.append(state)
 
     if not statelist:
         return dfa[state]["type"] == "1"
     else:
-        return (dfa[state]["type"] == "1", stlst)
+        return dfa[state]["type"] == "1", stlst
 
 
 def encode_sequences(path_to_traces, m, m2):

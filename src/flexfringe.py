@@ -70,9 +70,11 @@ def flexfringe(*args, **kwargs):
         command = []
         for key in kwargs:
             command += ["--" + key + "=" + kwargs[key]]
-
+    command += [f'--output-dir=C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\out\\']
+    print("Running command;")
+    print(command, args[0])
     result = subprocess.run([
-                                "C:\\Users\\anadeem1\\Downloads\\dfasat\\cmake-build-release\\flexfringe.exe", ] + command + [
+                                "C:\\Users\\Geert\\Desktop\\Thesis\\flexfringe\\flexfringe.exe", ] + command + [
                                 args[0]], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             universal_newlines=True)
     print(result.returncode, result.stdout, result.stderr)
