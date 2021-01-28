@@ -70,7 +70,7 @@ def flexfringe(*args, **kwargs):
         command = []
         for key in kwargs:
             command += ["--" + key + "=" + kwargs[key]]
-    command += [f'--output-dir=C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\out\\']
+    # command += [f'--output-dir=C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\out\\']
     print("Running command;")
     print(command, args[0])
     result = subprocess.run([

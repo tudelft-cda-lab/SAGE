@@ -227,7 +227,7 @@ def removeDup(unparse, plot=False, t=1.0):
     return li
 
 
-def load_data(path, t, mode=False):
+def   load_data(path, t, mode=False):
     unparse = []
     team_labels = []
     files = glob.glob(path + "/*.json")
