@@ -3,7 +3,7 @@ import graphviz
 from IPython.display import Image, display
 
 from src.common import most_frequent
-from src.mappings import ser_inv, small_mapping
+from src.mappings.mappings import ser_inv, small_mapping
 
 FLEXFRINGE_PATH = "C:\\Users\\anadeem1\\Downloads\\dfasat\\cmake-build-release\\flexfringe.exe"
 DEFAULT_INI = "C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\data\\s_pdfa.ini"
@@ -70,9 +70,6 @@ def flexfringe(*args, **kwargs):
         command = []
         for key in kwargs:
             command += ["--" + key + "=" + kwargs[key]]
-    # command += [f'--output-dir=C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\out\\']
-    print("Running command;")
-    print(command, args[0])
     result = subprocess.run([
                                 "C:\\Users\\Geert\\Desktop\\Thesis\\flexfringe\\flexfringe.exe", ] + command + [
                                 args[0]], stdout=subprocess.PIPE, stderr=subprocess.PIPE,

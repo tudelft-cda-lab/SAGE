@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from src.mappings import micro
+from src.mappings.mappings import micro
 
 
 def plot_histogram(unparse, team_labels):

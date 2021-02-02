@@ -5,7 +5,7 @@ from collections import defaultdict
 import math
 
 from src.common import most_frequent
-from src.mappings import macro_inv, micro2macro, rev_smallmapping, micro
+from src.mappings.mappings import macro_inv, micro2macro, rev_smallmapping, micro
 
 
 def loadmodel(modelfile):

@@ -1,12 +1,142 @@
+from datetime import datetime
+from typing import List, Dict, Tuple
+
 import numpy as np
 import matplotlib.pyplot as plt
 from math import floor
 # Goal: (1) To first form a collective attack profile of a team
 # and then (2) TO compare attack profiles of teams
+from src.MicroAttackStage import MicroAttackStage
+from src.SequenceGeneration.ParsedAlert import ParsedAlert
+from src.SequenceGeneration.load import LoadedData
 from src.SequenceGeneration.plot import legend_without_duplicate_labels
-from src.mappings import micro, port_services, mcols, macro_inv, micro2macro
+from src.mappings.mappings import micro, mcols, macro_inv, micro2macro, port_services
 
 from itertools import accumulate
+
+
+# from src.mappings.IANA_mapping import IANA_mapping
+#
+#
+# class AttackerIDAlert:
+#     """
+#     Captures an alert from the view of an attacker ID (source IP, dest IP or both)
+#     """
+#
+#     def __init__(self, dest_ip: str, mcat: MicroAttackStage, timestamp: datetime, service: str):
+#         self.dest_ip = dest_ip
+#         self.mcat = mcat
+#         self.timestamp = timestamp
+#         self.service = service
+#
+#
+# def _group_by_attacker_victim(data: LoadedData) -> Dict[int, List[(Tuple, AttackerIDAlert)]]:
+#     team_data = {}
+#     team_alerts = data[0]
+#     team_names = data[1]
+#     for team_id, alerts in enumerate(team_alerts):
+#         host_alerts = {}
+#
+#         for alert in alerts:
+#             dest_port = alert.dest_port or 65000
+#             if dest_port not in IANA_mapping:
+#                 port_service = "unknown"
+#             else:
+#                 port_service = IANA_mapping[dest_port].name
+#
+#             # TODO: allow aggregation by only src or dest
+#             alert_id = (alert.src_ip, alert.dest_ip)
+#             # Ensure inverse is not already present, if so, put it in the same bin
+#             if (alert.dest_ip, alert.src_ip) in host_alerts:
+#                 alert_id = (alert.dest_ip, alert.src_ip)
+#
+#             if alert_id not in host_alerts:
+#                 host_alerts[alert_id] = []
+#
+#             host_alerts[alert_id].append(
+#                 AttackerIDAlert(alert_id[1], alert.mcat, alert.timestamp, port_service))
+#
+#         team_data[team_id] = list(host_alerts.items())
+#
+#         return team_data
+#
+#
+# def get_attack_episodes(data: LoadedData, step=150):
+#     team_data = {}
+#     s_t = {}
+#
+#     team_episodes = []
+#     team_data = _group_by_attacker_victim(data)
+#
+#     # Find start time of each team
+#     team_start_times = [alerts[0].timestamp for alerts in data[0]]
+#     team_times = []
+#
+#     mcats = list(micro.keys())
+#     mcats_label = [x.split(".")[1] for x in micro.values()]
+#
+#     for team_id, team_alerts in team_data:
+#         print('----------------TEAM ' + str(team_id) + '-------------------------')
+#         t_ep = dict()
+#
+#         # Map attacker ID to (start_time, end_time)
+#         _team_times = {}
+#         for attacker_id, alerts in team_alerts:
+#
+#             # Filter out groups of only one alert
+#             if len(alerts) <= 1:
+#                 continue
+#
+#             # Normalize start/end time to start at 0
+#             first_elapsed_time = round(
+#                 (alerts[0].timestamp - team_start_times[team_id]).total_seconds(),
+#                 2)
+#             last_elapsed_time = round(
+#                 (alerts[-1].timestamp - alerts[0].timestamp).total_seconds() + first_elapsed_time,
+#                 2)
+#
+#             _team_times["->".join(attacker_id)] = (first_elapsed_time, last_elapsed_time)
+#             timestamps = [alert.timestamp for alert in alerts]
+#             rest = alerts
+#
+#             prev_timestamp = None
+#             diff = []
+#
+#             for timestamp in timestamps:
+#                 if prev_timestamp is None:
+#                     diff.append(0)
+#                 else:
+#                     diff.append(round((timestamp - prev_timestamp).total_seconds(), 2))
+#
+#             assert len(timestamps) == len(diff)
+#
+#             # List of total time elapsed at the end of each event: [t0, t0+t1, t0+t1+t2]
+#             elapsed_time = list(accumulate(diff))
+#             relative_elapsed_time = [round(x + first_elapsed_time, 2) for x in elapsed_time]
+#
+#             assert (len(elapsed_time) == len(diff))
+#
+#             t_0 = int(first_elapsed_time)  # int(relative_elapsed_time[0])
+#             t_n = int(relative_elapsed_time[-1])
+#
+#             host_episode = []
+#             for mcat in mcats:
+#                 min_data = []
+#
+#                 # TODO: optimize
+#                 for i in range(t_0, t_n, step):
+#                     li = [alert for d, alert in zip(relative_elapsed_time, rest) if
+#                           (d >= i and d < (i + step)) and alert.mcat == mcat]
+#
+#                     min_data.append(li)  # alerts per 'step' seconds
+#                 episodes = _get_episodes(min_data, False)
+#
+#                 if len(episodes) > 0:
+#                     pass
+#
+#
+# def _get_episodes(action_sequence: List[List[AttackerIDAlert]], plot: bool) -> List:
+#     pass
 
 
 def getepisodes(action_seq, plot, debug=False):
@@ -115,18 +245,18 @@ def getepisodes(action_seq, plot, debug=False):
         episode = (positive[1][0], negative[0][0])
         episodes_.append(episode)
 
-    if plot:
-        plt.plot(y, 'gray')
-        for ep in episodes_:
-            # print(ep)
-            xax_start = [ep[0]] * cap
-            xax_end = [ep[1]] * cap
-            yax = list(range(cap))
-
-            plt.plot(xax_start, yax, 'g', linestyle=(0, (5, 10)))
-            plt.plot(xax_end, yax, 'r', linestyle=(0, (5, 10)))
-
-        plt.show()
+    # if plot:
+    #     plt.plot(y, 'gray')
+    #     for ep in episodes_:
+    #         # print(ep)
+    #         xax_start = [ep[0]] * cap
+    #         xax_end = [ep[1]] * cap
+    #         yax = list(range(cap))
+    #
+    #         plt.plot(xax_start, yax, 'g', linestyle=(0, (5, 10)))
+    #         plt.plot(xax_end, yax, 'r', linestyle=(0, (5, 10)))
+    #
+    #     plt.show()
     # print('number episodes ', len(episodes_))
     return episodes_
 
@@ -169,11 +299,11 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
 
             # say unknown if cant resolve it
             port = 'unknown' if (
-                        dp not in port_services.keys() or port_services[dp] == 'unknown') else \
-            port_services[dp]['name']
+                    dp not in port_services.keys() or port_services[dp] == 'unknown') else \
+                port_services[dp]['name']
 
             if (source, dest) not in host_alerts.keys() and (
-            dest, source) not in host_alerts.keys():
+                    dest, source) not in host_alerts.keys():
                 host_alerts[(source, dest)] = []
                 # print(tid, (source,dest), 'first', ev[8])
                 s_t[str(tid) + "|" + str(source) + "->" + str(dest)] = ev[8]
@@ -188,7 +318,7 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
 
         team_data[tid] = host_alerts.items()
 
-    # Calculate number of alerts over time for each attacker
+    # Note: Calculate number of alerts over time for each attacker
     # print(len(s_t))
     team_episodes = []
 
@@ -202,6 +332,7 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
         t_ep = dict()
         _team_times = dict()
         for attacker, alerts in team:
+            # Note: Alert is tuple (dest_ip, mcat, ts, port_service)
             # if re.search('[a-z]', attacker):
             #    continue
             # if attacker != ('corp-mail-00', 'corp-onramp-00'):
@@ -220,11 +351,13 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
                 (alerts[-1][2] - alerts[0][2]).total_seconds() + first_elapsed_time, 2)
             # print(first_elapsed_time, last_elapsed_time)
 
+            # Note: Maps attacker id to (start_time, end_time) tuples, normalized over start time of the team
             _team_times['->'.join(attacker)] = (first_elapsed_time, last_elapsed_time)
             ts = [x[2] for x in alerts]
             rest = [(x[0], x[1], x[2], x[3]) for x in alerts]
 
             prev = -1
+            # Note: Time difference to previous alert within this set
             DIFF = []
             relative_elapsed_time = []
             for timeid, dt in enumerate(ts):
@@ -237,7 +370,7 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
             assert (len(ts) == len(DIFF))
             elapsed_time = list(accumulate(DIFF))
             relative_elapsed_time = [round(x + first_elapsed_time, 2) for x in elapsed_time]
-
+            # Note: relative_elapsed_time are the relative times of this alert list, with t=0 being the team start time
             assert (len(elapsed_time) == len(DIFF))
 
             t0 = int(first_elapsed_time)  # int(relative_elapsed_time[0])
@@ -248,7 +381,7 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
             h_ep = []
             # mindatas = []
             for mcat in mcats:
-
+                # Note: construct a list of windows over (t0, tn, step)
                 mindata = []
                 for i in range(t0, tn, step):
                     li = [a for d, a in zip(relative_elapsed_time, rest) if
@@ -258,29 +391,30 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
                 # print([len(x) for x in mindata])
                 episodes = []
 
+                # Note: each episode is a tuple of index (based on mindata) before and after the ep
                 episodes = getepisodes(mindata, False)
 
                 if len(episodes) > 0:
 
                     events = [len(x) for x in mindata]
-
+                    # Note: Construct time window as tuple (start,end) for all non-empty windows
                     minute_info = [(x[0] * step + t0, x[1] * step + t0) for x in episodes]
 
+                    # Note: Get all ports in each window
                     raw_ports = []
-
                     for e in mindata:
                         if len(e) > 0:
                             raw_ports.append([(x[3]) for x in e])
                         else:
                             raw_ports.append([])
-
+                    # Note: Converts raw_ports to one big list, (flatten nested list)
                     _flat_ports = [item for sublist in raw_ports for item in sublist]
-
+                    # Note: each episode is (start_time, end_time, mcat, ...,
                     episode = [(mi[0], mi[1], mcat, events[x[0]:x[1] + 1],
                                 raw_ports[x[0]:x[1] + 1])
                                for x, mi in zip(episodes,
                                                 minute_info)]  # now the start and end are actual elapsed times
-
+                    # Note: Flattens the raw_ports nested list
                     # EPISODE DEF: (startTime, endTime, mcat, rawevents, epiVolume, epiPeriod, epiServices)
                     episode = [(x[0], x[1], x[2], x[3], round(sum(x[3]) / float(len(x[3])), 1),
                                 (x[1] - x[0]),
@@ -290,7 +424,7 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
 
             if len(h_ep) == 0:
                 continue
-            # artifically adding tiny delay for events that are exactly at the same time
+            # Note: artificially adding tiny delay for events that are exactly at the same time
             h_ep.sort(key=lambda tup: tup[0])
             minute_info = [x[0] for x in h_ep]
             minute_info2 = [minute_info[0]]
@@ -322,7 +456,7 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
                     yax = [mcats.index(ep[2])] * len(xax)
                     thickness = ep[4]
                     lsize = ((thickness - tmin) / (tmax - tmin)) * (5 - 0.5) + 0.5 if (
-                                                                                                  tmax - tmin) != 0.0 else 0.5
+                                                                                              tmax - tmin) != 0.0 else 0.5
                     # lsize = np.log(thickness) + 1 TODO: Either take log or normalize between [0.5 5]
                     msize = (lsize * 2) + 1
                     ax.plot(xax, yax, color=mcols[macro_inv[micro2macro[micro[ep[2]]]]],
@@ -340,7 +474,8 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
                 # plt.tight_layout()
                 # plt.savefig('Pres-Micro-attack-episodes-Team'+str(tid) +'-Connection'+ attacker[0]+'--'+attacker[1]+'.png')
                 plt.show()
-
+        # Note: t_ep is a dict of (attacker_id -> episode sequence)
+        #       team_times is a dict of (attacker_id -> (start_time, end_time)
         team_episodes.append(t_ep)
         team_times.append(_team_times)
     return (team_episodes, team_times)

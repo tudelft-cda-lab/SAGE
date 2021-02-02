@@ -54,6 +54,7 @@ print('---- Converting to episode sequences -----------')
 host_data = host_episode_sequences(team_episodes)
 print('----- breaking into sub-sequences and making traces----------')
 (alerts, keys) = break_into_subbehaviors(host_data)
+print("break")
 generate_traces(alerts, keys, datafile)
 
 print('------ Learning SPDFA ---------')
