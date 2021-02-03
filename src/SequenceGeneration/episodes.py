@@ -145,7 +145,7 @@ def getepisodes(action_seq, plot, debug=False):
     y = [len(x) for x in action_seq]  #
     if not debug:
         # print('-------------- strat')
-
+        # Note: Returns if there is only one window -> all alerts were within one 150-second interval
         if len(y) <= 1:
             # print(sum(y), len(y), 'yo returning')
             return []

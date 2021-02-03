@@ -17,6 +17,9 @@ class GroupedAlert:
         self.timestamp = timestamp
         self.service = service
 
+    def __str__(self) -> str:
+        return f"{self.src_ip}->{self.dest_ip}; {self.mcat.name}|{self.service} {self.timestamp}"
+
 
 class AttackEpisode:
     def __init__(self, start_time: int, end_time: int, mcat: MicroAttackStage,
@@ -35,6 +38,9 @@ class AttackEpisode:
         self.mcat = mcat
         self.services = services
         self.alerts = alerts
+
+    def __str__(self):
+        return f"{self.start_time}--{self.end_time}; {len(self.alerts)} alerts; {self.mcat.name}; {self.services}"
 
     def first_alert_time(self, start_time: Optional[datetime] = None):
         """
@@ -77,7 +83,8 @@ def get_attack_episodes(parsed_data: LoadedData, time_step=150) -> TeamAttackEpi
 
         for attacker_id, alerts in grouped_alerts.items():
             attack_sequences = _to_attack_episodes(alerts, team_start, time_step=time_step)
-            res[idx][attacker_id] = attack_sequences
+            if len(attack_sequences) > 0:
+                res[idx][attacker_id] = attack_sequences
     return res
 
 
@@ -114,7 +121,16 @@ def _group_by_attacker_victim(alerts: List[ParsedAlert]) -> GroupedAlerts:
 
         grouped_alerts[alert_id].append(
             GroupedAlert(alert_id[0], alert_id[1], alert.mcat, alert.timestamp, port_service))
-    return grouped_alerts
+
+    # Remove all combos with a lack of alerts
+    # for attacker in list(grouped_alerts.keys()):
+    #     if len(grouped_alerts[attacker]) <= 1:
+    #         print(f"Dropping {attacker} due to lack of alerts: {len(grouped_alerts[attacker])}")
+    #         del grouped_alerts[attacker]
+    return {attacker: attacker_alerts for attacker, attacker_alerts in grouped_alerts.items() if
+            len(attacker_alerts) > 1}
+    #
+    # return grouped_alerts
 
 
 def _to_attack_episodes(alerts: List[GroupedAlert], team_start: datetime, time_step: int) -> \
@@ -131,6 +147,11 @@ def _to_attack_episodes(alerts: List[GroupedAlert], team_start: datetime, time_s
     for i in range(1, len(alerts)):
         assert alerts[i].src_ip == alerts[i - 1].src_ip
         assert alerts[i].dest_ip == alerts[i - 1].dest_ip
+
+    # Verify all alerts are spread out enough -> not all fit in only one window
+    #  episodes.py: line 149
+    if (alerts[-1].timestamp - alerts[0].timestamp).total_seconds() < time_step:
+        return []
 
     # Step 1: split on mcat
     # Split the list of alerts based on micro attack stage
@@ -151,23 +172,12 @@ def _to_attack_episodes(alerts: List[GroupedAlert], team_start: datetime, time_s
         return episode.start_time, episode.mcat
 
     all_episodes = sorted(all_episodes, key=_episode_sorting_key)
-
-    # Artificially delay episodes for equal starting time -> later episode starts 1 second later
-    # TODO: Deal with three or more episodes at the same start time
-    # for i in range(1, len(all_episodes)):
-    #     if all_episodes[i - 1].start_time == all_episodes[i].start_time:
-    #         all_episodes[i].start_time += 1
-    # start_times = set()
-    # max_start_time = -1
-    # for ep in all_episodes:
-    #     if ep.start_time in start_times:
-    #         ep.start_time = max_start_time + 1
-    #         max_start_time += 1
-    #     else:
-    #         start_times.add(ep.start_time)
-    #         max_start_time = ep.start_time
+    if len(all_episodes) == 0:
+        return []
 
     # TODO: See why this is needed
+    #  -> This ensures the start time for a window is moved up to 0 (case [1, 0] over [0, 1, 0])
+    #  or the end time is within limits (case [0, 1] vs [0, 1, 0]) -> should not be necessary
     min_ts = all_episodes[0].start_time
     max_ts = all_episodes[0].end_time
     for ep in all_episodes:
@@ -184,15 +194,10 @@ def _to_attack_episodes(alerts: List[GroupedAlert], team_start: datetime, time_s
 
     all_episodes = sorted(all_episodes, key=_episode_sorting_key)
 
-    # min_ts = all_episodes[0].start_time
-    # max_ts = all_episodes[-1].end_time
+    # Artificially delay windows starting at the same time
     start_times = set()
     max_start_time = -1
     for ep in all_episodes:
-        # if ep.start_time == min_ts:
-        #     ep.start_time += time_step
-        # if ep.end_time == max_ts:
-        #     ep.end_time -= time_step
 
         if ep.start_time in start_times:
             ep.start_time = max_start_time + 1
@@ -218,6 +223,9 @@ class _AlertWindow:
         self.size = len(alerts)
         self.alerts = alerts
 
+    def __str__(self):
+        return f"AlertWindow {self.start_time}, {self.size} alerts"
+
 
 def _split_to_episodes(alerts: List[GroupedAlert], team_start: datetime,
                        attacker_id_start: datetime, time_step: int) -> List[AttackEpisode]:
@@ -228,7 +236,8 @@ def _split_to_episodes(alerts: List[GroupedAlert], team_start: datetime,
 
     All input alerts should have the same attacker id and same mcat, and must be sorted on timestamp
     :param alerts List of alerts SORTED ON TIMESTAMP
-    :param start_time Timestamp of the first alert of this team, used for aligning the windows
+    :param team_start: Timestamp of the first alert of this team, used for aligning the windows
+    :param attacker_id_start: Timestamp of the first alert for this attacker id
     :param time_step Size of the window to use
     """
     # Used for sanity check: all alerts have the same mcat and are in increasing order
@@ -237,7 +246,6 @@ def _split_to_episodes(alerts: List[GroupedAlert], team_start: datetime,
 
     # Check when this alert sequence (which is for one (src_ip, dest_ip) combination) starts
     #  -> used to align the window
-    # attacker_id_start = alerts[0].timestamp
     attacker_id_offset = int((attacker_id_start - team_start).total_seconds())
 
     current_window_start = 0
@@ -276,9 +284,9 @@ def _windows_to_episodes(windows: List[_AlertWindow], time_step: int) -> List[At
     """
     Converts a list of windowed alerts to a set of episodes.
 
-    For splitting, a naïve approach is used. Under the assumption that the global minimum window
-    size is 0 (there is some interval with no alerts), windows can be split based on gaps in the
-    sequence.
+    For splitting, a naive approach is used. Under the assumption that the global minimum window
+    size is 0 (there is some interval with no alerts), windows can be split based on gaps of two
+    in the window sequence.
 
     :param windows: List of windowed alerts
     :param time_step: Length of each window
@@ -291,19 +299,21 @@ def _windows_to_episodes(windows: List[_AlertWindow], time_step: int) -> List[At
     # Check: see if the window sequence has gaps. If so, the global minimum window size is 0, and we
     #  don't have to bother with the derivative, but instead can split based on gaps.
     # Alternative: if there is only one window, there is no problem
-    # TODO: Check
+    # TODO: Check -> seems to be removed
     has_gap = len(windows) == 1
     for i in range(1, len(windows)):
         # Check if the previous window started more than one time step away.
-        if windows[i - 1].start_time + time_step != windows[i].start_time:
+        if windows[i - 1].start_time + 2 * time_step != windows[i].start_time:
             has_gap = True
             break
-    # assert has_gap
+    # List is one long episode -> return nothing (episodes.py, line 213)
+    # if not has_gap:
+    #     return []
 
     res: List[AttackEpisode] = []
     current_episode_windows = [windows[0]]  # Add first window to the first episode
     for window in windows[1:]:
-        if current_episode_windows[-1].start_time + time_step == window.start_time:
+        if current_episode_windows[-1].start_time + 2 * time_step >= window.start_time:
             # This window directly follows the previous window -> they belong to the same episode
             current_episode_windows.append(window)
         else:
@@ -324,17 +334,13 @@ def _to_episode(windows: List[_AlertWindow], time_step: int) -> AttackEpisode:
     """
     # Sanity check: all windows are consecutive
     for i in range(1, len(windows)):
-        assert windows[i - 1].start_time + time_step == windows[i].start_time
+        assert windows[i - 1].start_time + 2 * time_step >= windows[i].start_time
 
     episode_start = windows[0].start_time - time_step
     episode_end = windows[-1].start_time + time_step
     all_alerts = []
     for window in windows:
         all_alerts += window.alerts
-
-    if len(all_alerts) <= 1:
-        pass
-        # assert len(all_alerts) > 1
 
     mcat = all_alerts[0].mcat
     services = [a.service for a in all_alerts]

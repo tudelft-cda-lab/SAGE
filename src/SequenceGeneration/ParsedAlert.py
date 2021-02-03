@@ -31,6 +31,9 @@ class ParsedAlert(object):
         self.timestamp = timestamp
         self.mcat = mcat
 
+    def __str__(self):
+        return f"ParsedAlert: {self.src_ip}:{self.src_port} -> {self.dest_ip}:{self.dest_port}, {self.mcat}, {self.timestamp}"
+
 
 # Reference: in the base, alerts are represented as a tuple:
 # (DIFF, srcip, srcport, dstip, dstport, sig, cat, host, dt, mcat)
