@@ -523,8 +523,11 @@ def break_into_subbehaviors(host_data):
     attackers = []
     keys = []
     alerts = []
-    cutlen = 4
+    cutlen = 4  # Note: determines minimum length for cutting -> less than 4 episodes means no cuts
     FULL_SEQ = False
+
+    # Note: this is the part where the sequences are constructed: the results are directly mappable
+    #   to the generated traces
 
     # print(len(team))
     for tid, (atta, victims) in enumerate(host_data.items()):
@@ -532,6 +535,9 @@ def break_into_subbehaviors(host_data):
         # print(atta)
         # print(len(victims))
         for episodes in victims:
+            # Episode
+
+            # Note: Why are attackers targeting only one victim excluded?
             if len(episodes) < 2:
                 continue
             victim = episodes[0][7]
@@ -545,6 +551,7 @@ def break_into_subbehaviors(host_data):
 
             else:
                 if pieces < 1:
+                    # Note: add full sequence if it has a length of at most cutLen
                     att = atta + '->' + victim + '-0'
                     # print('---', att, [x[2] for x in episodes])
                     keys.append(att)
@@ -552,7 +559,7 @@ def break_into_subbehaviors(host_data):
                 else:
                     c = 0
                     ep = [x[2] for x in episodes]
-                    # print(ep)
+                    # Note: extract all mcats from the episodes, cut when the mcat lowers
                     cuts = [i for i in range(len(episodes) - 1) if (len(str(ep[i])) > len(
                         str(ep[i + 1])))]  # (ep[i] > 100 and ep[i+1] < 10)]
                     # print(cuts)
@@ -561,11 +568,12 @@ def break_into_subbehaviors(host_data):
                         # print('---', att, [x[2] for x in episodes])
                         keys.append(att)
                         alerts.append(episodes)
-                        # pass
+                        # Note: If there are no cuts, the sequence is one long episode
                     else:
                         rest = (-1, -1)
 
                         for i in range(len(cuts)):
+                            #
                             start, end = 0, 0
                             if i == 0:
                                 start = 0
@@ -574,8 +582,10 @@ def break_into_subbehaviors(host_data):
                                 start = cuts[i - 1] + 1
                                 end = cuts[i]
                             rest = (end + 1, len(ep) - 1)
+                            # Note: get slice with this cut -> one subsequence
                             al = episodes[start:end + 1]
                             if len(al) < 2:
+                                # Note: Discard sequences with only one AE
                                 print('discrding-1', [x[2] for x in al], start, end, len(episodes))
                                 continue
                             att = atta + '->' + victim + '-' + str(c)
@@ -584,8 +594,10 @@ def break_into_subbehaviors(host_data):
                             alerts.append(al)
                             c += 1
                         # print('--', ep[rest[0]: rest[1]+1])
+                        # Note: Also add last part
                         al = episodes[rest[0]: rest[1] + 1]
                         if len(al) < 2:
+                            # Note: Discard sequences with only one AE
                             print('discrding-2', [x[2] for x in al])  # TODO This one is not cool1
                             continue
                         att = atta + '->' + victim + '-' + str(c)

@@ -4,7 +4,9 @@ from src.SequenceGeneration.episodes_updated import TeamAttackEpisodes, AttackEp
 
 # TeamAttackEpisodes = Dict[int, Dict[Tuple, List[AttackEpisode]]]
 
-HostData = Dict[str, List[List[Tuple[AttackEpisode, str]]]]
+HostEpisode = Tuple[AttackEpisode, str]
+
+HostData = Dict[str, List[List[HostEpisode]]]
 
 
 def get_host_episode_sequences(episodes: TeamAttackEpisodes) -> HostData:
@@ -19,12 +21,12 @@ def get_host_episode_sequences(episodes: TeamAttackEpisodes) -> HostData:
             if len(episodes) < 2:
                 print(f"Skipping {attacker}")
                 continue
-            perp, vic = attacker
+            perp, target = attacker
 
             att = f"t{team_id}-{perp}"
             if att not in host_data.keys():
                 host_data[att] = []
-            ext = [(x, vic) for x in episodes]
+            ext = [(x, target) for x in episodes]
 
             host_data[att].append(ext)
 
@@ -36,5 +38,48 @@ def get_host_episode_sequences(episodes: TeamAttackEpisodes) -> HostData:
     return host_data
 
 
-def get_host_sub_behaviors(data: HostData):
-    pass
+SubBehaviors = Tuple[List[List[HostEpisode]], List[str]]
+
+
+def get_host_sub_behaviors(data: HostData, min_seq_length=4) -> SubBehaviors:
+    res = []
+    keys = []
+
+    for tid, (attacker, target) in enumerate(data.items()):
+        # Attacker is t0->1.2.3.4
+
+        print('----- Sequence # ', tid, ' -----')
+
+        for episodes in target:
+            mcats = [he[0].mcat for he in episodes]
+
+            # Skip this
+            if len(episodes) < 2:
+                continue
+
+            target_ip = episodes[0][1]
+            if len(episodes) < min_seq_length:
+                # Add full list as sequence
+                res.append(episodes)
+                keys.append(f"{attacker}->{target_ip}-0")
+                continue
+
+            # Split mcats based on decreasing value
+            splits = [i for i in range(1, len(mcats)) if
+                      len(str(mcats[i])) < len(str(mcats[i - 1]))]
+            splits = [0] + splits + [len(mcats)]
+
+            sub_sequence_count = 0
+
+            for i in range(len(splits) - 1):
+                start = splits[i]
+                end = splits[i + 1]
+                sequence = episodes[start:end]
+                if len(sequence) < 2:
+                    print(f"Discarding: {mcats[start:end]} {start} {end} {len(episodes)}")
+                    continue
+                res.append(sequence)
+                keys.append(f"{attacker}->{target_ip}-{sub_sequence_count}")
+                sub_sequence_count += 1
+
+    return res, keys

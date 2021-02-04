@@ -9,6 +9,7 @@ class MicroAttackStage(Enum):
     """
     INIT = 0
 
+    # Note: Low-severity
     TARGET_IDEN = 1
     SURFING = 2
     SOCIAL_ENGINEERING = 3
@@ -17,6 +18,7 @@ class MicroAttackStage(Enum):
     VULN_DISC = 6
     INFO_DISC = 7
 
+    # Note: Medium-severity
     USER_PRIV_ESC = 10
     ROOT_PRIV_ESC = 11
     NETWORK_SNIFFING = 12
@@ -33,6 +35,7 @@ class MicroAttackStage(Enum):
     ARBITRARY_CODE_EXE = 23
     PRIV_ESC = 99
 
+    # Note: High-severity
     END_POINT_DOS = 100
     NETWORK_DOS = 101
     SERVICE_STOP = 102
