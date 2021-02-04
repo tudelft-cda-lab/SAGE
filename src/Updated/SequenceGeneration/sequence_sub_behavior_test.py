@@ -1,10 +1,8 @@
-import pickle
-
 from src.Base.episodes import host_episode_sequences, break_into_subbehaviors
-from src.SequenceGeneration.sequences import get_host_episode_sequences, \
+from src.Updated.SequenceGeneration import get_host_episode_sequences, \
     get_host_sub_behaviors
-from src.SequenceGeneration.episodes_test import read_pkl, save_pkl
-from src.SequenceGeneration.episodes import TeamAttackEpisodes
+from src.Updated.SequenceGeneration import read_pkl, save_pkl
+from src.Updated.SequenceGeneration import TeamAttackEpisodes
 
 
 def setup():

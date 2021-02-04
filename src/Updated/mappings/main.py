@@ -1,4 +1,4 @@
-from src.mappings.IANA_mapping import load_IANA_mapping
+from src.Updated.mappings import load_IANA_mapping
 
 
 def main():

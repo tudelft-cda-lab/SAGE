@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from src.MicroAttackStage import MicroAttackStage
+from src.Updated.MicroAttackStage import MicroAttackStage
 
 
 class ParsedAlert(object):

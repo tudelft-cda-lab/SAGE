@@ -4,11 +4,12 @@ import glob
 import os
 from typing import List, Optional, Tuple
 
-from src.MicroAttackStage import MicroAttackStage
-from src.SequenceGeneration.ParsedAlert import ParsedAlert, is_duplicate_attack
+from src.Updated.MicroAttackStage import MicroAttackStage
+from src.Updated.SequenceGeneration import ParsedAlert, is_duplicate_attack
 
 # IP to be filtered out, seems to be constant
-from src.mappings.mappings import get_attack_stage_mapping
+# from src.Updated.SequenceGeneration.ParsedAlert import
+from src.Updated.mappings.mappings import get_attack_stage_mapping
 
 BAD_IP = "169.254.169.254"
 
@@ -25,7 +26,7 @@ def read_file(filename: str, reverse=True):
     return unparsed_data
 
 
-def _load_data(folder: str, time_delta, dataset="CPTC'18") -> LoadedData:
+def load_data(folder: str, time_delta, dataset="CPTC'18") -> LoadedData:
     parsed_alerts = []
     team_labels = []
     files = glob.glob(folder + "/*.json")

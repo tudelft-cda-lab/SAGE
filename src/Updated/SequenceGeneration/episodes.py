@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import List, Dict, Tuple, Optional
 
-from src.MicroAttackStage import MicroAttackStage
-from src.SequenceGeneration.ParsedAlert import ParsedAlert
-from src.SequenceGeneration.load import LoadedData
+from src.Updated.MicroAttackStage import MicroAttackStage
+from src.Updated.SequenceGeneration import ParsedAlert
+from src.Updated.SequenceGeneration import LoadedData
 
-from src.mappings.IANA_mapping import IANA_mapping
+from src.Updated.mappings import IANA_mapping
 
 
 class GroupedAlert:

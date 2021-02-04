@@ -2,8 +2,8 @@ import subprocess
 import graphviz
 from IPython.display import Image, display
 
-from src.common import most_frequent
-from src.mappings.mappings import ser_inv, small_mapping
+from src.Updated.common import most_frequent
+from src.Updated.mappings import ser_inv, small_mapping
 
 FLEXFRINGE_PATH = "C:\\Users\\anadeem1\\Downloads\\dfasat\\cmake-build-release\\flexfringe.exe"
 DEFAULT_INI = "C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\data\\s_pdfa.ini"

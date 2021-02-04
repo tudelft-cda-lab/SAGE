@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from src.mappings.mappings import micro
+from src.Updated.mappings import micro
 
 
 # TODO: re-write, or add when needed

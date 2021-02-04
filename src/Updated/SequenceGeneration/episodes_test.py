@@ -2,11 +2,10 @@ import pickle
 
 from src.Base.episodes import aggregate_into_episodes
 from src.Base.load import load_data
-from src.SequenceGeneration.load import *
-from src.SequenceGeneration.load import _parse, _remove_duplicate, _load_data
-from src.SequenceGeneration.episodes import get_attack_episodes
+from src.Updated.SequenceGeneration import _load_data
+from src.Updated.SequenceGeneration import get_attack_episodes
 
-FILE = "../data/cptc_18/suricata_alert_t2.json"
+FILE = "../../data/cptc_18/suricata_alert_t2.json"
 FOLDER = "../data/cptc_18/"
 
 

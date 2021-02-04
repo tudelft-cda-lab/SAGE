@@ -1,4 +1,3 @@
-import sys
 import os
 import matplotlib.style
 import matplotlib as mpl
@@ -6,10 +5,10 @@ import matplotlib as mpl
 from src.Base.episodes import aggregate_into_episodes, host_episode_sequences, \
     break_into_subbehaviors
 from src.Base.load import load_data
-from src.SequenceGeneration.plot import plot_histogram
-from src.attack_graph_generation import loadmodel, encode_sequences, find_severe_states, \
+from src.Updated.SequenceGeneration import plot_histogram
+from src.Updated.attack_graph_generation import loadmodel, encode_sequences, find_severe_states, \
     make_condensed_data, make_state_groups, make_av_data, make_AG
-from src.flexfringe import generate_traces, flexfringe
+from src.Updated.flexfringe import generate_traces, flexfringe
 
 mpl.style.use('default')
 
@@ -39,7 +38,7 @@ rev = "2018"
 
 saddr = "C:\\Users\\Geert\\Desktop\\Thesis\\flexfringe\\flexfringe.exe"
 outaddress = "C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\out\\"
-path_to_ini = "C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\data\\s_pdfa.ini"
+path_to_ini = "/src/data/s_pdfa.ini"
 
 modelname = expname + '.txt'  # 'test-trace-uni-serGroup.txt'
 datafile = expname + '.txt'  # 'trace-uni-serGroup.txt'

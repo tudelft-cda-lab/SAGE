@@ -1,5 +1,5 @@
 from src.IANA_mapping import load_IANA_mapping
-from src.MicroAttackStage import MicroAttackStage
+from src.Updated.MicroAttackStage import MicroAttackStage
 
 mapping = {'MicroAttackStage.TARGET_IDEN': 'MacroAttackStage.PASSIVE_RECON',
            'MicroAttackStage.SURFING': 'MacroAttackStage.PASSIVE_RECON',

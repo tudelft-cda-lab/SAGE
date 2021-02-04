@@ -1,6 +1,6 @@
 from typing import Tuple, List, Dict
 
-from src.SequenceGeneration.episodes import TeamAttackEpisodes, AttackEpisode
+from src.Updated.SequenceGeneration import TeamAttackEpisodes, AttackEpisode
 
 # TeamAttackEpisodes = Dict[int, Dict[Tuple, List[AttackEpisode]]]
 
