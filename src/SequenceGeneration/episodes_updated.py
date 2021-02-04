@@ -123,10 +123,6 @@ def _group_by_attacker_victim(alerts: List[ParsedAlert]) -> GroupedAlerts:
             GroupedAlert(alert_id[0], alert_id[1], alert.mcat, alert.timestamp, port_service))
 
     # Remove all combos with a lack of alerts
-    # for attacker in list(grouped_alerts.keys()):
-    #     if len(grouped_alerts[attacker]) <= 1:
-    #         print(f"Dropping {attacker} due to lack of alerts: {len(grouped_alerts[attacker])}")
-    #         del grouped_alerts[attacker]
     return {attacker: attacker_alerts for attacker, attacker_alerts in grouped_alerts.items() if
             len(attacker_alerts) > 1}
     #
