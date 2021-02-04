@@ -1,13 +1,11 @@
-import os
-import re
-import json
-from collections import defaultdict
 import math
+import os
 
-from src.common import most_frequent
-from src.mappings.mappings import macro_inv, micro2macro, rev_smallmapping, micro
+from src.Base.mappings import *
+import re
+from collections import defaultdict
+import json
 
-# Note: Kept as reference, should not be needed?
 
 def loadmodel(modelfile):
     """Wrapper to load resulting model json file
@@ -110,16 +108,16 @@ def traverse(dfa, sinks, sequence, statelist=False):
                 if not statelist:
                     return dfa[state]["type"] == "1"
                 else:
-                    return dfa[state]["type"] == "1", stlst
+                    return (dfa[state]["type"] == "1", stlst)
         stlst.append(state)
 
     if not statelist:
         return dfa[state]["type"] == "1"
     else:
-        return dfa[state]["type"] == "1", stlst
+        return (dfa[state]["type"] == "1", stlst)
 
 
-def encode_sequences(path_to_traces, m, m2):
+def encode_sequences(m, m2, path_to_traces):
     # print(m2)
     traces = []
     sp = []
@@ -136,7 +134,7 @@ def encode_sequences(path_to_traces, m, m2):
 
         line = ' '.join(spl[2:])
         # print(spl[2:])
-        orig.append([x for x in spl[2:] if x != ''])
+        orig.append([(x) for x in spl[2:] if x != ''])
         traces.append(line)
     num_sink = 0
     total = 0
@@ -198,7 +196,7 @@ def find_severe_states(traces, m, m2):
     return (med_states, sev_states)
 
 
-## collecting sub-behaviors back into the same trace -- condensed_data is the new object to deal with
+# collecting sub-behaviors back into the same trace -- condensed_data is the new object to deal with
 def make_condensed_data(alerts, keys, state_traces, med_states, sev_states):
     levelone = set()
     levelone_ben = set()
@@ -346,21 +344,22 @@ def make_state_groups(condensed_data, datafile):
                         state_groups['ACTIVE_RECON'].add(matched)
                     print('ERROR: manually handled', matched, ' in ACTIVE_RECON')
             # 0 -> 1 [label=
-            # pattern2 = '\D+(\d+)\s->\s(\d+)\s\[label=.*'
-            # SEARCH = re.match(pattern2, line)
-            # if SEARCH:
-            #     matched = int(SEARCH.group(1))
-            #     print(line)
-            #     if matched in states:
-            #         c = i
-            #         while '];' not in lines[c]:
-            #             #print(lines[c])
-            #             outlines.append(lines[c])
-            #             written.append(c)
-            #             c += 1
-            #         #print(lines[c])
-            #         outlines.append(lines[c])
-            #         written.append(c)
+            '''pattern2 = '\D+(\d+)\s->\s(\d+)\s\[label=.*'
+            SEARCH = re.match(pattern2, line)
+            if SEARCH:
+                matched = int(SEARCH.group(1))
+                print(line)
+                if matched in states:
+                    c = i
+                    while '];' not in lines[c]:
+                        #print(lines[c])
+                        outlines.append(lines[c])
+                        written.append(c)
+                        c += 1
+                    #print(lines[c])
+                    outlines.append(lines[c])
+                    written.append(c)
+            '''
         outlines.append('}\n')
         # break
 
@@ -429,6 +428,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
         't7': 'tomato',
         't8': 'turquoise',
         't9': 'skyblue',
+
     }
     SAVE = True
     if SAVE:
@@ -593,23 +593,23 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                 lists = []
                 l = []
 
-                # for i,d in enumerate(data):
-                #     if i in cuts:
-                #         l.append(d)
-                #         if len(l) <= 1: ## If only a single node, reject
-                #             l = []
-                #             continue
-                #
-                #         if attack in l[-1][0]:
-                #             sseen.append(d[0])
-                #             lists.append(l)
-                #         l = []
-                #
-                #         continue
-                #     l.append(d)
-                # if len(l) > 1 and attack in l[-1][0]:
-                #     sseen.append(l[-1][0])
-                #     lists.append(l)
+                '''for i,d in enumerate(data):
+                    if i in cuts:
+                        l.append(d)
+                        if len(l) <= 1: ## If only a single node, reject
+                            l = []
+                            continue
+
+                        if attack in l[-1][0]:
+                            sseen.append(d[0])
+                            lists.append(l)
+                        l = []
+
+                        continue
+                    l.append(d)
+                if len(l) > 1 and attack in l[-1][0]:
+                    sseen.append(l[-1][0])
+                    lists.append(l)'''
                 for d in data:
                     if attack in d[0]:
                         l.append(d)

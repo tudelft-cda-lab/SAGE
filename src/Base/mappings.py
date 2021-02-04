@@ -1,5 +1,67 @@
-from src.IANA_mapping import load_IANA_mapping
-from src.MicroAttackStage import MicroAttackStage
+import csv
+from enum import Enum
+import requests
+
+IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
+
+
+class MicroAttackStage(Enum):
+    INIT = 0
+
+    TARGET_IDEN = 1
+    SURFING = 2
+    SOCIAL_ENGINEERING = 3
+    HOST_DISC = 4
+    SERVICE_DISC = 5
+    VULN_DISC = 6
+    INFO_DISC = 7
+
+    USER_PRIV_ESC = 10
+    ROOT_PRIV_ESC = 11
+    NETWORK_SNIFFING = 12
+    BRUTE_FORCE_CREDS = 13
+    ACCT_MANIP = 14
+    TRUSTED_ORG_EXP = 15
+    PUBLIC_APP_EXP = 16
+    REMOTE_SERVICE_EXP = 17
+    SPEARPHISHING = 18
+    SERVICE_SPECIFIC = 19
+    DEFENSE_EVASION = 20
+    COMMAND_AND_CONTROL = 21
+    LATERAL_MOVEMENT = 22
+    ARBITRARY_CODE_EXE = 23
+    PRIV_ESC = 99
+
+    END_POINT_DOS = 100
+    NETWORK_DOS = 101
+    SERVICE_STOP = 102
+    RESOURCE_HIJACKING = 103
+    DATA_DESTRUCTION = 104
+    CONTENT_WIPE = 105
+    DATA_ENCRYPTION = 106
+    DEFACEMENT = 107
+    DATA_MANIPULATION = 108
+    DATA_EXFILTRATION = 109
+    DATA_DELIVERY = 110
+    PHISHING = 111
+
+    NON_MALICIOUS = 999
+
+
+class MacroAttackStage(Enum):
+    NONE = 0
+    PASSIVE_RECON = 1
+    ACTIVE_RECON = 2
+    PRIVLEDGE_ESC = 3
+    ENSURE_ACCESS = 4
+    TARGETED_EXP = 5
+    ZERO_DAY = 6
+    DISRUPT = 7
+    DISTROY = 8
+    DISTORT = 9
+    DISCLOSURE = 10
+    DELIVERY = 11
+
 
 mapping = {'MicroAttackStage.TARGET_IDEN': 'MacroAttackStage.PASSIVE_RECON',
            'MicroAttackStage.SURFING': 'MacroAttackStage.PASSIVE_RECON',
@@ -180,7 +242,7 @@ small_mapping = {
 }
 rev_smallmapping = dict([(value, key) for key, value in small_mapping.items()])
 
-## DO NOT EXECUTE: Convert each alert into Moskal category: Manual mapping
+## DO NOT EXECUTE: Convert each alert into Moskal categoru: Manual mapping
 ccdc_combined = {"ET CHAT IRC authorization message": MicroAttackStage.NON_MALICIOUS,
                  "ET POLICY Cisco Device in Config Mode": MicroAttackStage.SERVICE_SPECIFIC,
                  "ET POLICY Cisco Device New Config Built": MicroAttackStage.SERVICE_SPECIFIC,
@@ -1263,6 +1325,11 @@ def get_attack_stage_mapping(signature):
     return micro_inv[str(result)]
 
 
+# Program to find most frequent
+def most_frequent(serv):
+    return max(set(serv), key=serv.count)
+
+
 ser_groups = dict({
     'http(s)': ['http', 'https', 'ddi-udp-1', 'radan-http'],
     'wireless': ['wap-wsp'],
@@ -1272,7 +1339,7 @@ ser_groups = dict({
     'broadcast': ['ssdp', 'snmp', 'commplex-main', 'icmpd', 'wsdapi'],
     'nameserver': ['domain', 'netbios-ns', 'menandmice-dns'],
     'remoteAccess': ['ssh', 'rfb', 'us-cli', 'ahsp', 'spt-automation', 'asf-rmcp', 'xdmcp',
-                     'pcanywherestat', 'esmagent',
+                     'pcanywherestat', 'esmagent', \
                      'irdmi', 'epmap', 'wsman', 'icslap', 'ms-wbt-server', 'appiq-mgmt', 'sunrpc',
                      'mosaicsyssvc1'],
     'surveillance': ['remoteware-cl', 'ads-c', 'syslog', 'websm', 'distinct'],
@@ -1300,4 +1367,38 @@ for k, v in ser_groups.items():
     for x in v:
         ser_inv.setdefault(x, []).append(k)
 
-port_services = load_IANA_mapping()
+
+def load_IANA_mapping():
+    """Download the IANA port-service mapping"""
+    response = requests.get(IANA_CSV_FILE)
+    if response.ok:
+        content = response.content.decode("utf-8")
+    else:
+        raise RuntimeError('Cannot download IANA ports')
+    table = csv.reader(content.splitlines())
+
+    # Drop headers (Service name, port, protocol, description, ...)
+    headers = next(table)
+
+    # Note that ports might have holes
+    ports = {}
+    for row in table:
+        # Drop missing port number, Unassigned and Reserved ports
+        if row[1] and 'Unassigned' not in row[3]:  # and 'Reserved' not in row[3]:
+
+            # Split range in single ports
+            if '-' in row[1]:
+                low_port, high_port = map(int, row[1].split('-'))
+            else:
+                low_port = high_port = int(row[1])
+
+            for port in range(low_port, high_port + 1):
+                ports[port] = {
+                    "name": row[0] if row[0] else "Unknown",
+                    "description": row[3] if row[3] else "---",
+                }
+        else:
+            # Do nothing
+            pass
+
+    return ports

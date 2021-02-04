@@ -1,11 +1,15 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
-from src.mappings.mappings import micro
+from src.Base.mappings import micro
+
+plt.style.use("default")
 
 
-# TODO: re-write, or add when needed
-#  Mostly kept as reference
+## ----- 2
+## 3
+## 11
+## Plotting for each team, how much categories are consumed
 def plot_histogram(unparse, team_labels):
     # Choice of: Suricata category usage or Micro attack stage usage?
     SURICATA_SUMMARY = False
@@ -93,3 +97,7 @@ def legend_without_duplicate_labels(ax, fontsize=10, loc='upper right'):
     unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
     unique = sorted(unique, key=lambda x: x[1])
     ax.legend(*zip(*unique), loc=loc, fontsize=fontsize)
+
+## 13
+# Goal: (1) To first form a collective attack profile of a team
+# and then (2) TO compare attack profiles of teams

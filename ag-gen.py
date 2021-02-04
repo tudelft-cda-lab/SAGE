@@ -2124,7 +2124,7 @@ def flexfringe(*args, **kwargs):
     for key in kwargs:
       command += ["--" + key + "=" + kwargs[key]]
 
-  result = subprocess.run(["C:\\Users\\anadeem1\\Downloads\\dfasat\\cmake-build-release\\flexfringe.exe",] + command + [args[0]], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+  result = subprocess.run(["C:\\Users\\Geert\\Desktop\\Thesis\\flexfringe\\flexfringe.exe",] + command + [args[0]], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
   print(result.returncode, result.stdout, result.stderr)
 
   
@@ -2898,9 +2898,13 @@ rev = False
 if len(sys.argv) >= 6:
     rev = sys.argv[5]
     
-saddr = 'C:\\Users\\anadeem1\\Downloads\\dfasat\\data\\' # path_to_flexfringe installation
+# saddr = 'C:\\Users\\anadeem1\\Downloads\\dfasat\\data\\' # path_to_flexfringe installation
+# outaddress = ""#"C:\\Users\\anadeem1\\Downloads\\dfasat\\"
+# path_to_ini = "C:\\Users\\anadeem1\\Downloads\\dfasat\\ini\\batch-likelihoodRIT.ini"
+
+saddr = "C:\\Users\\Geert\\Desktop\\Thesis\\flexfringe\\flexfringe.exe"
 outaddress = ""#"C:\\Users\\anadeem1\\Downloads\\dfasat\\"
-path_to_ini = "C:\\Users\\anadeem1\\Downloads\\dfasat\\ini\\batch-likelihoodRIT.ini"
+path_to_ini = "C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\data\\s_pdfa.ini"
 
 modelname = expname+'.txt'#'test-trace-uni-serGroup.txt'
 datafile = expname+'.txt'#'trace-uni-serGroup.txt'

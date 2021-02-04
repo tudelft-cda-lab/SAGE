@@ -22,6 +22,7 @@ def inverse_map_aggregate(m):
             res[value] = [key]
     return res
 
+
 def most_frequent(serv):
     """
     Finds the most frequent value in a collection

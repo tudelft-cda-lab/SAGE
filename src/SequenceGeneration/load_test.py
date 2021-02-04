@@ -1,3 +1,4 @@
+from src.Base.load import parse, removeDup
 from src.SequenceGeneration.load import *
 from src.SequenceGeneration.load import _parse, _remove_duplicate
 

@@ -1,10 +1,10 @@
 import pickle
 
-from src.SequenceGeneration.episode_sequences import get_host_episode_sequences, \
+from src.Base.episodes import host_episode_sequences, break_into_subbehaviors
+from src.SequenceGeneration.sequences import get_host_episode_sequences, \
     get_host_sub_behaviors
-from src.SequenceGeneration.episodes import host_episode_sequences, break_into_subbehaviors
 from src.SequenceGeneration.episodes_test import read_pkl, save_pkl
-from src.SequenceGeneration.episodes_updated import TeamAttackEpisodes
+from src.SequenceGeneration.episodes import TeamAttackEpisodes
 
 
 def setup():
@@ -48,7 +48,7 @@ def main():
 
         if base_keys[i] == 't0-10.0.254.202->10.0.0.22-2':
             # Note: Remove last part -> extra episode (see previous test)
-            update_seq=update_seq[:-1]
+            update_seq = update_seq[:-1]
 
         assert len(base_seq) == len(update_seq)
         for j in range(len(base_seq)):
