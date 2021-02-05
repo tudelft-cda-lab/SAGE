@@ -1,5 +1,8 @@
+from typing import Tuple
+
 from src.Base.load import parse, removeDup
-from src.Updated.SequenceGeneration import _parse, _remove_duplicate
+from src.Updated.SequenceGeneration.ParsedAlert import ParsedAlert
+from src.Updated.SequenceGeneration.load import read_file, _parse, _remove_duplicate
 
 FILE = "../../data/cptc_18/suricata_alert_t2.json"
 
@@ -37,11 +40,13 @@ def main():
 
     print(f"{len(parsed_base)} vs {len(parsed_update)}")
     if len(parsed_update) == len(parsed_base) + 1:
-        # TODO: Find reference to this part in the code
+        # Note: Base.load.py: 166 -> removeDup skips index 0
         parsed_update = parsed_update[1:]
     assert len(parsed_base) == len(parsed_update)
     for i in range(len(parsed_base)):
         assert_equivalent(parsed_update[i], parsed_base[i])
+
+    print("Done testing")
 
 
 if __name__ == '__main__':

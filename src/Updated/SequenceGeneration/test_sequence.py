@@ -1,7 +1,8 @@
 from src.Base.episodes import aggregate_into_episodes, host_episode_sequences
-from src.Updated.SequenceGeneration import get_host_episode_sequences
-from src.Updated.SequenceGeneration import read_pkl, save_pkl
-from src.Updated.SequenceGeneration import get_attack_episodes, TeamAttackEpisodes
+from src.Updated.SequenceGeneration.episodes import get_attack_episodes, TeamAttackEpisodes
+from src.Updated.SequenceGeneration.load import *
+from src.Updated.SequenceGeneration.sequences import get_host_episode_sequences
+from src.Updated.SequenceGeneration.test_episodes import save_pkl, read_pkl
 
 
 def setup():
@@ -9,7 +10,6 @@ def setup():
     data_update: LoadedData = read_pkl("test_data/update.pkl")
     print("Loaded data")
 
-    # TODO: Find out why the first alert is removed in the original code
     data_update[0][0] = data_update[0][0][1:]
     assert len(data_base[0]) == len(data_update[0][0])
 

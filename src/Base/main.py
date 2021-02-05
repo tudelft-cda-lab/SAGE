@@ -34,7 +34,7 @@ datafile = expname + '.txt'  # 'trace-uni-serGroup.txt'
 
 path_to_traces = datafile
 
-port_services = load_IANA_mapping()
+# port_services = load_IANA_mapping()
 
 print('----- Reading alerts ----------')
 (unparse, team_labels) = load_data(folder, t, rev)  # t = minimal window for alert filtering

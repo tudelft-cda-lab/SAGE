@@ -34,15 +34,6 @@ class ParsedAlert(object):
     def __str__(self):
         return f"ParsedAlert: {self.src_ip}:{self.src_port} -> {self.dest_ip}:{self.dest_port}, {self.mcat}, {self.timestamp}"
 
-
 # Reference: in the base, alerts are represented as a tuple:
 # (DIFF, srcip, srcport, dstip, dstport, sig, cat, host, dt, mcat)
 #  0     1      2        3      4        5    6    7     8   9
-
-
-def is_duplicate_attack(base: ParsedAlert, other: ParsedAlert) -> bool:
-    return base.src_ip == other.src_ip \
-           and base.src_port == other.src_port \
-           and base.dest_ip == other.dest_ip \
-           and base.dest_port == other.dest_port \
-           and base.signature == other.signature

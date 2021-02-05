@@ -1,7 +1,7 @@
+import csv
 from typing import Dict
 
 import requests
-import csv
 
 IANA_CSV_FILE = \
     "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"

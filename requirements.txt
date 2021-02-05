@@ -5,3 +5,5 @@ matplotlib
 numpy
 graphviz
 jupyter
+
+ipython

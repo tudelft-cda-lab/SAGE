@@ -1,8 +1,8 @@
 from src.Base.episodes import host_episode_sequences, break_into_subbehaviors
-from src.Updated.SequenceGeneration import get_host_episode_sequences, \
+from src.Updated.SequenceGeneration.episodes import TeamAttackEpisodes
+from src.Updated.SequenceGeneration.sequences import get_host_episode_sequences, \
     get_host_sub_behaviors
-from src.Updated.SequenceGeneration import read_pkl, save_pkl
-from src.Updated.SequenceGeneration import TeamAttackEpisodes
+from src.Updated.SequenceGeneration.test_episodes import read_pkl, save_pkl
 
 
 def setup():
@@ -58,8 +58,9 @@ def main():
             assert base[1] == update[0].end_time
             assert base[2] == update[0].mcat
             assert base[6] == update[0].services
+    print("Done testing sub-behavior splitting")
 
 
 if __name__ == '__main__':
-    # setup()
+    setup()
     main()

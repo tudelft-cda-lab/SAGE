@@ -1,5 +1,6 @@
 import csv
 from enum import Enum
+
 import requests
 
 IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
@@ -1402,3 +1403,6 @@ def load_IANA_mapping():
             pass
 
     return ports
+
+
+port_services = load_IANA_mapping()

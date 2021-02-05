@@ -1,16 +1,14 @@
 import datetime
-import json
 import glob
+import json
 import os
 from typing import List, Optional, Tuple
 
 from src.Updated.MicroAttackStage import MicroAttackStage
-from src.Updated.SequenceGeneration import ParsedAlert, is_duplicate_attack
-
-# IP to be filtered out, seems to be constant
-# from src.Updated.SequenceGeneration.ParsedAlert import
+from src.Updated.SequenceGeneration.ParsedAlert import ParsedAlert
 from src.Updated.mappings.mappings import get_attack_stage_mapping
 
+# IP to be filtered out, seems to be constant
 BAD_IP = "169.254.169.254"
 
 # Type hint to shorten the result of loading data
@@ -180,25 +178,22 @@ def _parse_cptc_18(raw_data, filter_info_leak=False) -> List[ParsedAlert]:
 def _remove_duplicate(alerts: List[ParsedAlert], time_delta=1.0) -> List[ParsedAlert]:
     # First alert cannot be a duplicate of the previous
     result = [alerts[0]]
-    # result = []
     previous = alerts[0]
 
+    # Note:
     for alert in alerts[1:]:
-        # if alert.mcat == MicroAttackStage.NON_MALICIOUS and not (
-        #         alert.time_delta_seconds < time_delta
-        #         and is_duplicate_attack(alert, previous)):
-        # if alert.mcat != MicroAttackStage.NON_MALICIOUS and not (
-        #         alert.time_delta_seconds < time_delta
-        #         and alert.src_ip == previous.src_ip
-        #         and alert.src_port == previous.src_port
-        #         and alert.dest_ip == previous.dest_ip
-        #         and alert.dest_port == previous.dest_port
-        #         and alert.signature == previous.signature):
-        #     result.append(alert)
         if alert.mcat != MicroAttackStage.NON_MALICIOUS and not (
                 alert.time_delta_seconds <= time_delta
                 and is_duplicate_attack(alert, previous)):
             result.append(alert)
-        previous = alert
+            previous = alert
 
     return result
+
+
+def is_duplicate_attack(base: ParsedAlert, other: ParsedAlert) -> bool:
+    return base.src_ip == other.src_ip \
+           and base.src_port == other.src_port \
+           and base.dest_ip == other.dest_ip \
+           and base.dest_port == other.dest_port \
+           and base.signature == other.signature

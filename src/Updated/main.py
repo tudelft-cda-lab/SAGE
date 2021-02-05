@@ -5,7 +5,7 @@ import matplotlib as mpl
 from src.Base.episodes import aggregate_into_episodes, host_episode_sequences, \
     break_into_subbehaviors
 from src.Base.load import load_data
-from src.Updated.SequenceGeneration import plot_histogram
+from src.Updated.SequenceGeneration.plot import plot_histogram
 from src.Updated.attack_graph_generation import loadmodel, encode_sequences, find_severe_states, \
     make_condensed_data, make_state_groups, make_av_data, make_AG
 from src.Updated.flexfringe import generate_traces, flexfringe

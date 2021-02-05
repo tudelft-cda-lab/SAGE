@@ -1,12 +1,11 @@
 import pickle
 
 from src.Base.episodes import aggregate_into_episodes
-from src.Base.load import load_data
-from src.Updated.SequenceGeneration import _load_data
-from src.Updated.SequenceGeneration import get_attack_episodes
+from src.Base.load import load_data as load_data_old
+from src.Updated.SequenceGeneration.episodes import get_attack_episodes
+from src.Updated.SequenceGeneration.load import LoadedData, load_data
 
-FILE = "../../data/cptc_18/suricata_alert_t2.json"
-FOLDER = "../data/cptc_18/"
+FOLDER = "../../data/cptc_18/"
 
 
 def save_pkl(data, filename):
@@ -23,21 +22,23 @@ def read_pkl(filename):
 
 
 def setup():
-    data_base, team_labels = load_data(FOLDER, 1.0, "2018")
-    data_update = _load_data(FOLDER, 1.0, "CPTC'18")
+    data_base, team_labels = load_data_old(FOLDER, 1.0, "2018")
+    data_update = load_data(FOLDER, 1.0, "CPTC'18")
 
     save_pkl((data_base, team_labels), "test_data/base.pkl")
     save_pkl(data_update, "test_data/update.pkl")
 
+    print("Setup done")
+
 
 def main():
     # data_base, team_labels = load_data(FOLDER, 1.0, "2018")
-    # data_update = _load_data(FOLDER, 1.0, "CPTC'18")
+    # data_update = load_data(FOLDER, 1.0, "CPTC'18")
     data_base, team_labels = read_pkl("test_data/base.pkl")
     data_update: LoadedData = read_pkl("test_data/update.pkl")
     print("Loaded data")
 
-    # TODO: Find out why the first alert is removed in the original code
+    # Note: See test_load
     data_update[0][0] = data_update[0][0][1:]
     assert len(data_base[0]) == len(data_update[0][0])
 
