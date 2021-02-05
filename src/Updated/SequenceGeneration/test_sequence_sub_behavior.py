@@ -2,7 +2,7 @@ from src.Base.episodes import host_episode_sequences, break_into_subbehaviors
 from src.Updated.SequenceGeneration.episodes import TeamAttackEpisodes
 from src.Updated.SequenceGeneration.sequences import get_host_episode_sequences, \
     get_host_sub_behaviors
-from src.Updated.SequenceGeneration.test_episodes import read_pkl, save_pkl
+from src.Updated.common import read_pkl, save_pkl
 
 
 def setup():

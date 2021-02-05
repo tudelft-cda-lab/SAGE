@@ -1,24 +1,10 @@
-import pickle
-
 from src.Base.episodes import aggregate_into_episodes
 from src.Base.load import load_data as load_data_old
 from src.Updated.SequenceGeneration.episodes import get_attack_episodes
 from src.Updated.SequenceGeneration.load import LoadedData, load_data
+from src.Updated.common import read_pkl, save_pkl
 
-FOLDER = "../../data/cptc_18/"
-
-
-def save_pkl(data, filename):
-    file = open(filename, "wb")
-    pickle.dump(data, file)
-    file.close()
-
-
-def read_pkl(filename):
-    file = open(filename, "rb")
-    res = pickle.load(file)
-    file.close()
-    return res
+FOLDER = "../../data/cptc_18_full/"
 
 
 def setup():
@@ -39,8 +25,9 @@ def main():
     print("Loaded data")
 
     # Note: See test_load
-    data_update[0][0] = data_update[0][0][1:]
-    assert len(data_base[0]) == len(data_update[0][0])
+    for i in range(len(data_update)):
+        data_update[0][i] = data_update[0][i][1:]
+        assert len(data_base[i]) == len(data_update[0][i])
 
     print("Aggregating base")
     episodes_base, _ = aggregate_into_episodes(data_base, team_labels, step=150)
@@ -48,45 +35,48 @@ def main():
     episodes_update = get_attack_episodes(data_update, time_step=150)
     print("Done aggregating")
 
-    team_base = episodes_base[0]
-    team_update = episodes_update[0]
+    for x in range(len(episodes_base)):
+        print(f"-------- Eval team {x} --------")
+        team_base = episodes_base[x]
+        team_update = episodes_update[x]
 
-    base_attackers = set(team_base.keys())
-    updated_attackers = set(team_update.keys())
-    diff_1 = updated_attackers - base_attackers
-    diff_2 = base_attackers - updated_attackers
-    print(f"{len(base_attackers)} attackers in base, {len(updated_attackers)} attackers in update")
-    print(f"{diff_1} in updated, not in base")
-    print(f"{diff_2} in base, not in updated")
+        base_attackers = set(team_base.keys())
+        updated_attackers = set(team_update.keys())
+        diff_1 = updated_attackers - base_attackers
+        diff_2 = base_attackers - updated_attackers
+        print(
+            f"{len(base_attackers)} attackers in base, {len(updated_attackers)} attackers in update")
+        print(f"{diff_1} in updated, not in base")
+        print(f"{diff_2} in base, not in updated")
 
-    for attacker, base in team_base.items():
-        # if attacker in {('10.0.254.202', '10.0.0.22')}:
-        #     continue
-        update = team_update[attacker]
-        # assert attacker in team_update
-        # assert len(base) == len(update)
-        #
-        # for i in range(len(base)):
-        #     base_ep = base[i]
-        #     update_ep = update[i]
-        #
-        #     assert update_ep.start_time == base_ep[0]
-        #     assert update_ep.end_time == base_ep[1]
-        #     assert update_ep.mcat == base_ep[2]
-        #     assert update_ep.services == base_ep[6]
+        for attacker, base in team_base.items():
+            # if attacker in {('10.0.254.202', '10.0.0.22')}:
+            #     continue
+            update = team_update[attacker]
+            # assert attacker in team_update
+            # assert len(base) == len(update)
+            #
+            # for i in range(len(base)):
+            #     base_ep = base[i]
+            #     update_ep = update[i]
+            #
+            #     assert update_ep.start_time == base_ep[0]
+            #     assert update_ep.end_time == base_ep[1]
+            #     assert update_ep.mcat == base_ep[2]
+            #     assert update_ep.services == base_ep[6]
 
-        if len(base) != len(update):
-            print(
-                f"{attacker} -> different number of episodes: expected {len(base)}, got {len(update)}")
-            continue
+            if len(base) != len(update):
+                print(
+                    f"{attacker} -> different number of episodes: expected {len(base)}, got {len(update)}")
+                continue
 
-        for i in range(len(base)):
-            base_ep = base[i]
-            update_ep = update[i]
-            # print(i)
-            if update_ep.start_time != base_ep[0] or update_ep.end_time != base_ep[1] or \
-                    update_ep.mcat != base_ep[2] or update_ep.services != base_ep[6]:
-                print(f"{attacker} -> difference at index {i}")
+            for i in range(len(base)):
+                base_ep = base[i]
+                update_ep = update[i]
+                # print(i)
+                if update_ep.start_time != base_ep[0] or update_ep.end_time != base_ep[1] or \
+                        update_ep.mcat != base_ep[2] or update_ep.services != base_ep[6]:
+                    print(f"{attacker} -> difference at index {i}")
 
     print("done")
 

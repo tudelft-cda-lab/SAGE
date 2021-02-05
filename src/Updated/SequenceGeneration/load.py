@@ -186,7 +186,9 @@ def _remove_duplicate(alerts: List[ParsedAlert], time_delta=1.0) -> List[ParsedA
                 alert.time_delta_seconds <= time_delta
                 and is_duplicate_attack(alert, previous)):
             result.append(alert)
-            previous = alert
+            # TODO: uncomment -> remove all duplicates, not just the one-based
+            # previous = alert
+        previous = alert
 
     return result
 

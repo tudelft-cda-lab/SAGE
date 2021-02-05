@@ -39,7 +39,7 @@ class AttackEpisode:
         self.alerts = alerts
 
     def __str__(self):
-        return f"{self.start_time}--{self.end_time}; {len(self.alerts)} alerts; {self.mcat.name}; {self.services}"
+        return f"{self.start_time}--{self.end_time}; {len(self.alerts)} alerts; {self.mcat}; {self.services}"
 
     def first_alert_time(self, start_time: Optional[datetime] = None):
         """

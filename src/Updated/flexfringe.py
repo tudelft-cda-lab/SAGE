@@ -1,12 +1,62 @@
 import subprocess
+from typing import List
+
 import graphviz
 from IPython.display import Image, display
 
-from src.Updated.common import most_frequent
+from src.Updated.SequenceGeneration.sequences import SubBehaviors, HostEpisode
 from src.Updated.mappings.mappings import ser_inv, small_mapping
 
 FLEXFRINGE_PATH = "C:\\Users\\anadeem1\\Downloads\\dfasat\\cmake-build-release\\flexfringe.exe"
 DEFAULT_INI = "C:\\Users\\Geert\\Desktop\\Thesis\\AD-Attack-Graph\\src\\data\\s_pdfa.ini"
+
+
+def most_frequent(serv):
+    """
+    Finds the most frequent value in a collection
+    """
+    # TODO: does this work?
+    return max(set(serv), key=serv.count)
+
+
+#                       alerts                  keys
+# SubBehaviors = Tuple[List[List[HostEpisode]], List[str]]
+def construct_traces(sub_sequences: SubBehaviors, filename: str) -> None:
+    sequences = sub_sequences[0]
+    keys = sub_sequences[1]
+
+    # Count number of unique symbols -> used for writing the header
+    unique_symbols = set()
+    traces: List[str] = []
+
+    def sequence_to_symbols(seq: List[HostEpisode]) -> List[str]:
+        res = []
+        for (ep, target_ip) in seq:
+            mcat = small_mapping[ep.mcat]
+            service = ser_inv[most_frequent(ep.services)][0]
+
+            res.append(f"{mcat}|{service}")
+
+        return res
+
+    for i in range(len(sequences)):
+        sequence = sequences[i]
+        key = keys[i]
+
+        # Skip short sequences
+        if len(sequence) < 3:
+            continue
+
+        sequence_symbols = sequence_to_symbols(sequence)
+        unique_symbols.update(sequence_symbols)
+
+        symbols_str = " ".join(reversed(sequence_symbols))
+        traces.append(f"1 {len(sequence_symbols)} {symbols_str}")
+
+    file = open(filename, "w+")
+    file.write(f"{len(traces)} {len(unique_symbols)}\n")
+    file.write("\n".join(traces))
+    file.close()
 
 
 ## 27 Aug 2020: Generating traces for flexfringe
@@ -97,4 +147,3 @@ def show(data):
         g = graphviz.Source(data, format="png")
         g.render()
         display(Image(g.render()))
-

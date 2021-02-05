@@ -5,7 +5,7 @@ from collections import defaultdict
 import math
 
 from src.Updated.common import most_frequent
-from src.Updated.mappings import macro_inv, micro2macro, rev_smallmapping, micro
+from src.Updated.mappings.mappings import macro_inv, micro2macro, rev_smallmapping, micro
 
 # Note: Kept as reference, should not be needed?
 

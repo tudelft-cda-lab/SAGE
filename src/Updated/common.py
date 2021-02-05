@@ -1,3 +1,6 @@
+import pickle
+
+
 def inverse_map(m):
     """
     Changes a map, converting keys to values and values to keys.
@@ -23,9 +26,26 @@ def inverse_map_aggregate(m):
     return res
 
 
-def most_frequent(serv):
+def save_pkl(data, filename):
     """
-    Finds the most frequent value in a collection
+    Saves data to a pkl file.
+
+    Note: Don't share picked data: https://docs.python.org/3/library/pickle.html
+      Only read data you trust/know
     """
-    # TODO: does this work?
-    return max(set(serv), key=serv.count)
+    file = open(filename, "wb")
+    pickle.dump(data, file)
+    file.close()
+
+
+def read_pkl(filename):
+    """
+    Reads data from a pkl file
+
+    Note: Don't share picked data: https://docs.python.org/3/library/pickle.html
+      Only read data you trust/know
+    """
+    file = open(filename, "rb")
+    res = pickle.load(file)
+    file.close()
+    return res
