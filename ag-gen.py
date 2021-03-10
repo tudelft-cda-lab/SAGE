@@ -174,6 +174,42 @@ small_mapping = {
     999: 'benign'
 }
 rev_smallmapping = dict([(value, key) for key, value in small_mapping.items()]) 
+verbose_micro = {'INIT': 'INITILIZE', 
+'TARGET_IDEN': 'TARGET IDENTIFICATION', 
+'SURFING': 'SURFING', 
+'SOCIAL_ENGINEERING': 'SOCIAL ENGINEERING', 
+'HOST_DISC': 'HOST DISCOVERY', 
+'SERVICE_DISC': 'SERVICE DISCOVERY', 
+'VULN_DISC': 'VULNERABILTY DISCOVERY', 
+'INFO_DISC': 'INFO DISCOVERY', 
+'USER_PRIV_ESC': 'USER PRIVILEGE ESCALATION', 
+'ROOT_PRIV_ESC': 'ROOT PRIVILEGE ESCALATION', 
+'NETWORK_SNIFFING': 'NETWORK SNIFFING', 
+'BRUTE_FORCE_CREDS': 'BRUTE FORCE CREDENTIALS', 
+'ACCT_MANIP': 'ACCOUNT MANIPULATION', 
+'TRUSTED_ORG_EXP': 'TRUSTED ORG. EXPLOIT', 
+'PUBLIC_APP_EXP': 'PUBLIC APP EXPLOIT', 
+'REMOTE_SERVICE_EXP': 'REMOTE SERVICE EXPLOIT', 
+'SPEARPHISHING': 'SPEAR PHISHING', 
+'SERVICE_SPECIFIC': 'SERVICE SPECIFIC', 
+'DEFENSE_EVASION': 'DEFENSE EVASION', 
+'COMMAND_AND_CONTROL': 'COMMAND AND CONTROL', 
+'LATERAL_MOVEMENT': 'LATERAL MOVEMENT', 
+'ARBITRARY_CODE_EXE': 'ARBITRARY CODE EXECUTION', 
+'PRIV_ESC': 'PRIVILEGE ESCALATION', 
+'END_POINT_DOS': 'END POINT DoS', 
+'NETWORK_DOS': 'NETWORK DoS', 
+'SERVICE_STOP': 'SERVICE STOP', 
+'RESOURCE_HIJACKING': 'RESOURCE HIJACKING', 
+'DATA_DESTRUCTION': 'DATA DESTRUCTION', 
+'CONTENT_WIPE': 'CONTENT WIPE', 
+'DATA_ENCRYPTION': 'DATA ENCRYPTION', 
+'DEFACEMENT': 'DEFACEMENT', 
+'DATA_MANIPULATION': 'DATA MANIPULATION', 
+'DATA_EXFILTRATION': 'Data Exfiltration', 
+'DATA_DELIVERY': 'DATA DELIVERY', 
+'PHISHING': 'PHISHING', 
+'NON_MALICIOUS': 'NOT MALICIOUS'}
 
 ## DO NOT EXECUTE: Convert each alert into Moskal categoru: Manual mapping
 ccdc_combined = { "ET CHAT IRC authorization message": MicroAttackStage.NON_MALICIOUS,
@@ -2546,7 +2582,23 @@ def make_av_data(condensed_data):
     #print([(k,[x[0] for x in v]) for k,v in condensed_a_data.items()])
     print('attackers', (set([x.split('-')[1] for x in condensed_a_data.keys()])))
     return (condensed_a_data, condensed_v_data)
- 
+
+## translate technical nodes to human readable
+def translate(label, root=False):
+    new_label = ""
+    parts = label.split("|")
+    if root:
+        new_label += 'Victim: '+str(root)+'\n'
+
+    if len(parts) >= 1:
+        new_label += verbose_micro[parts[0]]
+    if len(parts) >= 2:
+        new_label += "\nTarget: "+parts[1]
+    if len(parts) >= 3:
+        new_label += "\nAction ID: "+parts[2]
+
+    return new_label
+    
 ## Per-objective attack graph for dot: 14 Nov (final attack graph) 
 def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):  
     
@@ -2571,7 +2623,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
             dirname = expname+'AGs'
             os.mkdir(dirname)
         except:
-            print("Can't cerate directory here")
+            print("Can't create directory here")
         else:
             print("Successfully created directory for AGs")
     
@@ -2770,10 +2822,10 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
             lines = []
             lines.append((0,'digraph '+ name + ' {'))
             lines.append((0,'rankdir="BT";'))
-            lines.append((0, '"'+attack+'" [shape=doubleoctagon, style=filled, fillcolor=salmon];'))
-            lines.append((0, '{ rank = max; "'+attack+'"}'))
+            lines.append((0, '"'+translate(attack, root=int_victim)+'" [shape=doubleoctagon, style=filled, fillcolor=salmon];'))
+            lines.append((0, '{ rank = max; "'+translate(attack, root=int_victim)+'"}'))
             for s in list(set(sseen)):
-                lines.append((0,'"'+s+'" -> "'+attack+'"'))
+                lines.append((0,'"'+translate(s)+'" -> "'+translate(attack, root=int_victim)+'"'))
                 #print(s, s.split('|')[1], ser_inv[s.split('|')[1]][0])
                 
                 #o = ser_inv[s.split('|')[1]][0]
@@ -2781,10 +2833,10 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                 #    ser_total[o] = set()
                 #ser_total[o].add(s)
             for s in list(set(sseen)):
-                lines.append((0,'"'+s+'" [style=filled, fillcolor= salmon]'))
+                lines.append((0,'"'+translate(s)+'" [style=filled, fillcolor= salmon]'))
             #print('-------!!!numObjs', set(sseen))
             
-            samerank = '{ rank=same; "'+ '" "'.join(sseen)
+            samerank = '{ rank=same; "'+ '" "'.join([translate(x) for x in sseen])
             samerank += '"}'
             lines.append((0,samerank))
 
@@ -2815,28 +2867,28 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                         
                         if vid == 0:
                             if 'Sink' in one[0]:
-                                lines.append((0,'"'+one[0]+'" [style="dotted,filled", fillcolor= yellow]'))
+                                lines.append((0,'"'+translate(one[0])+'" [style="dotted,filled", fillcolor= yellow]'))
                             else:
-                                lines.append((0,'"'+one[0]+'" [style=filled, fillcolor= yellow]'))
+                                lines.append((0,'"'+translate(one[0])+'" [style=filled, fillcolor= yellow]'))
                         else:
                             if 'Sink' in one[0]:
                                 line = [x[1] for x in lines]
                                 
-                                partial = '"'+one[0]+'" [style="dotted'
+                                partial = '"'+translate(one[0])+'" [style="dotted'
                                 #print(line)
                                 #print('@@@@', partial)
                                 if not sum([True if partial in x else False for x in line]):
                                     lines.append((0,partial+'"]'))
                             elif 'Sink' in two[0]:
                                 line = [x[1] for x in lines]
-                                partial = '"'+two[0]+'" [style="dotted'
+                                partial = '"'+translate(two[0])+'" [style="dotted'
                                 #print(line)
                                 #print('@@@@', partial)
                                 if not sum([True if partial in x else False for x in line]):
                                     lines.append((0,partial+'"]'))
                                 #lines.append((0,'"'+two[0]+'" [style="dotted"]'))
                         #edges += 1
-                        lines.append((one[1], '"'+one[0]+'"' + ' -> ' + '"'+two[0]+'"' +' [ label='+ str(one[1]) +']' + '[ color='+color+']')) # 
+                        lines.append((one[1], '"'+translate(one[0])+'"' + ' -> ' + '"'+translate(two[0])+'"' +' [ label="'+ str(one[1]) +'ms"]' + '[ color='+color+']')) # 
             #lines = sorted(lines, key=lambda item: item[0], reverse=True)
             #print(lines)
             #print(nodes)
@@ -2845,7 +2897,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                 mas = node.split('|')[0]
                 mas = macro_inv[micro2macro['MicroAttackStage.'+mas]]
                 shape = shapes[mas]
-                lines.append((0,'"'+node+'" [shape='+shape+']'))
+                lines.append((0,'"'+translate(node)+'" [shape='+shape+']'))
             lines.append((1000,'}'))
             
             for l in lines:
