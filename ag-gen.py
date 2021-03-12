@@ -206,7 +206,7 @@ verbose_micro = {'INIT': 'INITILIZE',
 'DATA_ENCRYPTION': 'DATA ENCRYPTION', 
 'DEFACEMENT': 'DEFACEMENT', 
 'DATA_MANIPULATION': 'DATA MANIPULATION', 
-'DATA_EXFILTRATION': 'Data Exfiltration', 
+'DATA_EXFILTRATION': 'DATA EXFILTRATION', 
 'DATA_DELIVERY': 'DATA DELIVERY', 
 'PHISHING': 'PHISHING', 
 'NON_MALICIOUS': 'NOT MALICIOUS'}
@@ -1283,18 +1283,18 @@ ser_groups = dict({
     'nameserver': ['domain', 'netbios-ns', 'menandmice-dns'],
     'remoteAccess': ['ssh', 'rfb', 'us-cli',  'ahsp', 'spt-automation', 'asf-rmcp', 'xdmcp', 'pcanywherestat', 'esmagent', \
                     'irdmi', 'epmap', 'wsman', 'icslap','ms-wbt-server', 'appiq-mgmt', 'sunrpc', 'mosaicsyssvc1'],
-    'surveillance' : ['remoteware-cl', 'ads-c', 'syslog', 'websm', 'distinct'],
+    'surveillance' : ['remoteware-cl', 'ads-c', 'syslog', 'websm', 'distinct', 'irisa'],
 
     'hostingServer': ['cslistener', 'etlservicemgr', 'web2host'],
     
     'printService' : ['pharos', 'ipps'],
     #'sendEmail': ['smtp'],
-    
+    'migration' : ['fs-agent'],
     'email': ['smtp', 'imaps', 'pop3', 'imap', 'pop3s', 'submission'],
     'authentication': ['kerberos', 'nv-video'], 
     'ATCcomm': ['cpdlc', 'fis'],
     
-    'storage': ['http-alt', 'ncube-lm', 'postgresql', 'mysql', 'cm', 'ms-sql-s', 'ms-sql-m'],
+    'storage': ['http-alt', 'ncube-lm', 'postgresql', 'mysql', 'cm', 'ms-sql-s', 'ms-sql-m', 'mongodb'],
     
     'dataSharing': ['ftp', 'pcsync-https', 'ndmp', 'netbios-ssn', 'microsoft-ds', 'profinet-rt', 'instantia'],
     'clocksync' : ['ntp'],
@@ -1339,7 +1339,6 @@ def load_IANA_mapping():
         else:
             # Do nothing 
             pass
-
     return ports
     
 ## 3
@@ -2226,7 +2225,6 @@ def traverse(dfa, sinks, sequence, statelist=False):
   """  
   #print(dfa)
   in_main_model = set()
-  sinks = dict() ## REMOVE IT!!!
   state = "0"
   stlst = ["0"]
   #print('This seq', sequence.split(" "))
@@ -2593,9 +2591,9 @@ def translate(label, root=False):
     if len(parts) >= 1:
         new_label += verbose_micro[parts[0]]
     if len(parts) >= 2:
-        new_label += "\nTarget: "+parts[1]
+        new_label += "\n"+parts[1]
     if len(parts) >= 3:
-        new_label += "\nAction ID: "+parts[2]
+        new_label += " | ID: "+parts[2]
 
     return new_label
     
@@ -2654,6 +2652,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                 cat= -1
                 if len(encode) == 0:
                     #continue
+                    
                     cat = micro[ep[2]].split('.')[1]
                     stateID = '|Sink' if len(str(ep[2])) == 1 else '|Sink'
                 else:
@@ -2717,8 +2716,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
             vertices, edges = 0, 0
             for att,episodes in condensed_data.items():
                 #print(att)
-                team = att.split('-')[0]
-                #print([(x[3],x[0]) for x in episodes])
+                team = att.split('->')[0]
                 event = []
                 times = []
                 #print(att)
@@ -2754,6 +2752,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                     continue
                 if int_victim not in att:
                     continue
+                
                 #print('-------!!!!', attack)
                 #obj_ser = ser_inv[attack.split('|')[1]][0]
                 #print('-------!!!SERVICE', attack.split('|')[1])
@@ -2765,10 +2764,10 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                 event_set.update(event)
                 time_set.update(times)
 
-
+                
                 event_set = sorted(event_set, key=lambda x: macro_inv[micro2macro['MicroAttackStage.'+x.split('|')[0]]])
                 time_set = sorted(time_set)
-
+                
                 data = [(x,y) for x,y in zip(event,times)]
                 #cuts = [i for i in range(len(event)-1) if (len(str(micro_inv['MicroAttackStage.'+event[i].split('|')[0]])) > \
                 #                                           len(str(micro_inv['MicroAttackStage.'+event[i+1].split('|')[0]]))) ]#
@@ -2817,7 +2816,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
 
             if sum([len(x) for x in team_level.values()]) == 0:
                 continue
-            
+
             name = attack.replace('|', '').replace('_','').replace('-','').replace('(','').replace(')', '')
             lines = []
             lines.append((0,'digraph '+ name + ' {'))
@@ -2860,11 +2859,10 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                     #print(v[1])
                     #if v[0][1] == 89141:
                     #    continue
-                            
-                    color = tcols[k]
-                    bi = zip(v, v[1:])
-                    for vid,(one,two) in enumerate(bi):
-                        
+                    color = tcols[k.split('-')[0]]
+                    
+                    # nodes
+                    for vid,one in enumerate(v):
                         if vid == 0:
                             if 'Sink' in one[0]:
                                 lines.append((0,'"'+translate(one[0])+'" [style="dotted,filled", fillcolor= yellow]'))
@@ -2873,22 +2871,27 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                         else:
                             if 'Sink' in one[0]:
                                 line = [x[1] for x in lines]
-                                
+                                quit = False
+                                for l in line:
+                                    if (translate(one[0]) in l) and ('dotted' in l) and ('->' not in l): 
+                                        quit = True
+                                        break
+                                if quit:
+                                    continue
                                 partial = '"'+translate(one[0])+'" [style="dotted'
                                 #print(line)
                                 #print('@@@@', partial)
                                 if not sum([True if partial in x else False for x in line]):
                                     lines.append((0,partial+'"]'))
-                            elif 'Sink' in two[0]:
-                                line = [x[1] for x in lines]
-                                partial = '"'+translate(two[0])+'" [style="dotted'
-                                #print(line)
-                                #print('@@@@', partial)
-                                if not sum([True if partial in x else False for x in line]):
-                                    lines.append((0,partial+'"]'))
-                                #lines.append((0,'"'+two[0]+'" [style="dotted"]'))
-                        #edges += 1
-                        lines.append((one[1], '"'+translate(one[0])+'"' + ' -> ' + '"'+translate(two[0])+'"' +' [ label="'+ str(one[1]) +'ms"]' + '[ color='+color+']')) # 
+
+                    # transitions
+                    bi = zip(v, v[1:])
+                    for vid,(one,two) in enumerate(bi):
+                        if vid > 0:
+                            lines.append((one[1], '"'+translate(one[0])+'"' + ' -> ' + '"'+translate(two[0])+'"' +' [ label="'+ str(one[1]) +'ms"]' + '[ color='+color+']')) # 
+                        else:
+                            lines.append((one[1], '"'+translate(one[0])+'"' + ' -> ' + '"'+translate(two[0])+'" [ color='+color+'] '+'[label=<<font color="'+color+'">'+k.split('-')[1]+'</font><br/> <font>'+str(one[1]) +'ms</font>>]'))
+
             #lines = sorted(lines, key=lambda item: item[0], reverse=True)
             #print(lines)
             #print(nodes)
@@ -2937,7 +2940,6 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
  
  
 ## ----- main ------    
-### Load port numbers and services (from Andrea Corsini)
 
 if len(sys.argv) < 5:
     print('USAGE: ag-gen.py {path/to/json/files} {experiment-name} {alert-filtering-window (def=1.0)} {alert-aggr-window (def=150)} {mode}')
@@ -2990,18 +2992,30 @@ os.system("dot -Tpng "+outfile+".ff.final.dot -o "+o+".png")
     
 path_to_model = outaddress+modelname
 
-print('------ !! Special: Fixing syntax error in sinks files  ---------')
+print('------ !! Special: Fixing syntax error in main model and sink files  ---------')
+print('--- Sinks')
 with open(path_to_model+".ff.sinksfinal.json", 'r') as file:
     filedata = file.read()
-filedata = ''.join(filedata.rsplit(',', 1))
-with open(path_to_model+".ff.sinksfinal.json", 'w') as file:
-    file.write(filedata)
-    
-'''with open(path_to_model+".ff.final.dot.json", 'r') as file:
+stripped = re.sub('[\s+]', '', filedata)
+extracommas = re.search('(}(,+)\]}$)', stripped)
+if extracommas is not None:
+    c = (extracommas.group(0)).count(',')
+    print(extracommas.group(0), c)
+    filedata = ''.join(filedata.rsplit(',', c))
+    with open(path_to_model+".ff.sinksfinal.json", 'w') as file:
+        file.write(filedata)
+  
+print('--- Main')  
+with open(path_to_model+".ff.final.dot.json", 'r') as file:
     filedata = file.read()
-filedata = ''.join(filedata.rsplit(',', 1))
-with open(path_to_model+".ff.final.dot.json", 'w') as file:
-    file.write(filedata)'''
+stripped = re.sub('[\s+]', '', filedata)
+extracommas = re.search('(}(,+)\]}$)', stripped)
+if extracommas is not None:
+    c = (extracommas.group(0)).count(',')
+    print(extracommas.group(0), c)
+    filedata = ''.join(filedata.rsplit(',', c))
+    with open(path_to_model+".ff.final.dot.json", 'w') as file:
+        file.write(filedata)
 
 print('------ Loading and traversing SPDFA ---------')
 # Load S-PDFA
@@ -3023,4 +3037,3 @@ make_AG(condensed_v_data, condensed_data, state_groups, modelname, expname)
 
 print('------- FIN -------')
 ## ----- main END ------  
-
