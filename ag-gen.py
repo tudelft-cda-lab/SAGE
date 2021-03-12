@@ -2380,8 +2380,9 @@ def make_condensed_data(alerts, keys, state_traces, med_states, sev_states):
             continue
         #print(' ------------- COUNTER ', counter, '------')
         counter += 1
-        if '10.0.254' not in attacker:
-            continue
+        if MODE != "c2018":
+            if '10.0.254' not in attacker:
+                continue
         if ('147.75' in attacker or '69.172'  in attacker):
                 continue
         tr = [int(x) for x in state_traces[counter]]
@@ -2948,9 +2949,9 @@ folder = sys.argv[1]
 expname = sys.argv[2]
 t = float(sys.argv[3])
 w = int(sys.argv[4])
-rev = False
+MODE = False
 if len(sys.argv) >= 6:
-    rev = sys.argv[5]
+    MODE = sys.argv[5]
     
 saddr = 'C:\\Users\\anadeem1\\Downloads\\dfasat\\data\\' # path_to_flexfringe installation
 outaddress = ""#"C:\\Users\\anadeem1\\Downloads\\dfasat\\"
@@ -2965,7 +2966,7 @@ path_to_traces = datafile
 port_services = load_IANA_mapping()
 
 print('----- Reading alerts ----------')
-(unparse, team_labels) = load_data(folder, t, rev) # t = minimal window for alert filtering
+(unparse, team_labels) = load_data(folder, t, MODE) # t = minimal window for alert filtering
 plt = plot_histogram(unparse, team_labels)
 plt.savefig('data_histogram-'+expname+'.png')
 print('------ Converting to episodes ---------')
