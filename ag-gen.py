@@ -2691,7 +2691,11 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
             collective[att] = (service_theme,this_times)
         attacks = list(set(attacks))
         # Experiment 1: state IDs are not important. Attack graph should show all mas+service
-        attacks = [x.split('|')[0]+'|'+x.split('|')[1] for x in attacks]
+        OBJ_ONLY = False
+        if OBJ_ONLY:
+            attacks = [x.split('|')[0] for x in attacks]
+        else:
+            attacks = [x.split('|')[0]+'|'+x.split('|')[1] for x in attacks]
         # Experiment 2: state IDs and service are not important. Attack graph should show all mas
         #attacks = [x.split('|')[0] for x in attacks]
         attacks = list(set(attacks))
