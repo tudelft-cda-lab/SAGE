@@ -25,7 +25,6 @@ import numpy as np
 import subprocess
 import sys
 import graphviz
-from IPython.display import Image, display
 from shutil import copyfile
 import json
 import re
@@ -2171,18 +2170,6 @@ def flexfringe(*args, **kwargs):
   
   return "No output file was generated."
 
-def show(data):
-  """Show a dot string as (inline-) PNG
-
-    Keyword arguments:
-    data -- string formated in graphviz dot language to visualize
-  """
-  if data=="":
-    pass
-  else:
-    g = graphviz.Source(data, format="png")
-    g.render()
-    display(Image(g.render()))
    
 def loadmodel(modelfile):
 
