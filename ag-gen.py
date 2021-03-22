@@ -2110,7 +2110,7 @@ def generate_traces(alerts, keys, datafile, test_ratio=0.0):
     count_lines = 0
     count_cats = set()
 
-    f = open(datafile, 'w')#'C:\\Users\\anadeem1\\Downloads\\dfasat\\data\\test.txt', 'w')
+    f = open(datafile, 'w')
     lengths = []
     lines = []
     for i,episodes in enumerate(victims):
@@ -2159,7 +2159,7 @@ def flexfringe(*args, **kwargs):
     for key in kwargs:
       command += ["--" + key + "=" + kwargs[key]]
 
-  result = subprocess.run(["C:\\Users\\anadeem1\\Downloads\\dfasat\\cmake-build-release\\flexfringe.exe",] + command + [args[0]], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+  result = subprocess.run(["dfasat/flexfringe",] + command + [args[0]], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
   print(result.returncode, result.stdout, result.stderr)
 
   
@@ -2957,9 +2957,8 @@ MODE = False
 if len(sys.argv) >= 6:
     MODE = sys.argv[5]
     
-saddr = 'C:\\Users\\anadeem1\\Downloads\\dfasat\\data\\' # path_to_flexfringe installation
-outaddress = ""#"C:\\Users\\anadeem1\\Downloads\\dfasat\\"
-path_to_ini = "C:\\Users\\anadeem1\\Downloads\\dfasat\\ini\\batch-likelihoodRIT.ini"
+outaddress = ""
+path_to_ini = "dfasat/ini/batch-likelihoodRIT.ini"
 
 modelname = expname+'.txt'#'test-trace-uni-serGroup.txt'
 datafile = expname+'.txt'#'trace-uni-serGroup.txt'
