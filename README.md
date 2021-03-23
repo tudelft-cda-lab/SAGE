@@ -1,21 +1,31 @@
-# AD-Attack-Graph
-Alert-driven attack graph generation pipeline
+#### Docker for Attack graph generation
 
-## Requires 
-- Flexfringe 
-- Graphviz
+# important files
+- Dockerfile
+- script.sh
+- input.ini
+- requirements.txt
+- batch-likelihoodRIT.txt
+- ag-gen.py (hopefully will be pulling from github soon)
 
-## Usage
-`python ag-gen.py {path/to/json/files} {experiment-name} {alert-filtering-window} {alert-aggr-window} {mode}`
+# Create folders
+- /alerts/ containing alerts in .json files
+- /output/ will be mounted to docker and will contain all outputs
 
-- `{path/to/json/files}`: folder containing intrusion alerts in json format. 
-> Ideal setting: One json file for each attacker/team. Filename considered as attacker/team label. 
-- `{experiment-name}`: custom name for all artefacts
-> Figures, trace files, model files, attack graphs are saved with this prefix for easy identification. 
-- `{alert-filtering-window}`: time window in which duplicate alerts are discarded (default: 1.0 sec)
-- `{alert-aggr-window}`: aggregate alerts occuring in this window as one episode (default: 150 sec)
-- `{mode}`: Special file parsing modes. _Leave empty_ if alerts are in ascending order. Use `2017` or `c2018` otherwise.
+# Pre-reqs
+- Install and setup docker
 
-## First time use
+# Directions
+- First, create a new folder X and pull all relavent files and create relavent folders
+- Then open `input.ini` and update `experiment-name` field. To play around, you can also modify `alert-filtering-window` and `alert-aggr-window`. To see how to set these values, look up the main AD-Attack-Graph github.
+- Next, open a cmd/shell in folder X and build the docker image:
 
-- Set paths to flexfringe/ ini-file/ trace file/ location to store experimental artefacts in `ag_gen.py` script.
+`docker build -t {Image Name} . `, e.g. `docker build -t ag-test .`
+
+- Next, create a docker container based on the image while also mouting the local drive to store all outputs:
+
+`docker run -it --mount src=%cd%/output,target=/home/out,type=bind {Image Name}`, e.g. `docker run -it --mount src=%cd%/output,target=/home/out,type=bind ag-test`
+
+* For Linux, replace %cd% with `pwd`.
+
+- Wait for execution. Once finished, the output artefacts can be found in X/output/  
