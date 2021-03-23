@@ -1,0 +1,3 @@
+seaborn
+requests
+graphviz
