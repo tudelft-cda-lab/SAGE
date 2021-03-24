@@ -1568,6 +1568,9 @@ def load_data(path, t, mode= False):
     team_labels = []
     files = glob.glob(path+"/*.json")
     print('About to read json files...')
+    if len(files) < 1:
+        print('No alert files found.')
+        sys.exit()
     for f in files:
         name = os.path.basename(f)[:-5]
         print(name)
@@ -2915,6 +2918,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                 f.close()
                 out_f_name = datafile+'-attack-graph-for-victim-'+v+'-'+name 
                 os.system("dot -Tpng "+dirname+'/'+out_f_name+".dot -o "+dirname+'/'+out_f_name+".png")
+                os.system("rm "+dirname+'/'+out_f_name+".dot")
                 #print('~~~~~~~~~~~~~~~~~~~~saved')
             print('----')
         #print('total high-sev states:', len(path_info))

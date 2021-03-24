@@ -1,4 +1,8 @@
-FROM ubuntu:20.04
+FROM python:3.6
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends graphviz \
+  && rm -rf /var/lib/apt/lists/* \
+  && pip install --no-cache-dir pyparsing pydot
 
 ##########################################
 ######   COPY NECESSARY FILES     ########
@@ -8,16 +12,16 @@ COPY requirements.txt /root
 RUN cd /root \
 && mkdir input/
 
-COPY alerts/*.json /root/input/ 
-RUN chmod -R a+rw /root/input/
+#COPY alerts/*.json /root/input/ 
+#RUN chmod -R a+rw /root/input/
 
 
 ##########################################
 ######       INTALL DEPENDENCIES  ########
 ##########################################
-RUN apt-get update && apt-get -y upgrade 
+#RUN apt-get update && apt-get -y upgrade 
 
-RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install git build-essential python3-dev python3-pip graphviz 
+#RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install git build-essential python3-dev python3-pip graphviz 
 
 RUN cd root/ \
 	&& pip3 install -r requirements.txt
