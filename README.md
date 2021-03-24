@@ -25,9 +25,15 @@ e.g. `docker build -t ag-test .`
 
 - Next, create a docker container based on the image while also mouting the local drive to store all outputs:
 
-`docker run -it --mount src=%cd%/output,target=/home/out,type=bind {Image Name}`, \
-e.g. `docker run -it --mount src=%cd%/output,target=/home/out,type=bind ag-test`
+`docker run -it \` \
+  `--mount src=%cd%/output,target=/home/out,type=bind \` \
+  `--mount src=%cd%/alerts,target=/root/input,type=bind \` \
+  `{Image Name}  `, \
+e.g. `docker run -it \` \
+  `--mount src=%cd%/output,target=/home/out,type=bind \` \
+  `--mount src=%cd%/alerts,target=/root/input,type=bind \` \
+  `ag-test`
 
-* For Linux, replace `%cd%` with `pwd`.
+* For Linux, replace `%cd%` with `$(pwd)`.
 
 - Wait for execution. Once finished, the output artefacts can be found in X/output/  
