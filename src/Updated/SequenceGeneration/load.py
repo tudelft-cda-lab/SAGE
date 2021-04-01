@@ -187,8 +187,9 @@ def _remove_duplicate(alerts: List[ParsedAlert], time_delta=1.0) -> List[ParsedA
                 and is_duplicate_attack(alert, previous)):
             result.append(alert)
             # TODO: uncomment -> remove all duplicates, not just the one-based
-            # previous = alert
-        previous = alert
+            #   Top line removes all duplicates, bottom line removes duplicates based on previous
+            previous = alert
+        # previous = alert
 
     return result
 

@@ -38,17 +38,18 @@ def proces_data():
     host_sequences = get_host_episode_sequences(episodes)
     sub_sequences = get_host_sub_behaviors(host_sequences)
 
-    save_pkl(sub_sequences, "./cptc_18_full_sub_sequences.pkl")
+    save_pkl(sub_sequences, "./cptc_18_full_sub_sequences_filter_alter.pkl")
 
 
 def load_sub_behaviors() -> SubBehaviors:
-    return read_pkl("./cptc_18_full_sub_sequences.pkl")
+    return read_pkl("./cptc_18_full_sub_sequences_filter_alter.pkl")
 
 
 def main():
+    proces_data()
     data = load_sub_behaviors()
     print("Done parsing/mapping data")
-    construct_traces(data, "./traces_cptc_18_full.txt")
+    construct_traces(data, "./traces_cptc_18_full_filter_alter.txt")
 
 
 

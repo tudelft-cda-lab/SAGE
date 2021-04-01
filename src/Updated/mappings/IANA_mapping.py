@@ -24,6 +24,10 @@ def load_IANA_mapping(source=IANA_CSV_FILE) -> Dict[int, IANAMappingEntry]:
         raise RuntimeError('Cannot download IANA ports')
     table = csv.reader(content.splitlines())
 
+    # Note: uncomment to use a pre-downloaded csv instead
+    # f = open("../data/port_mappings_2021_01_18.csv", "r+")
+    # table = csv.reader(f)
+
     # Drop headers (Service name, port, protocol, description, ...)
     headers = next(table)
 
