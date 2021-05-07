@@ -1,4 +1,4 @@
-# AD-Attack-Graph
+# SAGE (IntruSion alert-driven Attack Graph Extractor)
 Alert-driven attack graph generation pipeline
 
 ## Requires 
