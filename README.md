@@ -1,6 +1,7 @@
 # Docker for Attack graph generation
+Repository to accompany our publication "SAGE: Intrusion Alert-driven Attack Graph Extractor" at AI4Cyber workshop @ KDD, '21.
 
-## important files
+## Important files
 - Dockerfile
 - script.sh
 - input.ini
@@ -37,3 +38,15 @@ e.g. `docker run -it \` \
 * For Linux, replace `%cd%` with `$(pwd)`.
 
 - Wait for execution. Once finished, the output artefacts can be found in X/output/  
+
+**If you use SAGE in a scientific work, consider citing the following paper:**
+
+_@article{nadeemsage,
+  title={SAGE: Intrusion Alert-driven Attack Graph Extractor},
+  author={Nadeem, Azqa and Verwer, Sicco and Moskal, Stephen and Yang, Shanchieh Jay},
+  journal={Workshop on Artificial Intelligence-enabled Cybersecurity Analytics, Knowledge Discovery and Data Mining (KDD)},
+  publisher={ACM}
+}_
+
+#### Azqa Nadeem
+#### TU Delft
