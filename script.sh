@@ -10,9 +10,9 @@ MODE=${params[3]#*=}
 
 if [ -z "$MODE" ]
 then
-      python3 ag-gen.py input/ $EXPNAME $FILTER $AGGR
+      python3 sage.py input/ $EXPNAME $FILTER $AGGR
 else
-      python3 ag-gen.py input/ $EXPNAME $FILTER $AGGR $MODE
+      python3 sage.py input/ $EXPNAME $FILTER $AGGR $MODE
 fi
 
 outnames=$(ls . | grep $EXPNAME)
