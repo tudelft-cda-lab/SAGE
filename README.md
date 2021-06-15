@@ -6,7 +6,7 @@ Alert-driven attack graph generation pipeline
 - Graphviz
 
 ## Usage
-`python ag-gen.py {path/to/json/files} {experiment-name} {alert-filtering-window} {alert-aggr-window} {mode}`
+`python sage.py {path/to/json/files} {experiment-name} {alert-filtering-window} {alert-aggr-window} {mode}`
 
 - `{path/to/json/files}`: folder containing intrusion alerts in json format. 
 > Ideal setting: One json file for each attacker/team. Filename considered as attacker/team label. 
@@ -18,4 +18,16 @@ Alert-driven attack graph generation pipeline
 
 ## First time use
 
-- Set paths to flexfringe/ ini-file/ trace file/ location to store experimental artefacts in `ag_gen.py` script.
+- Set paths to flexfringe/ ini-file/ trace file/ location to store experimental artefacts in `sage.py` script.
+
+**If you use SAGE in a scientific work, consider citing the following paper:**
+
+_@article{nadeemsage,
+  title={SAGE: Intrusion Alert-driven Attack Graph Extractor},
+  author={Nadeem, Azqa and Verwer, Sicco and Moskal, Stephen and Yang, Shanchieh Jay},
+  journal={Workshop on Artificial Intelligence-enabled Cybersecurity Analytics, Knowledge Discovery and Data Mining (KDD)},
+  publisher={ACM}
+}_
+
+#### Azqa Nadeem
+#### TU Delft
