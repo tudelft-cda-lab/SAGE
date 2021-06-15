@@ -2883,9 +2883,9 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                     bi = zip(v, v[1:])
                     for vid,(one,two) in enumerate(bi):
                         if vid > 0:
-                            lines.append((one[1], '"'+translate(one[0])+'"' + ' -> ' + '"'+translate(two[0])+'"' +' [ label="'+ str(one[1]) +'ms"]' + '[ color='+color+']')) # 
+                            lines.append((one[1], '"'+translate(one[0])+'"' + ' -> ' + '"'+translate(two[0])+'"' +' [ label="'+ str(one[1]) +'s"]' + '[ color='+color+']')) # 
                         else:
-                            lines.append((one[1], '"'+translate(one[0])+'"' + ' -> ' + '"'+translate(two[0])+'" [ color='+color+'] '+'[label=<<font color="'+color+'">'+k.split('-')[1]+'</font><br/> <font>'+str(one[1]) +'ms</font>>]'))
+                            lines.append((one[1], '"'+translate(one[0])+'"' + ' -> ' + '"'+translate(two[0])+'" [ color='+color+'] '+'[label=<<font color="'+color+'">'+k.split('-')[1]+'</font><br/> <font>'+str(one[1]) +'s</font>>]'))
 
             #lines = sorted(lines, key=lambda item: item[0], reverse=True)
             #print(lines)
