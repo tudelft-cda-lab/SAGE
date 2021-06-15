@@ -6,7 +6,7 @@
 - input.ini
 - requirements.txt
 - batch-likelihoodRIT.txt
-- ag-gen.py (hopefully will be pulling from github soon)
+- sage.py (hopefully will be pulling from github soon)
 
 ## Create folders
 - /alerts/ containing alerts in .json files
