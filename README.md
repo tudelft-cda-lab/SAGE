@@ -1,4 +1,4 @@
-# Docker for Attack graph generation
+# Docker for SAGE: Attack graph generation
 Repository to accompany our publication "SAGE: Intrusion Alert-driven Attack Graph Extractor" at AI4Cyber workshop @ KDD, '21.
 
 ## Important files
