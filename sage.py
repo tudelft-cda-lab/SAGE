@@ -32,7 +32,8 @@ from collections import defaultdict
 
 IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
 DB_PATH = "./ports.json"
-
+SAVE = True
+DOCKER = False
 
 ## ----- 2
 from enum import Enum
@@ -1568,6 +1569,9 @@ def load_data(path, t, mode= False):
     team_labels = []
     files = glob.glob(path+"/*.json")
     print('About to read json files...')
+    if len(files) < 1:
+        print('No alert files found.')
+        sys.exit()
     for f in files:
         name = os.path.basename(f)[:-5]
         print(name)
@@ -2601,7 +2605,6 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
         't9': 'skyblue',
         
     }
-    SAVE = True
     if SAVE:
         try:
             #if path.exists('AGs'):
@@ -2915,6 +2918,8 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                 f.close()
                 out_f_name = datafile+'-attack-graph-for-victim-'+v+'-'+name 
                 os.system("dot -Tpng "+dirname+'/'+out_f_name+".dot -o "+dirname+'/'+out_f_name+".png")
+                if DOCKER:
+                    os.system("rm "+dirname+'/'+out_f_name+".dot")
                 #print('~~~~~~~~~~~~~~~~~~~~saved')
             print('----')
         #print('total high-sev states:', len(path_info))
@@ -3026,5 +3031,8 @@ state_groups = make_state_groups(condensed_data, modelname)
 print('------- Making alert-driven AGs--------')
 make_AG(condensed_v_data, condensed_data, state_groups, modelname, expname)
 
+if DOCKER:
+    os.system("rm "+outfile+".ff.final.dot")
+    os.system("rm "+"spdfa-clustered-"+datafile+"-dfa.dot")
 print('------- FIN -------')
 ## ----- main END ------  
