@@ -32,7 +32,7 @@ RUN cd /root \
 
 COPY batch-likelihoodRIT.ini /root/dfasat/ini/	
 
-COPY ag-gen.py /root
+COPY sage.py /root
 COPY script.sh /root
 COPY input.ini /root
 ##########################################
