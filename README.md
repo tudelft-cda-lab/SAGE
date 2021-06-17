@@ -6,8 +6,9 @@ Repository to accompany our publication "SAGE: Intrusion Alert-driven Attack Gra
 - script.sh
 - start.sh
 - input.ini
+- spdfa-config.ini
 - requirements.txt
-- spdfa-config.txt
+
 
 ## Create folders
 - /alerts/ containing intrusion alert files in `.json` format
