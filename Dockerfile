@@ -30,7 +30,7 @@ RUN cd /root \
 	&& git clone https://bitbucket.org/chrshmmmr/dfasat.git \
 	&& cd dfasat && git checkout origin/multivariate && make clean all
 
-COPY batch-likelihoodRIT.ini /root/dfasat/ini/	
+COPY spdfa-config.ini /root/dfasat/ini/	
 
 RUN cd /root \
 	&& git clone https://github.com/tudelft-cda-lab/SAGE.git  \
