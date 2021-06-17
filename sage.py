@@ -3032,6 +3032,7 @@ print('------- Making alert-driven AGs--------')
 make_AG(condensed_v_data, condensed_data, state_groups, modelname, expname)
 
 if DOCKER:
+    print('Deleting extra files')
     os.system("rm "+outfile+".ff.final.dot")
     os.system("rm "+outfile+".ff.final.dot.json")
     os.system("rm "+outfile+".ff.sinksfinal.json")
