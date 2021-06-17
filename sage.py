@@ -2950,7 +2950,7 @@ if len(sys.argv) >= 6:
     MODE = sys.argv[5]
     
 outaddress = ""
-path_to_ini = "dfasat/ini/batch-likelihoodRIT.ini"
+path_to_ini = "dfasat/ini/spdfa-config.ini"
 
 modelname = expname+'.txt'#'test-trace-uni-serGroup.txt'
 datafile = expname+'.txt'#'trace-uni-serGroup.txt'
