@@ -1,25 +1,38 @@
-# Docker for SAGE: Attack graph generation
+# Docker for SAGE: Attack Graph Generator
 Repository to accompany our publication "SAGE: Intrusion Alert-driven Attack Graph Extractor" at AI4Cyber workshop @ KDD, '21.
 
 ## Important files
 - Dockerfile
 - script.sh
+- start.sh
 - input.ini
 - requirements.txt
-- batch-likelihoodRIT.txt
-- sage.py (hopefully will be pulling from github soon)
+- spdfa-config.txt
 
 ## Create folders
-- /alerts/ containing alerts in .json files
+- /alerts/ containing intrusion alert files in `.json` format
 - /output/ will be mounted to docker and will contain all outputs
 
 ## Pre-reqs
 - Install and setup `docker`
 
-## Directions
+## Usage Instructions
+
 - First, create a new folder X and pull all relavent files and create relavent folders
-- Then open `input.ini` and update `experiment-name` field. To play around, you can also modify `alert-filtering-window` and `alert-aggr-window`. To see how to set these values, look up the main AD-Attack-Graph github.
-- Next, open a cmd/shell in folder X and build the docker image:
+- Then open `input.ini` and update `experiment-name` field. To play around, you can also modify `alert-filtering-window` and `alert-aggr-window`. To see how to set these values, look up the main branch of [SAGE](https://github.com/tudelft-cda-lab/SAGE).
+
+### Option I: Fastest way
+
+- Open a cmd/shell in folder X and execute the following command:
+
+`start.sh {Image Name}`, \
+e.g. `start.sh ag-test .`
+
+- Wait for execution. Once finished, the attack graphs can be found in X/output/
+
+### Option II: Configure Docker Yourself
+
+- Open a cmd/shell in folder X and build the docker image:
 
 `docker build -t {Image Name} . `, \
 e.g. `docker build -t ag-test .`
