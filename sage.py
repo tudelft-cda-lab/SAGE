@@ -33,7 +33,7 @@ from collections import defaultdict
 IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
 DB_PATH = "./ports.json"
 SAVE = True
-DOCKER = False
+DOCKER = True
 
 ## ----- 2
 from enum import Enum
@@ -3033,6 +3033,12 @@ make_AG(condensed_v_data, condensed_data, state_groups, modelname, expname)
 
 if DOCKER:
     os.system("rm "+outfile+".ff.final.dot")
+    os.system("rm "+outfile+".ff.final.dot.json")
+    os.system("rm "+outfile+".ff.sinksfinal.json")
+    os.system("rm "+outfile+".ff.init_dfa.dot")
+    os.system("rm "+outfile+".ff.init_dfa.dot.json")
+    os.system("rm "+expname+".dot")
     os.system("rm "+"spdfa-clustered-"+datafile+"-dfa.dot")
+
 print('------- FIN -------')
 ## ----- main END ------  
