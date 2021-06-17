@@ -2815,7 +2815,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
             name = attack.replace('|', '').replace('_','').replace('-','').replace('(','').replace(')', '')
             lines = []
             lines.append((0,'digraph '+ name + ' {'))
-            lines.append((0,'rankdir="BT";'))
+            lines.append((0,'rankdir="BT"; \n graph [ nodesep="0.1", ranksep="0.02"] \n node [ fontname=Arial, fontsize=24,penwidth=3]; \n edge [ fontname=Arial, fontsize=20,penwidth=5 ];'))
             lines.append((0, '"'+translate(attack, root=int_victim)+'" [shape=doubleoctagon, style=filled, fillcolor=salmon];'))
             lines.append((0, '{ rank = max; "'+translate(attack, root=int_victim)+'"}'))
             for s in list(set(sseen)):
