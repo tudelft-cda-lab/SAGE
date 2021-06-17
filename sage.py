@@ -33,7 +33,7 @@ from collections import defaultdict
 IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
 DB_PATH = "./ports.json"
 SAVE = True
-DOCKER = True
+DOCKER = False
 
 ## ----- 2
 from enum import Enum
