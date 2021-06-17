@@ -1,9 +1,12 @@
 # SAGE (IntruSion alert-driven Attack Graph Extractor)
-Alert-driven attack graph generation pipeline
+Repository to accompany our publication "SAGE: Intrusion Alert-driven Attack Graph Extractor" at AI4Cyber workshop @ KDD, '21.
 
 ## Requires 
-- Flexfringe 
+- Flexfringe (https://bitbucket.org/chrshmmmr/dfasat/src/master/)
 - Graphviz
+
+**Or you can switch to the `docker` branch for a docker container.**
+
 
 ## Usage
 `python sage.py {path/to/json/files} {experiment-name} {alert-filtering-window} {alert-aggr-window} {mode}`
@@ -18,7 +21,7 @@ Alert-driven attack graph generation pipeline
 
 ## First time use
 
-- Set paths to flexfringe/ ini-file/ trace file/ location to store experimental artefacts in `sage.py` script.
+- Set paths to `flexfringe/` `ini-file/` `trace file/` location to store experimental artefacts in `sage.py` script.
 
 **If you use SAGE in a scientific work, consider citing the following paper:**
 
