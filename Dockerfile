@@ -32,7 +32,11 @@ RUN cd /root \
 
 COPY batch-likelihoodRIT.ini /root/dfasat/ini/	
 
-COPY sage.py /root
+RUN cd /root \
+	&& git clone https://github.com/tudelft-cda-lab/SAGE.git  \
+	&& cd SAGE && cp sage.py ../
+
+
 COPY script.sh /root
 COPY input.ini /root
 ##########################################
