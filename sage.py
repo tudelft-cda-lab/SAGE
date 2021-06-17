@@ -3038,7 +3038,6 @@ if DOCKER:
     os.system("rm "+outfile+".ff.sinksfinal.json")
     os.system("rm "+outfile+".ff.init_dfa.dot")
     os.system("rm "+outfile+".ff.init_dfa.dot.json")
-    os.system("rm "+expname+".dot")
     os.system("rm "+"spdfa-clustered-"+datafile+"-dfa.dot")
 
 print('------- FIN -------')
