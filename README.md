@@ -32,8 +32,19 @@ Repository to accompany our publication "SAGE: Intrusion Alert-driven Attack Gra
   journal={Workshop on Artificial Intelligence-enabled Cybersecurity Analytics, Knowledge Discovery and Data Mining (KDD)},
   publisher={ACM},
   year={2021}
-} 
+}
 ```
+```
+@article{nadeemsage,
+  title={SAGE: Intrusion Alert-driven Attack Graph Extractor},
+  author={Nadeem, Azqa and Verwer, Sicco and Yang, Shanchieh Jay},
+  journal={Symposium on Visualization for Cyber Security (Vizec)},
+  publisher={IEEE},
+  year={2021}
+}
+```
+
+
 
 #### Azqa Nadeem
 #### TU Delft
