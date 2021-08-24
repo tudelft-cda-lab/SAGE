@@ -1,5 +1,5 @@
 # SAGE (IntruSion alert-driven Attack Graph Extractor)
-Repository to accompany our publication "SAGE: Intrusion Alert-driven Attack Graph Extractor" at AI4Cyber workshop @ KDD, '21.
+Repository to accompany our publication "SAGE: Intrusion Alert-driven Attack Graph Extractor" at VizSec, '21.
 
 ## Requires 
 - Flexfringe (https://bitbucket.org/chrshmmmr/dfasat/src/master/)
