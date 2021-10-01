@@ -2219,6 +2219,7 @@ def traverse(dfa, sinks, sequence, statelist=False):
   """  
   #print(dfa)
   in_main_model = set()
+  sev_sinks = set()
   state = "0"
   stlst = ["0"]
   #print('This seq', sequence.split(" "))
@@ -2245,6 +2246,7 @@ def traverse(dfa, sinks, sequence, statelist=False):
                 #print(stlst[-1], sinks[stlst[-1]], stlst)
                 try:
                     state = sinks[stlst[-1]][sym][0]
+                    sev_sinks.add(state)
                 except:
                     #print('didnt work for', sequence, 'done so far:', stlst)
                     state = '-1'
@@ -2282,11 +2284,10 @@ def traverse(dfa, sinks, sequence, statelist=False):
               else:
                      return (dfa[state]["type"] == "1", stlst)
       stlst.append(state)
-
   if not statelist:
       return dfa[state]["type"] == "1"
   else:
-      return (dfa[state]["type"] == "1", stlst)
+      return (dfa[state]["type"] == "1", stlst, sev_sinks)
 
 def encode_sequences(m, m2):
     #print(m2)
@@ -2312,7 +2313,7 @@ def encode_sequences(m, m2):
     state_traces = dict()
     for i,sample in enumerate(traces):
         #print(sample)
-        r, s = traverse(m, m2, sample, statelist=True)
+        r, s, _ = traverse(m, m2, sample, statelist=True)
         s = [(x) for x in s]
         sp.append(s)
         state_traces[i] = s
@@ -2332,8 +2333,10 @@ def encode_sequences(m, m2):
 def find_severe_states(traces, m, m2):
     med_states = set()
     sev_states = set()
+    sev_sinks = set()
     for i,sample in enumerate(traces):    
-        r, s = traverse(m, m2, sample, statelist=True)
+        r, s, sevsinks = traverse(m, m2, sample, statelist=True)
+        sev_sinks.update(sevsinks)
         s = s[1:]
         sample = sample.split(' ')
         #print([(x,rev_smallmapping[x[0].split('|')[0]]) for x in zip(sample, s)])
@@ -2360,7 +2363,7 @@ def find_severe_states(traces, m, m2):
     #        print('--', s)
     print('Total medium states', len(med_states))  
     print('Total severe states', len(sev_states))
-    return(med_states, sev_states)
+    return(med_states, sev_states, sev_sinks)
 
 ## collecting sub-behaviors back into the same trace -- condensed_data is the new object to deal with
 def make_condensed_data(alerts, keys, state_traces, med_states, sev_states):
@@ -2593,8 +2596,7 @@ def translate(label, root=False):
     return new_label
     
 ## Per-objective attack graph for dot: 14 Nov (final attack graph) 
-def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):  
-    
+def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile, expname):  
     tcols = {
         't0': 'maroon',
         't1': 'orange',
@@ -2627,7 +2629,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
     shapes = ['oval', 'oval', 'oval', 'box', 'box', 'box', 'box', 'hexagon', 'hexagon', 'hexagon', 'hexagon', 'hexagon']
     ser_total = dict()
     simple = dict()
-    for intvictim in list(condensed_v_data.keys()):
+    for intvictim in list(condensed_v_data.keys()): # this loops runs for every connection!!!!! it runs for #seq times
         int_victim = intvictim.split('-')[1]
         #team=intvictim.split('-')[0]
         print('\n!!! Rendering AGs for Victim ', int_victim,' - ',  sep=' ', end=' ', flush=True)
@@ -2830,7 +2832,15 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                 #    ser_total[o] = set()
                 #ser_total[o].add(s)
             for s in list(set(sseen)):
-                lines.append((0,'"'+translate(s)+'" [style=filled, fillcolor= salmon]'))
+                sinkflag = False
+                for sink in sev_sinks:    
+                    if s.endswith(sink):
+                        sinkflag = True
+                        break
+                if sinkflag:
+                    lines.append((0,'"'+translate(s)+'" [style="filled,dotted", fillcolor= salmon]'))
+                else:
+                    lines.append((0,'"'+translate(s)+'" [style=filled, fillcolor= salmon]'))
             #print('-------!!!numObjs', set(sseen))
             
             samerank = '{ rank=same; "'+ '" "'.join([translate(x) for x in sseen])
@@ -2844,6 +2854,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                     #    continue
                     nodes.update([x[0] for x in v])
             
+            starting_verts = set()
             for k,vs in team_level.items():
                 ones = [''.join([y[0] for y in x]) for x in vs]
                 #print(ones)
@@ -2865,7 +2876,16 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                             if 'Sink' in one[0]:
                                 lines.append((0,'"'+translate(one[0])+'" [style="dotted,filled", fillcolor= yellow]'))
                             else:
-                                lines.append((0,'"'+translate(one[0])+'" [style=filled, fillcolor= yellow]'))
+                                sinkflag = False
+                                for sink in sev_sinks:    
+                                    if one[0].endswith(sink):
+                                        sinkflag = True
+                                        break
+                                if sinkflag:
+                                    lines.append((0,'"'+translate(one[0])+'" [style="dotted,filled", fillcolor= yellow]'))
+                                    starting_verts.add(one[0].split('|')[2])
+                                else:
+                                    lines.append((0,'"'+translate(one[0])+'" [style=filled, fillcolor= yellow]'))
                         else:
                             if 'Sink' in one[0]:
                                 line = [x[1] for x in lines]
@@ -2898,7 +2918,18 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                 mas = node.split('|')[0]
                 mas = macro_inv[micro2macro['MicroAttackStage.'+mas]]
                 shape = shapes[mas]
-                lines.append((0,'"'+translate(node)+'" [shape='+shape+']'))
+                if shape == shapes[0] or node.split('|')[2] in starting_verts: # if it's oval, we dont do anything because its not high-sev sink
+                    lines.append((0,'"'+translate(node)+'" [shape='+shape+']'))
+                else:
+                    sinkflag = False
+                    for sink in sev_sinks:    
+                        if node.endswith(sink):
+                            sinkflag = True
+                            break
+                    if sinkflag:
+                        lines.append((0,'"'+translate(node)+'" [style="dotted", shape='+shape+']'))
+                    else:
+                        lines.append((0,'"'+translate(node)+'" [shape='+shape+']'))
             lines.append((1000,'}'))
             
             for l in lines:
@@ -3024,7 +3055,7 @@ m2,data2 = loadmodel(path_to_model+".ff.sinksfinal.json")
 print('------- Encoding into state sequences --------')
 # Encoding traces into state sequences  
 (traces, state_traces) = encode_sequences(m,m2)
-(med_states, sev_states) = find_severe_states(traces, m, m2)    
+(med_states, sev_states, sev_sinks) = find_severe_states(traces, m, m2)    
 condensed_data = make_condensed_data(alerts, keys, state_traces, med_states, sev_states)
 
 print('------- clustering state groups --------')
@@ -3032,7 +3063,7 @@ state_groups = make_state_groups(condensed_data, modelname)
 (condensed_a_data, condensed_v_data) = make_av_data(condensed_data)
 
 print('------- Making alert-driven AGs--------')
-make_AG(condensed_v_data, condensed_data, state_groups, modelname, expname)
+make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, modelname, expname)
 
 if DOCKER:
     print('Deleting extra files')
