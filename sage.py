@@ -1852,8 +1852,10 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
 
     mcats = list(micro.keys())
     mcats_lab = [x.split('.')[1] for x in micro.values()]
+    print('---------------- TEAMS -------------------------')
+
     for tid, team in team_data.items():
-        print('----------------TEAM '+str(tid)+'-------------------------')
+        print(tid, sep=' ', end=' ', flush=True )
         t_ep = dict()
         _team_times = dict()
         for attacker, alerts in team:
@@ -1996,11 +1998,11 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
 def host_episode_sequences(team_episodes):
     host_data = {}
     #team_host_data= []
-    print(len(team_episodes))
-
+    print('# teams ', len(team_episodes))
+    print('----- TEAMS -----')
     for tid, team in enumerate(team_episodes):
-        print('----- TEAM ', tid, ' -----')
-        print(len(set([x[0] for x in team.keys()])))
+        print(tid, sep=' ', end=' ', flush=True )
+        #print(len(set([x[0] for x in team.keys()])))
         for attacker,episodes in team.items():
             #print(attacker)
             if len(episodes) < 2:
@@ -2020,7 +2022,7 @@ def host_episode_sequences(team_episodes):
             host_data[att].append(ext)
             host_data[att].sort(key=lambda tup: tup[0][0])
             
-    print(len(host_data))   
+    print('\n# episode sequences ', len(host_data))   
 
     team_strat = list(host_data.values())
     #print(len(team_strat[0]), [(len(x)) for x in team_strat[0]])
@@ -2035,8 +2037,9 @@ def break_into_subbehaviors(host_data):
     FULL_SEQ= False
         
     #print(len(team))
+    print('----- Sub-sequences -----')
     for tid, (atta,victims) in enumerate(host_data.items()):
-        print('----- Sequence # ', tid, ' -----')
+        print((tid+1), sep=' ', end=' ', flush=True)
         #print(atta)
         #print(len(victims))
         for episodes in victims:
@@ -2083,7 +2086,7 @@ def break_into_subbehaviors(host_data):
                             rest = (end+1, len(ep)-1)
                             al = episodes[start:end+1]
                             if len(al) < 2:
-                                print('discrding-1', [x[2] for x in al], start, end, len(episodes))
+                                #print('discarding symbol ', [x[2] for x in al])#, start, end, len(episodes))
                                 continue
                             att = atta+'->'+victim+'-'+str(c)
                             #print('---', att, [x[2] for x in al])
@@ -2093,22 +2096,22 @@ def break_into_subbehaviors(host_data):
                         #print('--', ep[rest[0]: rest[1]+1])
                         al = episodes[rest[0]: rest[1]+1]
                         if len(al) < 2:
-                            print('discrding-2', [x[2] for x in al]) # TODO This one is not cool1
+                            #print('discarding symbol ', [x[2] for x in al]) # TODO This one is not cool1
                             continue
                         att = atta+'->'+victim+'-'+str(c)
                         #print('---', att, [x[2] for x in al])
                         keys.append(att)
                         alerts.append(al)
-    print('# sub-sequences', len(keys))
+    print('\n# sub-sequences', len(keys))
     return (alerts, keys)
 
 ## 27 Aug 2020: Generating traces for flexfringe 
 def generate_traces(alerts, keys, datafile, test_ratio=0.0):
     victims = alerts
     al_services = [[most_frequent(y[6]) for y in x] for x in victims]
-    print('all unique servcies')
+    print('----- All unique servcies -----')
     print(set([item for sublist in al_services for item in sublist]))
-    print('---- end')
+    print('---- end ----- ')
 
     count_lines = 0
     count_cats = set()
@@ -2319,11 +2322,11 @@ def encode_sequences(m, m2):
         
         num_sink += sum(true)
         
-        print('encoded', sample, state_traces[i])
+        #print('encoded', sample, state_traces[i])
         assert (len(sample.split(' '))+1 == len(state_traces[i]))
 
     #print(len(traces), len(state_traces))
-    print('traces in sink:', num_sink, 'total', total, 'percentage:',100*(num_sink/float(total)))
+    print('Traces in sinks: ', num_sink, 'Total traces: ', total, 'Percentage: ',100*(num_sink/float(total)))
     return (traces, state_traces)    
 
 def find_severe_states(traces, m, m2):
@@ -2554,7 +2557,7 @@ def make_av_data(condensed_data):
         condensed_v_data[tv] = sorted(condensed_v_data[tv], key=lambda item: item[0])
     condensed_v_data = {k: v for k, v in sorted(condensed_v_data.items(), key=lambda item: len([x[0] for x in item[1]]))}
     #print([(k,len([x[0] for x in v])) for k,v in condensed_v_data.items()])
-    print('victims', (set([x.split('-')[-1] for x in condensed_v_data.keys()])))
+    print('Victims hosts: ', (set([x.split('-')[-1] for x in condensed_v_data.keys()])))
 
     condensed_a_data= dict()
     for attacker,episodes in condensed_data.items():
@@ -2570,7 +2573,7 @@ def make_av_data(condensed_data):
         #print(len(condensed_a_data[tv]))
     #condensed_a_data = {k: v for k, v in sorted(condensed_a_data.items(), key=lambda item: item[1][0][0])}
     #print([(k,[x[0] for x in v]) for k,v in condensed_a_data.items()])
-    print('attackers', (set([x.split('-')[1] for x in condensed_a_data.keys()])))
+    print('Attacker hosts: ', (set([x.split('-')[1] for x in condensed_a_data.keys()])))
     return (condensed_a_data, condensed_v_data)
 
 ## translate technical nodes to human readable
@@ -2627,7 +2630,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
     for intvictim in list(condensed_v_data.keys()):
         int_victim = intvictim.split('-')[1]
         #team=intvictim.split('-')[0]
-        print('!!!_-------', int_victim)
+        print('\n!!! Rendering AGs for Victim ', int_victim,' - ',  sep=' ', end=' ', flush=True)
         attacks = []
         A_lab, S_lab, stimes = [], [], []
         collective = dict()
@@ -2921,7 +2924,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, datafile, expname):
                 if DOCKER:
                     os.system("rm "+dirname+'/'+out_f_name+".dot")
                 #print('~~~~~~~~~~~~~~~~~~~~saved')
-            print('----')
+            print('#', sep=' ', end=' ', flush=True)
         #print('total high-sev states:', len(path_info))
         #path_info = dict(sorted(path_info.items(), key=lambda kv: kv[0]))
         #for k,v in path_info.items():
@@ -2966,7 +2969,7 @@ plt = plot_histogram(unparse, team_labels)
 plt.savefig('data_histogram-'+expname+'.png')
 print('------ Converting to episodes ---------')
 team_episodes,_ = aggregate_into_episodes(unparse, team_labels, step=w) # step = w
-print('---- Converting to episode sequences -----------')
+print('\n---- Converting to episode sequences -----------')
 host_data  =  host_episode_sequences(team_episodes)
 print('----- breaking into sub-sequences and making traces----------')
 (alerts, keys) = break_into_subbehaviors(host_data)
@@ -3040,5 +3043,5 @@ if DOCKER:
     os.system("rm "+outfile+".ff.init_dfa.dot.json")
     os.system("rm "+"spdfa-clustered-"+datafile+"-dfa.dot")
 
-print('------- FIN -------')
+print('\n------- FIN -------')
 ## ----- main END ------  
