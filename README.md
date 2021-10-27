@@ -24,7 +24,7 @@ Repository to accompany our publications "SAGE: Intrusion Alert-driven Attack Gr
 
 - Set paths to `flexfringe/` `ini-file/` `trace file/` location to store experimental artefacts in `sage.py` script.
 
-**If you use SAGE in a scientific work, consider citing the following paper:**
+**If you use SAGE in a scientific work, consider citing the following papers:**
 
 ```
 @inproceedings{nadeem2021sage,
