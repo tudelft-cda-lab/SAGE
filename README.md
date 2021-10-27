@@ -1,5 +1,6 @@
 # SAGE (IntruSion alert-driven Attack Graph Extractor)
-Repository to accompany our publication "SAGE: Intrusion Alert-driven Attack Graph Extractor" at VizSec, '21.
+Repository to accompany our publications "SAGE: Intrusion Alert-driven Attack Graph Extractor" at VizSec'21, and
+"Alert-driven Attack Graph Generation using S-PDFA" at TDSC'21.
 
 ## Requires 
 - Flexfringe (https://bitbucket.org/chrshmmmr/dfasat/src/master/)
@@ -26,21 +27,30 @@ Repository to accompany our publication "SAGE: Intrusion Alert-driven Attack Gra
 **If you use SAGE in a scientific work, consider citing the following paper:**
 
 ```
-@article{nadeemsage,
+@inproceedings{nadeem2021sage,
   title={SAGE: Intrusion Alert-driven Attack Graph Extractor},
   author={Nadeem, Azqa and Verwer, Sicco and Yang, Shanchieh Jay},
-  journal={Symposium on Visualization for Cyber Security (Vizec)},
+  booktitle={Symposium on Visualization for Cyber Security (Vizec)},
   publisher={IEEE},
   year={2021}
 }
 ```
 ```
-@article{nadeemsage,
-  title={SAGE: Intrusion Alert-driven Attack Graph Extractor},
+@article{nadeem2021alert,
+  title={Alert-driven Attack Graph Generation using S-PDFA},
   author={Nadeem, Azqa and Verwer, Sicco and Moskal, Stephen and Yang, Shanchieh Jay},
-  journal={Workshop on Artificial Intelligence-enabled Cybersecurity Analytics, Knowledge Discovery and Data Mining (KDD)},
-  publisher={ACM},
-  year={2021}
+  journal={IEEE Transactions on Dependable and Secure Computing (TDSC)},
+  year={2021},
+  publisher={IEEE}
+}
+```
+```
+@inproceedings{nadeem2021enabling,
+  title={Enabling visual analytics via alert-driven attack graphs},
+  author={Nadeem, Azqa and Verwer, Sicco and Moskal, Stephen and Yang, Shanchieh Jay},
+  booktitle={SIGSAC Conference on Computer and Communications Security (CCS)},
+  year={2021},
+  publisher={ACM}
 }
 ```
 
