@@ -1,5 +1,8 @@
 # SAGE (IntruSion alert-driven Attack Graph Extractor)
-Repository to accompany our publications "SAGE: Intrusion Alert-driven Attack Graph Extractor" at VizSec'21, and
+Repository to accompany our publications 
+
+"SAGE: Intrusion Alert-driven Attack Graph Extractor" at VizSec'21, and
+
 "Alert-driven Attack Graph Generation using S-PDFA" at TDSC'21.
 
 ## Requires 
