@@ -2973,7 +2973,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
 ## ----- main ------    
 
 if len(sys.argv) < 5:
-    print('USAGE: ag-gen.py {path/to/json/files} {experiment-name} {alert-filtering-window (def=1.0)} {alert-aggr-window (def=150)} {mode}')
+    print('USAGE: sage.py {path/to/json/files} {experiment-name} {alert-filtering-window (def=1.0)} {alert-aggr-window (def=150)} {mode}')
     sys.exit()
 folder = sys.argv[1]
 expname = sys.argv[2]
