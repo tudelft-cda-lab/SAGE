@@ -1,5 +1,9 @@
 # Docker for SAGE: Attack Graph Generator
-Repository to accompany our publication "SAGE: Intrusion Alert-driven Attack Graph Extractor" at AI4Cyber workshop @ KDD, '21.
+Repository to accompany our publications 
+
+"SAGE: Intrusion Alert-driven Attack Graph Extractor" at VizSec'21, and 
+
+"Alert-driven Attack Graph Generation using S-PDFA" at TDSC'21..
 
 ## Important files
 - Dockerfile
@@ -53,14 +57,35 @@ e.g. `docker run -it \` \
 
 - Wait for execution. Once finished, the output artefacts can be found in X/output/  
 
-**If you use SAGE in a scientific work, consider citing the following paper:**
+**If you use SAGE in a scientific work, consider citing the following papers:**
 
-_@article{nadeemsage,
+```
+@inproceedings{nadeem2021sage,
   title={SAGE: Intrusion Alert-driven Attack Graph Extractor},
+  author={Nadeem, Azqa and Verwer, Sicco and Yang, Shanchieh Jay},
+  booktitle={Symposium on Visualization for Cyber Security (Vizec)},
+  publisher={IEEE},
+  year={2021}
+}
+```
+```
+@article{nadeem2021alert,
+  title={Alert-driven Attack Graph Generation using S-PDFA},
   author={Nadeem, Azqa and Verwer, Sicco and Moskal, Stephen and Yang, Shanchieh Jay},
-  journal={Workshop on Artificial Intelligence-enabled Cybersecurity Analytics, Knowledge Discovery and Data Mining (KDD)},
+  journal={IEEE Transactions on Dependable and Secure Computing (TDSC)},
+  year={2021},
+  publisher={IEEE}
+}
+```
+```
+@inproceedings{nadeem2021enabling,
+  title={Enabling visual analytics via alert-driven attack graphs},
+  author={Nadeem, Azqa and Verwer, Sicco and Moskal, Stephen and Yang, Shanchieh Jay},
+  booktitle={SIGSAC Conference on Computer and Communications Security (CCS)},
+  year={2021},
   publisher={ACM}
-}_
+}
+```
 
 #### Azqa Nadeem
 #### TU Delft
