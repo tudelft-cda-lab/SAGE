@@ -1357,7 +1357,7 @@ def readfile(fname):
 #hosts = dict()
 #h_trig = []
 
-def parse(unparsed_data, alert_labels=[], slim=False, YEAR='2018'):
+def parse(unparsed_data, alert_labels=[], slim=False):
     
     FILTER = False
     badIP = '169.254.169.254'
@@ -1373,25 +1373,27 @@ def parse(unparsed_data, alert_labels=[], slim=False, YEAR='2018'):
         #print(d)
         
         raw = ''
-        if YEAR=='2017':
+        try:
              raw = json.loads(d['result']['_raw'])
-        elif YEAR=='2018':
-            raw = json.loads(d['_raw'])
-        else:
-            raw = d
+        except:
+            try:
+                raw = json.loads(d['_raw'])
+            except:
+                raw = d
+                
         if raw['event_type'] != 'alert':
             continue
         #app_proto = raw['app_proto']
         host = ''
-        if YEAR=='2017':
+        
+        try:
+            host = raw['host']
+        except:
             try:
-                host = raw['host']
+                host = d['host'][3:]
             except:
                 host = 'dummy'
-        elif YEAR=='2018':
-            host = d['host'][3:]
-        else:
-            host = 'dummy'
+
         #print(host)
         ts = raw['timestamp']
         dt = datetime.datetime.strptime(ts, '%Y-%m-%dT%H:%M:%S.%f%z')# 2018-11-03T23:16:09.148520+0000
@@ -1469,6 +1471,7 @@ def parse(unparsed_data, alert_labels=[], slim=False, YEAR='2018'):
                 
                 data[j] += (mcat,)
             j += 1
+    data = sorted(data, key=lambda x: x[8]) # Sort alerts into ascending order
     return data    
 
 def removeDup(unparse, plot=False, t=1.0):
@@ -1564,7 +1567,7 @@ def removeDup(unparse, plot=False, t=1.0):
     
 ## 5
 
-def load_data(path, t, mode= False):
+def load_data(path, t):
     unparse = []
     team_labels = []
     files = glob.glob(path+"/*.json")
@@ -1577,10 +1580,9 @@ def load_data(path, t, mode= False):
         print(name)
         team_labels.append(name)
         unparse_ = []
-        if  not mode:
-            unparse_ = parse(readfile(f), [], False)
-        else:
-            unparse_ = parse(reversed(readfile(f)), [], False, mode)
+        
+        unparse_ = parse(readfile(f), [])
+        
         unparse_ = removeDup(unparse_, t=t)
         unparse.append(unparse_)
         
@@ -2377,9 +2379,9 @@ def make_condensed_data(alerts, keys, state_traces, med_states, sev_states):
             continue
         #print(' ------------- COUNTER ', counter, '------')
         counter += 1
-        if MODE != "c2018":
-            if '10.0.254' not in attacker:
-                continue
+        
+        if '10.0.254' not in attacker:
+            continue
         if ('147.75' in attacker or '69.172'  in attacker):
                 continue
         tr = [int(x) for x in state_traces[counter]]
@@ -2973,15 +2975,13 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
 ## ----- main ------    
 
 if len(sys.argv) < 5:
-    print('USAGE: sage.py {path/to/json/files} {experiment-name} {alert-filtering-window (def=1.0)} {alert-aggr-window (def=150)} {mode}')
+    print('USAGE: sage.py {path/to/json/files} {experiment-name} {alert-filtering-window (def=1.0)} {alert-aggr-window (def=150)}')
     sys.exit()
 folder = sys.argv[1]
 expname = sys.argv[2]
 t = float(sys.argv[3])
 w = int(sys.argv[4])
-MODE = False
-if len(sys.argv) >= 6:
-    MODE = sys.argv[5]
+
     
 outaddress = ""
 path_to_ini = "dfasat/ini/spdfa-config.ini"
@@ -2995,7 +2995,7 @@ path_to_traces = datafile
 port_services = load_IANA_mapping()
 
 print('----- Reading alerts ----------')
-(unparse, team_labels) = load_data(folder, t, MODE) # t = minimal window for alert filtering
+(unparse, team_labels) = load_data(folder, t) # t = minimal window for alert filtering
 plt = plot_histogram(unparse, team_labels)
 plt.savefig('data_histogram-'+expname+'.png')
 print('------ Converting to episodes ---------')
