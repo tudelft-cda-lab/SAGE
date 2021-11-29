@@ -13,7 +13,7 @@ Repository to accompany our publications
 
 
 ## Usage
-`python sage.py {path/to/json/files} {experiment-name} {alert-filtering-window} {alert-aggr-window} {mode}`
+`python sage.py {path/to/json/files} {experiment-name} {alert-filtering-window} {alert-aggr-window}`
 
 - `{path/to/json/files}`: folder containing intrusion alerts in json format. 
 > Ideal setting: One json file for each attacker/team. Filename considered as attacker/team label. 
@@ -21,7 +21,6 @@ Repository to accompany our publications
 > Figures, trace files, model files, attack graphs are saved with this prefix for easy identification. 
 - `{alert-filtering-window}`: time window in which duplicate alerts are discarded (default: 1.0 sec)
 - `{alert-aggr-window}`: aggregate alerts occuring in this window as one episode (default: 150 sec)
-- `{mode}`: Special file parsing modes. _Leave empty_ if alerts are in ascending order. Use `2017` or `c2018` otherwise.
 
 ## First time use
 
