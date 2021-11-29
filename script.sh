@@ -6,14 +6,9 @@ IFS=$'\n'; params=($content); unset IFS;
 EXPNAME=${params[0]#*=}
 FILTER=${params[1]#*=}
 AGGR=${params[2]#*=}
-MODE=${params[3]#*=}
 
-if [ -z "$MODE" ]
-then
-      python3 sage.py input/ $EXPNAME $FILTER $AGGR
-else
-      python3 sage.py input/ $EXPNAME $FILTER $AGGR $MODE
-fi
+python3 sage.py input/ $EXPNAME $FILTER $AGGR
+
 
 outnames=$(ls . | grep $EXPNAME)
 if [ ! -d /home/out/ ]; then
