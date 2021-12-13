@@ -1584,7 +1584,22 @@ def load_data(path, t):
         unparse_ = parse(readfile(f), [])
         
         unparse_ = removeDup(unparse_, t=t)
-        unparse.append(unparse_)
+        
+        # EXP: Limit alerts by timing is better than limiting volume because each team is on a different scale. 50% alerts for one team end at a diff time than for others
+        start_hours = _s_ # which hour to start from?
+        end_hours = _e_ # which hour to end at?
+        end_time_limit = 3600*end_hours 
+        start_time_limit = 3600*start_hours
+        
+        first_ts = unparse_[0][8]
+        startTimes.append(first_ts)
+        filtered_unparse = []
+        
+        
+        filtered_unparse = [x for x in unparse_ if (((x[8]-first_ts).total_seconds() <= end_time_limit) \
+                                                and ((x[8]-first_ts).total_seconds() >= start_time_limit))]
+                                                
+        unparse.append(filtered_unparse)
         
     return (unparse, team_labels)
     
@@ -1849,7 +1864,6 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
     #print(len(s_t))
     team_episodes = []
 
-    startTimes = [x[0][8] for x in unparse]
     team_times = []
 
     mcats = list(micro.keys())
@@ -2836,13 +2850,27 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
 ## ----- main ------    
 
 if len(sys.argv) < 5:
-    print('USAGE: sage.py {path/to/json/files} {experiment-name} {alert-filtering-window (def=1.0)} {alert-aggr-window (def=150)}')
+    print('USAGE: ag-gen.py {path/to/json/files} {experiment_name} {alert_filtering_window (def=1.0)} {alert_aggr_window (def=150)} {(start_hour,end_hour)[Optional]}')
     sys.exit()
+
 folder = sys.argv[1]
 expname = sys.argv[2]
 t = float(sys.argv[3])
 w = int(sys.argv[4])
+_s_,_e_ = 0, 100
+if len(sys.argv) > 5:
+    #range_ = str(sys.argv[5])
+    try:
+        #range_ = range_.replace('(', '').replace(')', '').split(',')
+        _s_ = float(sys.argv[5])#int(range_[0])
+        _e_ = float(sys.argv[6])#int(range_[1])
+        print('Filtering alerts. Only parsing from %d-th to %d-th hour (relative to the start of the alert capture)'%(_s_,_e_))
+    except:
+        print('Error parsing hour filter range')
+        sys.exit()
 
+startTimes = [] # We cheat a bit: In case user filters to only see alerts from (s,e) range, 
+#                    we record the first alert just to get the real time-elapsed since first alert
     
 outaddress = ""
 path_to_ini = "dfasat/ini/spdfa-config.ini"
