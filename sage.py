@@ -2220,7 +2220,7 @@ def traverse(dfa, sinks, sequence, statelist=False):
    sequence -- space-separated string to accept/reject in dfa
   """  
   #print(dfa)
-  in_main_model = set()
+  #in_main_model = set()
   sev_sinks = set()
   state = "0"
   stlst = ["0"]
@@ -2237,8 +2237,8 @@ def traverse(dfa, sinks, sequence, statelist=False):
          isred = dfa[state[0]]["isred"]
       #print(state)
       #if state != "":
-      if isred == 1:
-            in_main_model.add(state[0])
+      #if isred == 1:
+      #      in_main_model.add(state[0])
       if state == "":
           # return -1 for low sev symbols
           sev = rev_smallmapping[sym.split('|')[0]]
@@ -2400,7 +2400,7 @@ def make_condensed_data(alerts, keys, state_traces, med_states, sev_states):
         #print(new_state, [x[2] for x in episodes])
         # also artifically add tiny delay so all events are not exactly at the same time.
         #print(len(episodes), new_state, max_servs)
-        times = [(x[0], x[1], x[2], int(new_state[i]), max_servs[i]) for i,x in enumerate(episodes)] # start time, endtime, episode mas, state ID
+        times = [(x[0], x[1], x[2], int(new_state[i]), max_servs[i]) for i,x in enumerate(episodes)] # start time, endtime, episode mas, state ID, most frequent service
         
         step1 = attacker.split('->')
         step1_0 = step1[0].split('-')[0]
@@ -2625,334 +2625,199 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
     
     
     
-    #tcols = {'t0': 'saddlebrown'}
-    #int_victim = []#['10.128.0.205']#['10.0.1.40', '10.0.1.41','10.0.1.42','10.0.1.43','10.0.1.44' ]
+    
 
     shapes = ['oval', 'oval', 'oval', 'box', 'box', 'box', 'box', 'hexagon', 'hexagon', 'hexagon', 'hexagon', 'hexagon']
+    in_main_model = [[episode[3] for episode in sequence] for sequence in condensed_data.values()] # all IDs in the main model (including high-sev sinks)
+    in_main_model = set([item for sublist in in_main_model for item in sublist])
+    
     ser_total = dict()
     simple = dict()
-    for intvictim in list(condensed_v_data.keys()): # this loops runs for every connection!!!!! it runs for #seq times
-        int_victim = intvictim.split('-')[1]
-        #team=intvictim.split('-')[0]
-        print('\n!!! Rendering AGs for Victim ', int_victim,' - ',  sep=' ', end=' ', flush=True)
-        attacks = []
-        A_lab, S_lab, stimes = [], [], []
-        collective = dict()
-        for att,episodes in condensed_data.items():
-            service_theme = []
-            this_times = []
-            #print(len(episodes))
-            #print([(x[2],x[3]) for x in episodes])
-            for ep in episodes:
-
-                time = math.ceil(ep[0]/1.0)
-                encode = [group for group,sts in state_groups.items() if ep[3] in sts]
-                cat= -1
-                if len(encode) == 0:
-                    #continue
-                    
-                    cat = micro[ep[2]].split('.')[1]
-                    stateID = '|Sink' if len(str(ep[2])) == 1 else '|Sink'
+    total_victims = set([x.split('-')[1] for x in list(condensed_v_data.keys())]) # collect all victim IPs
+    
+    OBJ_ONLY = False # Experiment 1: mas+service or only mas?
+    attacks = set()
+    for episodes in condensed_data.values(): # iterate over all episodes and collect the objective nodes.
+        for ep in episodes: # iterate over every episode
+            if len(str(ep[2])) == 3: # If high-seveity, then include it
+                cat = micro[ep[2]].split('.')[1]
+                vert_name = None
+                if OBJ_ONLY:
+                    vert_name = cat
                 else:
-                    cat = str(encode[0])#str(encode[0]) if 'RECON' in encode[0] else str(encode[0])+'|'+str(ep[3]) 
-                    stateID = '' if 'RECON' in encode[0] else '|'+str(ep[3]) 
-
-                sorting= None
-                try:
-                    short = cat#.split('|')[0]
-                    sorting = macro_inv['MacroAttackStage.'+short]
-                except:
-                    sorting =  -1
-                #A_lab.append((sorting, cat))
-                this_times.append(time)
-                stimes.append(time)   
-                servtheme = str(micro[ep[2]].split('.')[1])+'|'+str(ep[4]) + str(stateID)
-                service_theme.append(servtheme)
-                if len(str(ep[2])) ==3:
-                    attacks.append(servtheme)
-                S_lab.append((ep[2], servtheme))
-            #print(service_theme)        
-
-            #A_lab = list(set(A_lab))
-            S_lab = list(set(S_lab))
-
-            #A_lab = sorted(A_lab, key=lambda x: x[0])
-
-            S_lab = sorted(S_lab, key=lambda x: macro_inv[micro2macro[micro[x[0]]]])
-
-            stimes = sorted(list(set(stimes)))
-
-            #alab = [x[1] for x in A_lab]
-            slab = [x[1] for x in S_lab]
-
-            collective[att] = (service_theme,this_times)
-        attacks = list(set(attacks))
-        # Experiment 1: state IDs are not important. Attack graph should show all mas+service
-        OBJ_ONLY = False
-        if OBJ_ONLY:
-            attacks = [x.split('|')[0] for x in attacks]
-        else:
-            attacks = [x.split('|')[0]+'|'+x.split('|')[1] for x in attacks]
-        # Experiment 2: state IDs and service are not important. Attack graph should show all mas
-        #attacks = [x.split('|')[0] for x in attacks]
-        attacks = list(set(attacks))
-        #print(attacks)
-        #path_info = dict()
-        #print(len(set(slab)))
-        #print(collective.keys())
-        #print([(k,len(x[0])) for k,x in collective.items()])
-        #print(collective['t1-10.0.254.202'])
-        for attack in attacks:#, 'DATA_DELIVERY|cslistener|27', 'DATA_EXFILTRATION|http|13']:# , , 'DATA_DESTRUCTION|us-cli|955', 'RESOURCE_HIJACKING|http|14']: 
-            
-            #if attack not in path_info.keys():
-            #    path_info[attack] = {'t0': [], 't1': [], 't2': [], 't3': [], 't4': [], 't5': []}
-                
-            #if obj_ser not in ser_total.keys():
-            #    ser_total[obj_ser] = set()
+                    vert_name = cat+'|'+ep[4] # cat + service
+                attacks.add(vert_name)
+    attacks = list(attacks)
+        
+        
+    for int_victim in total_victims:  # iterate over every victim
+        print('\n!!! Rendering AGs for Victim ', int_victim,'\n',  sep=' ', end=' ', flush=True)
+        for attack in attacks: # iterate over every attack
+            print('\t!!!! Objective ', attack,'\n',  sep=' ', end=' ', flush=True)
             collect = dict()
-            event_set = set()
-            time_set = set()
+            
             team_level = dict()
-            sseen = []
+            observed_obj = [] # variants of current objective
             nodes = set()
             vertices, edges = 0, 0
-            for att,episodes in condensed_data.items():
-                #print(att)
-                team = att.split('->')[0]
-                event = []
-                times = []
-                #print(att)
-
+            for att,episodes in condensed_data.items(): # iterate over (a,v): [episode, episode, episode]
+                if int_victim not in att: # if it's not the right victim, then don't process further
+                    continue  
+                vname_time = []
                 for ep in episodes:
                     time = round(ep[0]/1.0)
-                    encode = [group for group,sts in state_groups.items() if ep[3] in sts]
-                    cat= -1
-                    if len(encode) == 0:
-                        #continue
-                        cat = micro[ep[2]].split('.')[1]
-                        stateID = '|Sink' if len(str(ep[2])) == 1 else '|Sink'
+                    cat = micro[ep[2]].split('.')[1]
+                    
+                    stateID = -1
+                    if ep[3] in in_main_model:
+                        stateID = '' if len(str(ep[2])) == 1 else '|'+str(ep[3])
                     else:
-                        cat = str(encode[0])#str(encode[0]) if 'RECON' in encode[0] else str(encode[0])+'|'+str(ep[3]) 
-                        stateID = '' if 'RECON' in encode[0] else '|'+str(ep[3]) 
-                        #sorting= None
-                        #try:
-                        #    short = cat#.split('|')[0]
-                        #    sorting = macro_inv['MacroAttackStage.'+short]
-                        #except:
-                        #    sorting =  -1
-                        #stimes.append(time)   
-
-                    servtheme = str(micro[ep[2]].split('.')[1])+'|'+str(ep[4]) + str(stateID)
-                    times.append(time)
-                    event.append(servtheme)
-
-                    #if len(str(ep[2])) ==3:
-                    #    attacks.append(servtheme)
-                    #S_lab.append((ep[2], servtheme))
-                #print(times)
-                if not sum([True if attack in x else False for x in event]):
+                        stateID = '|Sink'
+                    
+                    vert_name = cat + '|'+ ep[4] + stateID
+                    
+                    vname_time.append((vert_name, time))
+                    
+                if not sum([True if attack in x[0] else False for x in vname_time]): # if the objective is never reached, don't process further
                     continue
-                if int_victim not in att:
-                    continue
-                
-                #print('-------!!!!', attack)
-                #obj_ser = ser_inv[attack.split('|')[1]][0]
-                #print('-------!!!SERVICE', attack.split('|')[1])
-                #print([x for x in event])
-                #print([x for x in times])
-                event_set = set(event_set)
-                time_set = set(time_set)
-
-                event_set.update(event)
-                time_set.update(times)
-
-                
-                event_set = sorted(event_set, key=lambda x: macro_inv[micro2macro['MicroAttackStage.'+x.split('|')[0]]])
-                time_set = sorted(time_set)
-                
-                data = [(x,y) for x,y in zip(event,times)]
-                #cuts = [i for i in range(len(event)-1) if (len(str(micro_inv['MicroAttackStage.'+event[i].split('|')[0]])) > \
-                #                                           len(str(micro_inv['MicroAttackStage.'+event[i+1].split('|')[0]]))) ]#
-                #print('+++++', cuts)
-
-                lists = []
-                l = []
-
-                '''for i,d in enumerate(data):
-                    if i in cuts:
-                        l.append(d)
-                        if len(l) <= 1: ## If only a single node, reject
-                            l = []
+                    
+                # if it's an episode sequence targetting the requested victim and obtaining the requested objective,
+                attempts = []
+                sub_attempt = []
+                for (vname, time) in vname_time: # cut each attempt until the requested objective
+                    sub_attempt.append((vname, time)) # add the vertex in path
+                    if attack in vname: # if it's the objective
+                        if len(sub_attempt) <= 1: ## If only a single node, reject
+                            sub_attempt = []
                             continue
-
-                        if attack in l[-1][0]:
-                            sseen.append(d[0])
-                            lists.append(l)
-                        l = []
-
+                        attempts.append(sub_attempt)
+                        sub_attempt = []
+                        observed_obj.append(vname)
                         continue
-                    l.append(d)
-                if len(l) > 1 and attack in l[-1][0]:
-                    sseen.append(l[-1][0])
-                    lists.append(l)'''
-                for d in data:
-                    if attack in d[0]:
-                        l.append(d) 
-                        if len(l) <= 1: ## If only a single node, reject
-                            l = []
-                            continue
-                        #print(len(l))
-                        lists.append(l)
-                        l = []
-                        sseen.append(d[0])
-                        continue
-                    l.append(d)
-                #print(lists)
-                #print([[y[0] for y in x] for x in lists])
-                if team not in team_level.keys():
-                    team_level[team] = []
-                team_level[team].extend(lists)
-                #team_level[team] = sorted(team_level[team], key=lambda item: item[1])
-            #print(sseen)
+                team_attacker = att.split('->')[0] # team+attacker
+                if team_attacker not in team_level.keys():
+                    team_level[team_attacker] = []
+                    
+                team_level[team_attacker].extend(attempts)
+                #team_level[team_attacker] = sorted(team_level[team_attacker], key=lambda item: item[1])
+            #print(observed_obj)
             # print('elements in graph', team_level.keys(), sum([len(x) for x in team_level.values()]))
 
-            if sum([len(x) for x in team_level.values()]) == 0:
+            if sum([len(x) for x in team_level.values()]) == 0: # if no team obtains this objective or targets this victim, don't generate its AG.
                 continue
 
-            name = attack.replace('|', '').replace('_','').replace('-','').replace('(','').replace(')', '')
+            AGname = attack.replace('|', '').replace('_','').replace('-','').replace('(','').replace(')', '')
             lines = []
-            lines.append((0,'digraph '+ name + ' {'))
+            lines.append((0,'digraph '+ AGname + ' {'))
             lines.append((0,'rankdir="BT"; \n graph [ nodesep="0.1", ranksep="0.02"] \n node [ fontname=Arial, fontsize=24,penwidth=3]; \n edge [ fontname=Arial, fontsize=20,penwidth=5 ];'))
-            lines.append((0, '"'+translate(attack, root=int_victim)+'" [shape=doubleoctagon, style=filled, fillcolor=salmon];'))
-            lines.append((0, '{ rank = max; "'+translate(attack, root=int_victim)+'"}'))
-            for s in list(set(sseen)):
-                lines.append((0,'"'+translate(s)+'" -> "'+translate(attack, root=int_victim)+'"'))
-                #print(s, s.split('|')[1], ser_inv[s.split('|')[1]][0])
+            root_node = translate(attack, root=int_victim)
+            lines.append((0, '"'+root_node+'" [shape=doubleoctagon, style=filled, fillcolor=salmon];'))
+            lines.append((0, '{ rank = max; "'+root_node+'"}'))
+            
+            for obj in list(set(observed_obj)): # for each variant of objective, add a link to the root node, and determine if it's sink
+                lines.append((0,'"'+translate(obj)+'" -> "'+root_node+'"'))
                 
-                #o = ser_inv[s.split('|')[1]][0]
-                #if o not in ser_total.keys():
-                #    ser_total[o] = set()
-                #ser_total[o].add(s)
-            for s in list(set(sseen)):
                 sinkflag = False
                 for sink in sev_sinks:    
-                    if s.endswith(sink):
+                    if obj.endswith(sink):
                         sinkflag = True
                         break
                 if sinkflag:
-                    lines.append((0,'"'+translate(s)+'" [style="filled,dotted", fillcolor= salmon]'))
+                    lines.append((0,'"'+translate(obj)+'" [style="filled,dotted", fillcolor= salmon]'))
                 else:
-                    lines.append((0,'"'+translate(s)+'" [style=filled, fillcolor= salmon]'))
-            #print('-------!!!numObjs', set(sseen))
+                    lines.append((0,'"'+translate(obj)+'" [style=filled, fillcolor= salmon]'))
             
-            samerank = '{ rank=same; "'+ '" "'.join([translate(x) for x in sseen])
+            samerank = '{ rank=same; "'+ '" "'.join([translate(x) for x in observed_obj]) # all obj variants have the same rank
             samerank += '"}'
             lines.append((0,samerank))
 
 
-            for k,vs in team_level.items():
-                for v in vs:
-                    #if v[0][1] == 89141:
-                    #    continue
-                    nodes.update([x[0] for x in v])
+            already_addressed = set()
+            for attackerID,attempts in team_level.items(): # for every attacker that obtains this objective
             
-            starting_verts = set()
-            for k,vs in team_level.items():
-                ones = [''.join([y[0] for y in x]) for x in vs]
-                #print(ones)
-                unique = len(set(ones))
+                color = tcols[attackerID.split('-')[0]] # team color
+                ones = [''.join([action[0] for action in attempt]) for attempt in attempts]
+                unique = len(set(ones)) # count exactly unique attempts
                 #print(unique)
-                #print('team', k, 'total paths', len(vs), 'unique paths', unique, 'longest path:', max([len(x) for x in vs]), \
-                #     'shortest path:', min([len(x) for x in vs]))
+                #print('team', attackerID, 'total paths', len(attempts), 'unique paths', unique, 'longest path:', max([len(x) for x in attempts]), \
+                #     'shortest path:', min([len(x) for x in attempts]))
                 
-                #path_info[attack][k].append((len(vs), unique, max([len(x) for x in vs]), min([len(x) for x in vs])))
-                for v in vs:
-                    #print(v[1])
-                    #if v[0][1] == 89141:
-                    #    continue
-                    color = tcols[k.split('-')[0]]
-                    
+                #path_info[attack][attackerID].append((len(attempts), unique, max([len(x) for x in attempts]), min([len(x) for x in attempts])))
+                
+                for attempt in attempts: # iterate over each attempt
+                    nodes.update([v[0] for v in attempt]) # record all nodes
                     # nodes
-                    for vid,one in enumerate(v):
-                        if vid == 0:
-                            if 'Sink' in one[0]:
-                                lines.append((0,'"'+translate(one[0])+'" [style="dotted,filled", fillcolor= yellow]'))
+                    for vid,(vname,time) in enumerate(attempt): # iterate over each action in an attempt
+                        if vid == 0: # if first action
+                            if 'Sink' in vname: # if sink, make dotted
+                                lines.append((0,'"'+translate(vname)+'" [style="dotted,filled", fillcolor= yellow]'))
                             else:
                                 sinkflag = False
                                 for sink in sev_sinks:    
-                                    if one[0].endswith(sink):
+                                    if vname.endswith(sink): # else if a high-sev sink, make dotted too
                                         sinkflag = True
                                         break
                                 if sinkflag:
-                                    lines.append((0,'"'+translate(one[0])+'" [style="dotted,filled", fillcolor= yellow]'))
-                                    starting_verts.add(one[0].split('|')[2])
-                                else:
-                                    lines.append((0,'"'+translate(one[0])+'" [style=filled, fillcolor= yellow]'))
-                        else:
-                            if 'Sink' in one[0]:
-                                line = [x[1] for x in lines]
+                                    lines.append((0,'"'+translate(vname)+'" [style="dotted,filled", fillcolor= yellow]'))
+                                    already_addressed.add(vname.split('|')[2])
+                                else: # else, normal starting node
+                                    lines.append((0,'"'+translate(vname)+'" [style=filled, fillcolor= yellow]'))
+                        else: # for other actions
+                            if 'Sink' in vname: # if sink
+                                line = [x[1] for x in lines] # take all AG graph lines so far, and see if it was ever defined before, re-define it to be dotted
                                 quit = False
                                 for l in line:
-                                    if (translate(one[0]) in l) and ('dotted' in l) and ('->' not in l): 
+                                    if (translate(vname) in l) and ('dotted' in l) and ('->' not in l): # if already defined as dotted, move on
                                         quit = True
                                         break
                                 if quit:
                                     continue
-                                partial = '"'+translate(one[0])+'" [style="dotted'
-                                #print(line)
-                                #print('@@@@', partial)
+                                partial = '"'+translate(vname)+'" [style="dotted' # redefine here
                                 if not sum([True if partial in x else False for x in line]):
                                     lines.append((0,partial+'"]'))
 
                     # transitions
-                    bi = zip(v, v[1:])
-                    for vid,(one,two) in enumerate(bi):
-                        if vid > 0:
-                            lines.append((one[1], '"'+translate(one[0])+'"' + ' -> ' + '"'+translate(two[0])+'"' +' [ label="'+ str(one[1]) +'s"]' + '[ color='+color+']')) # 
+                    bi = zip(attempt, attempt[1:]) # make bigrams (sliding window of 2)
+                    for vid,((vname1,time1),(vname2,_)) in enumerate(bi): # for every bigram
+                        if vid == 0: # first transition, add attacker IP
+                            lines.append((time1, '"'+translate(vname1)+'"' + ' -> ' + '"'+translate(vname2)+'" [ color='+color+'] '+'[label=<<font color="'+color+'">'+attackerID.split('-')[1]+'</font><br/> <font>'+str(time1) +'s</font>>]'))
                         else:
-                            lines.append((one[1], '"'+translate(one[0])+'"' + ' -> ' + '"'+translate(two[0])+'" [ color='+color+'] '+'[label=<<font color="'+color+'">'+k.split('-')[1]+'</font><br/> <font>'+str(one[1]) +'s</font>>]'))
-
-            #lines = sorted(lines, key=lambda item: item[0], reverse=True)
-            #print(lines)
-            #print(nodes)
-            for node in nodes:
-                #vertices += 1
-                mas = node.split('|')[0]
+                            lines.append((time1, '"'+translate(vname1)+'"' + ' -> ' + '"'+translate(vname2)+'"' +' [ label="'+ str(time1) +'s"]' + '[ color='+color+']')) 
+                            
+            for vname in nodes: # Go over all vertices again and define their shapes + make high-sev sink states dotted
+                mas = vname.split('|')[0]
                 mas = macro_inv[micro2macro['MicroAttackStage.'+mas]]
                 shape = shapes[mas]
-                if shape == shapes[0] or node.split('|')[2] in starting_verts: # if it's oval, we dont do anything because its not high-sev sink
-                    lines.append((0,'"'+translate(node)+'" [shape='+shape+']'))
+                if shape == shapes[0] or vname.split('|')[2] in already_addressed: # if it's oval, we dont do anything because its not high-sev sink
+                    lines.append((0,'"'+translate(vname)+'" [shape='+shape+']'))
                 else:
                     sinkflag = False
                     for sink in sev_sinks:    
-                        if node.endswith(sink):
+                        if vname.endswith(sink):
                             sinkflag = True
                             break
                     if sinkflag:
-                        lines.append((0,'"'+translate(node)+'" [style="dotted", shape='+shape+']'))
+                        lines.append((0,'"'+translate(vname)+'" [style="dotted", shape='+shape+']'))
                     else:
-                        lines.append((0,'"'+translate(node)+'" [shape='+shape+']'))
+                        lines.append((0,'"'+translate(vname)+'" [shape='+shape+']'))
             lines.append((1000,'}'))
             
-            for l in lines:
+            for l in lines: # count vertices and edges
                 if '->' in l[1]:
                     edges +=1
                 elif 'shape=' in l[1]:
                     vertices +=1
-                    
+            simple[int_victim+'-'+AGname] = (vertices, edges)
             
-            simple[int_victim+'-'+name] = (vertices, edges)
             #print('# vert', vertices, '# edges: ', edges,  'simplicity', vertices/float(edges))
-            #print('file')
             if SAVE:
-                v = int_victim#.replace('.','')
-                f = open(dirname+'/'+datafile+'-attack-graph-for-victim-'+v+'-'+name +'.dot', 'w')
+                out_f_name = datafile+'-attack-graph-for-victim-'+int_victim+'-'+AGname 
+                f = open(dirname+'/'+ out_f_name +'.dot', 'w')
                 for l in lines:
-                    #print(l[1])
                     f.write(l[1])
                     f.write('\n')
                 f.close()
-                out_f_name = datafile+'-attack-graph-for-victim-'+v+'-'+name 
+                
                 os.system("dot -Tpng "+dirname+'/'+out_f_name+".dot -o "+dirname+'/'+out_f_name+".png")
                 if DOCKER:
                     os.system("rm "+dirname+'/'+out_f_name+".dot")
@@ -2960,18 +2825,14 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
             print('#', sep=' ', end=' ', flush=True)
         #print('total high-sev states:', len(path_info))
         #path_info = dict(sorted(path_info.items(), key=lambda kv: kv[0]))
-        #for k,v in path_info.items():
-        #    print(k)
+        #for attackerID,v in path_info.items():
+        #    print(attackerID)
         #    for t,val in v.items():
         #       print(t, val)
-    #for k,v in ser_total.items():
-    #    print(k, len(v), set([x.split('|')[0] for x in v]))
+    #for attackerID,v in ser_total.items():
+    #    print(attackerID, len(v), set([x.split('|')[0] for x in v]))
  
- 
- 
- 
- 
- 
+
 ## ----- main ------    
 
 if len(sys.argv) < 5:
@@ -2990,7 +2851,6 @@ modelname = expname+'.txt'#'test-trace-uni-serGroup.txt'
 datafile = expname+'.txt'#'trace-uni-serGroup.txt'
    
 path_to_traces = datafile
-
 
 port_services = load_IANA_mapping()
 
