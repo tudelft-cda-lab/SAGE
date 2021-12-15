@@ -1685,23 +1685,12 @@ def legend_without_duplicate_labels(ax, fontsize=10, loc='upper right'):
 ## 13
 # Goal: (1) To first form a collective attack profile of a team
 # and then (2) TO compare attack profiles of teams
-def getepisodes(action_seq, plot, debug=False):
+def getepisodes(action_seq, mcat, plot, debug=False):
     
     dx = 0.1
     #print(h_d_mindata)
     y = [len(x) for x in action_seq]#
-    if not debug:
-        #print('-------------- strat')
-        
-        if len(y) <= 1:
-            #print(sum(y), len(y), 'yo returning')
-            return []
-        #if (sum(y) > 0):
-        ##    print('how long? = ', sum(y))
-        #   print(y)
-            '''fig = plt.figure()
-            plt.plot(y)
-            plt.show()'''
+    
     # test case 1: normal sequence
     #y = [11, 0, 0, 2, 5, 2, 2, 2, 4, 2, 0, 0, 8, 6, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 13, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 9, 2]
     # test case 2: start is not detected
@@ -1729,6 +1718,10 @@ def getepisodes(action_seq, plot, debug=False):
     #y = [2, 0, 0, 0, 0, 0, 0, 2, 3, 0, 0, 0, 0, 2, 3]
     #y = [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
 
+    if sum(y) == 0:
+        return []
+    if len(y) == 1: # artifically augemnting list for a single action to be picked up                                                                 
+        y = [y[0], 0]  
     cap  = max(y)+1
     dy = diff(y)/dx
     
@@ -1793,6 +1786,10 @@ def getepisodes(action_seq, plot, debug=False):
         episodes_.append(episode)
     
     if plot:
+        fig = plt.figure()
+        plt.title(mcat)
+        plt.xlabel('Time ->')
+        plt.ylabel('Slope')
         plt.plot(y, 'gray')
         for ep in episodes_:
             #print(ep)
@@ -1889,10 +1886,10 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
             
             # debugging if start times of each connection are correct.
             #print(first_elapsed_time, round( (s_t[str(tid)+"|"+str(attacker[0])+"->"+str(attacker[1])] - startTimes[tid]).total_seconds(),2))
-            last_elapsed_time = round((alerts[-1][2] - alerts[0][2]).total_seconds() + first_elapsed_time,2)
+            #last_elapsed_time = round((alerts[-1][2] - alerts[0][2]).total_seconds() + first_elapsed_time,2)
             #print(first_elapsed_time, last_elapsed_time)
             
-            _team_times['->'.join(attacker)] = (first_elapsed_time, last_elapsed_time)
+            _team_times['->'.join(attacker)] = (first_elapsed_time)#, last_elapsed_time)
             ts = [x[2] for x in alerts]
             rest = [(x[0], x[1], x[2], x[3]) for x in alerts]
 
@@ -1931,7 +1928,7 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
                 episodes = []
                 
                 
-                episodes = getepisodes(mindata, False)
+                episodes = getepisodes(mindata, micro[mcat], False)
 
                 if len(episodes) > 0:
                     
@@ -1953,7 +1950,7 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
                                    raw_ports[x[0]:x[1]+1]) 
                                  for x,mi in zip(episodes, minute_info)] # now the start and end are actual elapsed times
                     
-                    #EPISODE DEF: (startTime, endTime, mcat, rawevents, epiVolume, epiPeriod, epiServices)
+                    #EPISODE DEF: (startTime, endTime, mcat, len(rawevents), #alerts, epiPeriod, epiServices)
                     episode = [(x[0], x[1], x[2], x[3], round(sum(x[3])/float(len(x[3])),1), (x[1]-x[0]),
                                 [item for sublist in x[4] for item in sublist]) for x in episode]
                     
@@ -2850,7 +2847,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
 ## ----- main ------    
 
 if len(sys.argv) < 5:
-    print('USAGE: ag-gen.py {path/to/json/files} {experiment_name} {alert_filtering_window (def=1.0)} {alert_aggr_window (def=150)} {(start_hour,end_hour)[Optional]}')
+    print('USAGE: sage.py {path/to/json/files} {experiment_name} {alert_filtering_window (def=1.0)} {alert_aggr_window (def=150)} {(start_hour,end_hour)[Optional]}')
     sys.exit()
 
 folder = sys.argv[1]
