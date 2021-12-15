@@ -17,10 +17,10 @@ Repository to accompany our publications
 
 - `{path/to/json/files}`: folder containing intrusion alerts in json format. 
 > Ideal setting: One json file for each attacker/team. Filename considered as attacker/team label. 
-- `{experiment-name}`: custom name for all artefacts
+- `{experiment_name}`: custom name for all artefacts
 > Figures, trace files, model files, attack graphs are saved with this prefix for easy identification. 
-- `{alert-filtering-window}`: time window in which duplicate alerts are discarded (default: 1.0 sec)
-- `{alert-aggr-window}`: aggregate alerts occuring in this window as one episode (default: 150 sec)
+- `{alert_filtering_window}`: time window in which duplicate alerts are discarded (default: 1.0 sec)
+- `{alert_aggr_window}`: aggregate alerts occuring in this window as one episode (default: 150 sec)
 - [Optional] `{(start_hour,end_hour)}`: Time range (in hours). A floating-point tuple limiting the alerts that are parsed and involved in the final attack graphs. 
 > If not provided, the default values of (0,100) are used, meaning alerts from 0-th to 100-th hour (relative to the start of the alert capture) are parsed.
 
