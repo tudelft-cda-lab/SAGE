@@ -1302,10 +1302,10 @@ ser_groups = dict({
     'unassigned' : ['unknown', 'Unknown']
 })
 
-ser_inv = {}
-for k,v in ser_groups.items():
-    for x in v:
-        ser_inv.setdefault(x,[]).append(k)
+#ser_inv = {}
+#for k,v in ser_groups.items():
+#    for x in v:
+#        ser_inv.setdefault(x,[]).append(k)
         
 def load_IANA_mapping():
     """Download the IANA port-service mapping"""
@@ -2142,7 +2142,7 @@ def generate_traces(alerts, keys, datafile, test_ratio=0.0):
         count_lines += 1
         mcats = [str(x[2]) for x in episodes]
         num_servs = [len(set((x[6]))) for x in episodes]
-        max_servs = [ser_inv[most_frequent(x[6])][0] for x in episodes]
+        max_servs = [most_frequent(x[6]) for x in episodes]
         stime = [x[0] for x in episodes]
         #print(stime)
         #print(' '.join(mcats))
@@ -2178,7 +2178,7 @@ def flexfringe(*args, **kwargs):
     for key in kwargs:
       command += ["--" + key + "=" + kwargs[key]]
 
-  result = subprocess.run(["dfasat/flexfringe",] + command + [args[0]], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+  result = subprocess.run(["FlexFringe/flexfringe",] + command + [args[0]], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
   print(result.returncode, result.stdout, result.stderr)
 
   
@@ -2870,7 +2870,7 @@ startTimes = [] # We cheat a bit: In case user filters to only see alerts from (
 #                    we record the first alert just to get the real time-elapsed since first alert
     
 outaddress = ""
-path_to_ini = "dfasat/ini/spdfa-config.ini"
+path_to_ini = "FlexFringe/ini/spdfa-config.ini"
 
 modelname = expname+'.txt'#'test-trace-uni-serGroup.txt'
 datafile = expname+'.txt'#'trace-uni-serGroup.txt'
@@ -2909,7 +2909,7 @@ path_to_model = outaddress+modelname
 
 print('------ !! Special: Fixing syntax error in main model and sink files  ---------')
 print('--- Sinks')
-with open(path_to_model+".ff.sinksfinal.json", 'r') as file:
+with open(path_to_model+".ff.finalsinks.json", 'r') as file:
     filedata = file.read()
 stripped = re.sub('[\s+]', '', filedata)
 extracommas = re.search('(}(,+)\]}$)', stripped)
@@ -2917,11 +2917,11 @@ if extracommas is not None:
     c = (extracommas.group(0)).count(',')
     print(extracommas.group(0), c)
     filedata = ''.join(filedata.rsplit(',', c))
-    with open(path_to_model+".ff.sinksfinal.json", 'w') as file:
+    with open(path_to_model+".ff.finalsinks.json", 'w') as file:
         file.write(filedata)
   
 print('--- Main')  
-with open(path_to_model+".ff.final.dot.json", 'r') as file:
+with open(path_to_model+".ff.final.json", 'r') as file:
     filedata = file.read()
 stripped = re.sub('[\s+]', '', filedata)
 extracommas = re.search('(}(,+)\]}$)', stripped)
@@ -2929,13 +2929,13 @@ if extracommas is not None:
     c = (extracommas.group(0)).count(',')
     print(extracommas.group(0), c)
     filedata = ''.join(filedata.rsplit(',', c))
-    with open(path_to_model+".ff.final.dot.json", 'w') as file:
+    with open(path_to_model+".ff.final.json", 'w') as file:
         file.write(filedata)
 
 print('------ Loading and traversing SPDFA ---------')
 # Load S-PDFA
-m, data = loadmodel(path_to_model+".ff.final.dot.json")
-m2,data2 = loadmodel(path_to_model+".ff.sinksfinal.json")
+m, data = loadmodel(path_to_model+".ff.final.json")
+m2,data2 = loadmodel(path_to_model+".ff.finalsinks.json")
 
 print('------- Encoding into state sequences --------')
 # Encoding traces into state sequences  
@@ -2953,10 +2953,13 @@ make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, modelname, ex
 if DOCKER:
     print('Deleting extra files')
     os.system("rm "+outfile+".ff.final.dot")
-    os.system("rm "+outfile+".ff.final.dot.json")
-    os.system("rm "+outfile+".ff.sinksfinal.json")
-    os.system("rm "+outfile+".ff.init_dfa.dot")
-    os.system("rm "+outfile+".ff.init_dfa.dot.json")
+    os.system("rm "+outfile+".ff.final.json")
+    os.system("rm "+outfile+".ff.finalsinks.json")
+    os.system("rm "+outfile+".ff.finalsinks.dot")
+    os.system("rm "+outfile+".ff.init.dot")
+    os.system("rm "+outfile+".ff.init.json")
+    os.system("rm "+outfile+".ff.initsinks.dot")
+    os.system("rm "+outfile+".ff.initsinks.json")    
     os.system("rm "+"spdfa-clustered-"+datafile+"-dfa.dot")
 
 print('\n------- FIN -------')
