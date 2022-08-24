@@ -2142,7 +2142,7 @@ def generate_traces(alerts, keys, datafile, test_ratio=0.0):
         count_lines += 1
         mcats = [str(x[2]) for x in episodes]
         num_servs = [len(set((x[6]))) for x in episodes]
-        max_servs = [ser_inv[most_frequent(x[6])][0] for x in episodes]
+        max_servs = [most_frequent(x[6]) for x in episodes]
         stime = [x[0] for x in episodes]
         #print(stime)
         #print(' '.join(mcats))
