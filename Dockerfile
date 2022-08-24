@@ -27,14 +27,15 @@ RUN cd root/ \
 	&& pip3 install -r requirements.txt
 
 RUN cd /root \
-	&& git clone https://bitbucket.org/chrshmmmr/dfasat.git \
-	&& cd dfasat && git checkout origin/multivariate && make clean all
+	&& git clone https://github.com/tudelft-cda-lab/FlexFringe.git \
+	&& cd FlexFringe && make clean all
 
-COPY spdfa-config.ini /root/dfasat/ini/	
+COPY spdfa-config.ini /root/FlexFringe/ini/	
 
 RUN cd /root \
-	&& git clone https://github.com/tudelft-cda-lab/SAGE.git  \
-	&& cd SAGE && cp sage.py ../
+    && git clone https://github.com/tudelft-cda-lab/SAGE.git  \
+    && cd SAGE && cp sage.py ../
+
 
 
 COPY script.sh /root
