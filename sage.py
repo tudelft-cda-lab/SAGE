@@ -1346,6 +1346,7 @@ def readfile(fname):
     unparsed_data = None
     with open(fname, 'r') as f:
         unparsed_data = json.load(f)
+        
     unparsed_data = unparsed_data[::-1]
     #print('# events: ', len(unparsed_data))
     #print(unparsed_data[0])
@@ -1371,8 +1372,8 @@ def parse(unparsed_data, alert_labels=[], slim=False):
     prev = -1
     for id, d in enumerate(unparsed_data):
         #print(d)
-        
         raw = ''
+        
         try:
              raw = json.loads(d['result']['_raw'])
         except:
@@ -1393,6 +1394,7 @@ def parse(unparsed_data, alert_labels=[], slim=False):
                 host = d['host'][3:]
             except:
                 host = 'dummy'
+                
 
         #print(host)
         ts = raw['timestamp']
@@ -1829,8 +1831,9 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
             ts = ev[8]
             sp = ev[2] if ev[2] != None else 65000 
             dp = ev[4] if ev[4] != None else 65000
+            signature = ev[5]
             # Simply respect the source,dst format! (Correction: source is always source and dest alwyas dest!)
-
+            
             source, dest, port = -1, -1, -1
             #print(s, d, sp, dp)
             #assert sp >= dp
@@ -1849,10 +1852,10 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
                 s_t[str(tid)+"|"+str(source)+"->"+str(dest)] = ev[8]
                 
             if((source,dest) in host_alerts.keys()):
-                host_alerts[(source,dest)].append((dest, c, ts, port)) # TODO: remove the redundant host names
+                host_alerts[(source,dest)].append((dest, c, ts, port, signature)) # TODO: remove the redundant host names
                 #print(source, dest, (micro[c].split('.'))[-1], port)
             else:
-                host_alerts[(dest,source)].append((source, c, ts, port))
+                host_alerts[(dest,source)].append((source, c, ts, port, signature))
                 #print(dest,source, (micro[c].split('.'))[-1], port)
 
         team_data[tid] = host_alerts.items()
@@ -1876,7 +1879,6 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
             #    continue
             #if attacker != ('corp-mail-00', 'corp-onramp-00'):
             #    continue
-            
             if len(alerts) <= 1:
                 #print('kill ', attacker)
                 continue
@@ -1891,7 +1893,7 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
             
             _team_times['->'.join(attacker)] = (first_elapsed_time)#, last_elapsed_time)
             ts = [x[2] for x in alerts]
-            rest = [(x[0], x[1], x[2], x[3]) for x in alerts]
+            rest = [(x[0], x[1], x[2], x[3], x[4]) for x in alerts]
 
             prev = -1
             DIFF = []
@@ -1937,22 +1939,25 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
                     minute_info = [(x[0]*step+t0, x[1]*step+t0) for x in episodes]
 
                     raw_ports = []
+                    raw_sign = []
                     
                     for e in mindata:
                         if len(e) > 0:
                             raw_ports.append([(x[3]) for x in e])
+                            raw_sign.append([(x[4]) for x in e])
                         else:
                             raw_ports.append([])
+                            raw_sign.append([])
 
                     _flat_ports = [item for sublist in raw_ports for item in sublist]
 
                     episode = [(mi[0], mi[1], mcat, events[x[0]:x[1]+1], 
-                                   raw_ports[x[0]:x[1]+1]) 
+                                   raw_ports[x[0]:x[1]+1], raw_sign[x[0]:x[1]+1]) 
                                  for x,mi in zip(episodes, minute_info)] # now the start and end are actual elapsed times
                     
-                    #EPISODE DEF: (startTime, endTime, mcat, len(rawevents), #alerts, epiPeriod, epiServices)
+                    #EPISODE DEF: (startTime, endTime, mcat, len(rawevents), volume(alerts), epiPeriod, epiServices, list of unique signatures)
                     episode = [(x[0], x[1], x[2], x[3], round(sum(x[3])/float(len(x[3])),1), (x[1]-x[0]),
-                                [item for sublist in x[4] for item in sublist]) for x in episode]
+                                [item for sublist in x[4] for item in sublist], list(set([item for sublist in x[5] for item in sublist]))) for x in episode]
                     
                     h_ep.extend(episode) 
 
@@ -1971,7 +1976,7 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
                         minute_info2.append(  minute_info2[-1]+tiny_delay)
                     else:
                         minute_info2.append(minute_info[i])
-            h_ep = [(minute_info2[i],x[1],x[2],x[3],x[4],x[5], x[6]) for i,x in enumerate(h_ep)]
+            h_ep = [(minute_info2[i],x[1],x[2],x[3],x[4],x[5], x[6], x[7]) for i,x in enumerate(h_ep)]
             t_ep[attacker] = h_ep
             if PRINT:
                 fig = plt.figure(figsize=(10,10))
@@ -2029,8 +2034,9 @@ def host_episode_sequences(team_episodes):
             att = 't'+str(tid)+'-'+perp
             #print(att)
             if att not in host_data.keys():
-                host_data[att] = []   
-            ext = [(x[0], x[1], x[2], x[3], x[4], x[5], x[6], vic) for x in episodes]
+                host_data[att] = []  
+            #EPISODE DEF: (startTime, endTime, mcat, len(rawevents), volume(alerts), epiPeriod, epiServices, list of unique signatures)
+            ext = [(x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], vic) for x in episodes]
 
             host_data[att].append(ext)
             host_data[att].sort(key=lambda tup: tup[0][0])
@@ -2058,7 +2064,7 @@ def break_into_subbehaviors(host_data):
         for episodes in victims:
             if len(episodes) < 2:
                 continue
-            victim = episodes[0][7]
+            victim = episodes[0][-1]
             pieces = math.floor(len(episodes)/cutlen)
             _episodes = []
             if FULL_SEQ:
@@ -2411,7 +2417,7 @@ def make_condensed_data(alerts, keys, state_traces, med_states, sev_states):
         #print(new_state, [x[2] for x in episodes])
         # also artifically add tiny delay so all events are not exactly at the same time.
         #print(len(episodes), new_state, max_servs)
-        times = [(x[0], x[1], x[2], int(new_state[i]), max_servs[i]) for i,x in enumerate(episodes)] # start time, endtime, episode mas, state ID, most frequent service
+        times = [(x[0], x[1], x[2], int(new_state[i]), max_servs[i], x[7]) for i,x in enumerate(episodes)] # start time, endtime, episode mas, state ID, most frequent service, list of unique signatures
         
         step1 = attacker.split('->')
         step1_0 = step1[0].split('-')[0]
@@ -2660,7 +2666,6 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
                 attacks.add(vert_name)
     attacks = list(attacks)
         
-        
     for int_victim in total_victims:  # iterate over every victim
         print('\n!!! Rendering AGs for Victim ', int_victim,'\n',  sep=' ', end=' ', flush=True)
         for attack in attacks: # iterate over every attack
@@ -2668,17 +2673,18 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
             collect = dict()
             
             team_level = dict()
-            observed_obj = [] # variants of current objective
-            nodes = set()
+            observed_obj = set() # variants of current objective
+            nodes = {}
             vertices, edges = 0, 0
             for att,episodes in condensed_data.items(): # iterate over (a,v): [episode, episode, episode]
                 if int_victim not in att: # if it's not the right victim, then don't process further
                     continue  
                 vname_time = []
                 for ep in episodes:
-                    time = round(ep[0]/1.0)
+                    start_time = round(ep[0]/1.0)
+                    end_time = round(ep[1]/1.0)
                     cat = micro[ep[2]].split('.')[1]
-                    
+                    signs = ep[5]
                     stateID = -1
                     if ep[3] in in_main_model:
                         stateID = '' if len(str(ep[2])) == 1 else '|'+str(ep[3])
@@ -2687,7 +2693,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
                     
                     vert_name = cat + '|'+ ep[4] + stateID
                     
-                    vname_time.append((vert_name, time))
+                    vname_time.append((vert_name, start_time, end_time, signs))
                     
                 if not sum([True if attack in x[0] else False for x in vname_time]): # if the objective is never reached, don't process further
                     continue
@@ -2695,15 +2701,15 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
                 # if it's an episode sequence targetting the requested victim and obtaining the requested objective,
                 attempts = []
                 sub_attempt = []
-                for (vname, time) in vname_time: # cut each attempt until the requested objective
-                    sub_attempt.append((vname, time)) # add the vertex in path
+                for (vname, start_time, end_time, signs) in vname_time: # cut each attempt until the requested objective
+                    sub_attempt.append((vname, start_time, end_time, signs)) # add the vertex in path
                     if attack in vname: # if it's the objective
                         if len(sub_attempt) <= 1: ## If only a single node, reject
                             sub_attempt = []
                             continue
                         attempts.append(sub_attempt)
                         sub_attempt = []
-                        observed_obj.append(vname)
+                        observed_obj.add(vname)
                         continue
                 team_attacker = att.split('->')[0] # team+attacker
                 if team_attacker not in team_level.keys():
@@ -2725,7 +2731,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
             lines.append((0, '"'+root_node+'" [shape=doubleoctagon, style=filled, fillcolor=salmon];'))
             lines.append((0, '{ rank = max; "'+root_node+'"}'))
             
-            for obj in list(set(observed_obj)): # for each variant of objective, add a link to the root node, and determine if it's sink
+            for obj in list(observed_obj): # for each variant of objective, add a link to the root node, and determine if it's sink
                 lines.append((0,'"'+translate(obj)+'" -> "'+root_node+'"'))
                 
                 sinkflag = False
@@ -2745,7 +2751,6 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
 
             already_addressed = set()
             for attackerID,attempts in team_level.items(): # for every attacker that obtains this objective
-            
                 color = tcols[attackerID.split('-')[0]] # team color
                 ones = [''.join([action[0] for action in attempt]) for attempt in attempts]
                 unique = len(set(ones)) # count exactly unique attempts
@@ -2756,9 +2761,13 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
                 #path_info[attack][attackerID].append((len(attempts), unique, max([len(x) for x in attempts]), min([len(x) for x in attempts])))
                 
                 for attempt in attempts: # iterate over each attempt
-                    nodes.update([v[0] for v in attempt]) # record all nodes
+                    # record all nodes
+                    for action in attempt:
+                        if action[0] not in nodes.keys():
+                            nodes[action[0]] = set()
+                        nodes[action[0]].update(action[3])
                     # nodes
-                    for vid,(vname,time) in enumerate(attempt): # iterate over each action in an attempt
+                    for vid,(vname,start_time,end_time,signs) in enumerate(attempt): # iterate over each action in an attempt
                         if vid == 0: # if first action
                             if 'Sink' in vname: # if sink, make dotted
                                 lines.append((0,'"'+translate(vname)+'" [style="dotted,filled", fillcolor= yellow]'))
@@ -2789,13 +2798,18 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
 
                     # transitions
                     bi = zip(attempt, attempt[1:]) # make bigrams (sliding window of 2)
-                    for vid,((vname1,time1),(vname2,_)) in enumerate(bi): # for every bigram
+                    for vid,((vname1,time1,etime1, signs1),(vname2,_,_, signs2)) in enumerate(bi): # for every bigram
                         if vid == 0: # first transition, add attacker IP
-                            lines.append((time1, '"'+translate(vname1)+'"' + ' -> ' + '"'+translate(vname2)+'" [ color='+color+'] '+'[label=<<font color="'+color+'">'+attackerID.split('-')[1]+'</font><br/> <font>'+str(time1) +'s</font>>]'))
+                            lines.append((time1, '"'+translate(vname1)+'"' + ' -> ' + '"'+translate(vname2)+'" [ color='+color+'] '+'[label=<<font color="'+color+'">'+attackerID.split('-')[1]+'</font><br/> <font>'+str(time1) +'s</font>>]' 
+                            #+ ' [tooltip=" From:\n'+ "\n    - ".join(signs1) + "\nTo:\n" + "\n    - ".join(signs2) +'"]'
+                            ))
                         else:
-                            lines.append((time1, '"'+translate(vname1)+'"' + ' -> ' + '"'+translate(vname2)+'"' +' [ label="'+ str(time1) +'s"]' + '[ color='+color+']')) 
+                            lines.append((time1, '"'+translate(vname1)+'"' + ' -> ' + '"'+translate(vname2)+'"' +' [ label="'+ str(time1) +'s"]' + '[ color='+color+']'
+                            #+ ' [tooltip=" From:\n'+ "\n    - ".join(signs1) + "\nTo:\n" + "\n    - ".join(signs2) +'"]'
+                            ))
+
                             
-            for vname in nodes: # Go over all vertices again and define their shapes + make high-sev sink states dotted
+            for vname, signatures in nodes.items(): # Go over all vertices again and define their shapes + make high-sev sink states dotted
                 mas = vname.split('|')[0]
                 mas = macro_inv[micro2macro['MicroAttackStage.'+mas]]
                 shape = shapes[mas]
@@ -2811,6 +2825,8 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
                         lines.append((0,'"'+translate(vname)+'" [style="dotted", shape='+shape+']'))
                     else:
                         lines.append((0,'"'+translate(vname)+'" [shape='+shape+']'))
+                # add tooltip
+                lines.append((1, '"'+translate(vname)+'"'+' [tooltip="'+ "\n".join(signatures) +'"]'))
             lines.append((1000,'}'))
             
             for l in lines: # count vertices and edges
@@ -2830,6 +2846,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
                 f.close()
                 
                 os.system("dot -Tpng "+dirname+'/'+out_f_name+".dot -o "+dirname+'/'+out_f_name+".png")
+                os.system("dot -Tsvg "+dirname+'/'+out_f_name+".dot -o "+dirname+'/'+out_f_name+".svg")
                 if DOCKER:
                     os.system("rm "+dirname+'/'+out_f_name+".dot")
                 #print('~~~~~~~~~~~~~~~~~~~~saved')
@@ -2842,7 +2859,9 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
         #       print(t, val)
     #for attackerID,v in ser_total.items():
     #    print(attackerID, len(v), set([x.split('|')[0] for x in v]))
- 
+
+
+
 
 ## ----- main ------    
 
@@ -2959,7 +2978,7 @@ if DOCKER:
     os.system("rm "+outfile+".ff.init.dot")
     os.system("rm "+outfile+".ff.init.json")
     os.system("rm "+outfile+".ff.initsinks.dot")
-    os.system("rm "+outfile+".ff.initsinks.json")    
+    os.system("rm "+outfile+".ff.initsinks.json")
     os.system("rm "+"spdfa-clustered-"+datafile+"-dfa.dot")
 
 print('\n------- FIN -------')
