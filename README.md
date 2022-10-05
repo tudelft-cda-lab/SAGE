@@ -15,7 +15,7 @@ Repository to accompany our publications
 ## Usage
 `python sage.py {path/to/json/files} {experiment-name} {alert-filtering-window} {alert-aggr-window} {(start_hour,end_hour)}`
 
-- `{path/to/json/files}`: folder containing intrusion alerts in json format. 
+- `{path/to/json/files}`: folder containing intrusion alerts in json format. `sample-input.json` provides an example of accepted file format. 
 > Ideal setting: One json file for each attacker/team. Filename considered as attacker/team label. 
 - `{experiment_name}`: custom name for all artefacts
 > Figures, trace files, model files, attack graphs are saved with this prefix for easy identification. 
