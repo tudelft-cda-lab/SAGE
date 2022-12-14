@@ -2570,8 +2570,8 @@ def make_av_data(condensed_data):
     condensed_v_data= dict()
     for attacker,episodes in condensed_data.items():
         team = attacker.split('-')[0]
-        victim = attacker.split('->')[1]
-        tv = team+'-'+victim
+        victim_ = attacker.split('->')[1]
+        tv = team+'-'+victim_
         #print(tv)
         if tv not in condensed_v_data.keys():
             condensed_v_data[tv] = []
@@ -2584,8 +2584,8 @@ def make_av_data(condensed_data):
     condensed_a_data= dict()
     for attacker,episodes in condensed_data.items():
         team = attacker.split('-')[0]
-        victim = (attacker.split('->')[0]).split('-')[1]
-        tv = team+'-'+victim
+        attacker_ = (attacker.split('->')[0]).split('-')[1]
+        tv = team+'-'+attacker_
         #print(tv)
         if tv not in condensed_a_data.keys():
             condensed_a_data[tv] = []
