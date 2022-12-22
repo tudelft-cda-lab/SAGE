@@ -6,8 +6,13 @@ Repository to accompany our publications
 "Alert-driven Attack Graph Generation using S-PDFA" at TDSC'21.
 
 ## Requires 
-- Flexfringe (https://bitbucket.org/chrshmmmr/dfasat/src/master/)
-- Graphviz
+- Flexfringe (https://github.com/tudelft-cda-lab/FlexFringe)
+- Python packages
+  - Graphviz
+  - Seaborn
+  - Requests
+  - [Optional] Fastai (1.0.58)
+  - [Optional] Spacy 2.3.5
 
 **Or you can switch to the `docker` branch for a docker container.**
 
