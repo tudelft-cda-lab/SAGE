@@ -1936,20 +1936,28 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
                     
                     events  = [len(x) for x in mindata]
                    
-                    minute_info = [(x[0]*step+t0, x[1]*step+t0) for x in episodes]
 
                     raw_ports = []
                     raw_sign = []
+                    timestamps = []
                     
                     for e in mindata:
                         if len(e) > 0:
                             raw_ports.append([(x[3]) for x in e])
                             raw_sign.append([(x[4]) for x in e])
+                            timestamps.append([(x[2]) for x in e])
                         else:
                             raw_ports.append([])
                             raw_sign.append([])
+                            timestamps.append([])
 
                     _flat_ports = [item for sublist in raw_ports for item in sublist]
+                    
+                    # The following makes exact start/end times based on alert timestamps
+                    filtered_timestamps = [timestamps[x[0]:x[1]+1] for x in episodes]
+                    start_end_timestamps = [(sorted([item for sublist in x for item in sublist])[0], sorted([item for sublist in x for item in sublist])[-1]) for x in filtered_timestamps]
+                    minute_info = [((x[0]-startTimes[tid]).total_seconds(), (x[1]-startTimes[tid]).total_seconds()) for x in start_end_timestamps]
+
 
                     episode = [(mi[0], mi[1], mcat, events[x[0]:x[1]+1], 
                                    raw_ports[x[0]:x[1]+1], raw_sign[x[0]:x[1]+1]) 
@@ -1963,21 +1971,10 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
 
             if len(h_ep) == 0:
                 continue
-            # artifically adding tiny delay for events that are exactly at the same time
+                
             h_ep.sort(key=lambda tup: tup[0])
-            minute_info = [x[0] for x in h_ep]
-            minute_info2 = [minute_info[0]]
-            tiny_delay= 1
-            for i in range(1, len(minute_info)):
-                if i == 0:
-                    pass
-                else:
-                    if (minute_info[i]==(minute_info[i-1])):
-                        minute_info2.append(  minute_info2[-1]+tiny_delay)
-                    else:
-                        minute_info2.append(minute_info[i])
-            h_ep = [(minute_info2[i],x[1],x[2],x[3],x[4],x[5], x[6], x[7]) for i,x in enumerate(h_ep)]
             t_ep[attacker] = h_ep
+            
             if PRINT:
                 fig = plt.figure(figsize=(10,10))
                 ax = plt.gca()
