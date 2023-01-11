@@ -1963,7 +1963,6 @@ def aggregate_into_episodes(unparse, team_labels, step=150):
                     episode = [(x[0], x[1], x[2], x[3], round(sum(x[3])/float(len(x[3])),1), (x[1]-x[0]),
                                 [item for sublist in x[4] for item in sublist], list(set([item for sublist in x[5] for item in sublist])),
                                 se_ts) for x,se_ts in zip(episode,start_end_timestamps)]
-                    print(episode)
                     h_ep.extend(episode) 
 
             if len(h_ep) == 0:
