@@ -37,6 +37,8 @@ e.g. `start.sh ag-test .`
 
 ### Option II: Configure Docker Yourself
 
+- Download and install Docker: https://docs.docker.com/get-docker/
+
 - Open a cmd/shell in folder X and build the docker image:
 
 `docker build -t {Image Name} . `, \
