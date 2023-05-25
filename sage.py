@@ -1271,7 +1271,14 @@ def get_attack_stage_mapping(signature):
 
 # Program to find most frequent  
 def most_frequent(serv): 
-    return max(set(serv), key = serv.count) 
+    max_frequency = 0
+    most_frequent_service = None
+    for s in serv:
+       frequency = serv.count(s)
+       if frequency > max_frequency:
+            most_frequent_service = s
+            max_frequency = frequency
+    return most_frequent_service
     
 ser_groups = dict({
     'http(s)': ['http', 'https', 'ddi-udp-1', 'radan-http'],
