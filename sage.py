@@ -2677,8 +2677,8 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
             nodes = {}
             vertices, edges = 0, 0
             for att,episodes in condensed_data.items(): # iterate over (a,v): [episode, episode, episode]
-                if int_victim not in att: # if it's not the right victim, then don't process further
-                    continue  
+                if int_victim != att.split(">")[1]: # if it's not the right victim, then don't process further
+                    continue
                 vname_time = []
                 for ep in episodes:
                     start_time = round(ep[0]/1.0)
