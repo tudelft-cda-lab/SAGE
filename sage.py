@@ -1340,7 +1340,7 @@ def load_IANA_mapping():
 
             for port in range(low_port, high_port + 1):
                 ports[port] = {
-                    "name": row[0] if row[0] else "Unknown",
+                    "name": row[0] if row[0] else "unknown",
                     "description": row[3] if row[3] else "---",
                 }
         else:
