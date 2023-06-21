@@ -2244,6 +2244,7 @@ def traverse(dfa, sinks, sequence, statelist=False):
   #print('This seq', sequence.split(" "))
   for event in sequence.split(" "):
       sym = event.split(":")[0]
+      sev = rev_smallmapping[sym.split('|')[0]]
       
       #print('curr symbol ', sym, 'state no.', dfa[state][sym]) 
       
@@ -2258,7 +2259,6 @@ def traverse(dfa, sinks, sequence, statelist=False):
       #      in_main_model.add(state[0])
       if state == "":
           # return -1 for low sev symbols
-          sev = rev_smallmapping[sym.split('|')[0]]
           #print(sev)
           if len(str(sev)) >= 2:
                 #print('high-sev sink found', sev)
@@ -2302,7 +2302,7 @@ def traverse(dfa, sinks, sequence, statelist=False):
               else:
                      return (dfa[state]["type"] == "1", stlst)
       stlst.append(state)
-      if state in sinks:
+      if state in sinks and len(str(sev)) >= 2:
           sev_sinks.add(state)
   if not statelist:
       return dfa[state]["type"] == "1"
@@ -2896,7 +2896,7 @@ startTimes = [] # We cheat a bit: In case user filters to only see alerts from (
 #                    we record the first alert just to get the real time-elapsed since first alert
     
 outaddress = ""
-path_to_ini = "FlexFringe/ini/spdfa-config.ini"
+path_to_ini = "./spdfa-config.ini"
 
 modelname = expname+'.txt'#'test-trace-uni-serGroup.txt'
 datafile = expname+'.txt'#'trace-uni-serGroup.txt'
