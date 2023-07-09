@@ -2704,7 +2704,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
                 sub_attempt = []
                 for (vname, start_time, end_time, signs, ts) in vname_time: # cut each attempt until the requested objective
                     sub_attempt.append((vname, start_time, end_time, signs, ts)) # add the vertex in path
-                    if attack in vname: # if it's the objective
+                    if attack.split("|")[:2] == vname.split("|")[:2]: # if it's the objective
                         if len(sub_attempt) <= 1: ## If only a single node, reject
                             sub_attempt = []
                             continue
