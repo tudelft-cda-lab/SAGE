@@ -2244,6 +2244,7 @@ def traverse(dfa, sinks, sequence, statelist=False):
   #print('This seq', sequence.split(" "))
   for event in sequence.split(" "):
       sym = event.split(":")[0]
+      sev = rev_smallmapping[sym.split('|')[0]]
       
       #print('curr symbol ', sym, 'state no.', dfa[state][sym]) 
       
@@ -2258,14 +2259,12 @@ def traverse(dfa, sinks, sequence, statelist=False):
       #      in_main_model.add(state[0])
       if state == "":
           # return -1 for low sev symbols
-          sev = rev_smallmapping[sym.split('|')[0]]
           #print(sev)
           if len(str(sev)) >= 2:
                 #print('high-sev sink found', sev)
                 #print(stlst[-1], sinks[stlst[-1]], stlst)
                 try:
                     state = sinks[stlst[-1]][sym][0]
-                    sev_sinks.add(state)
                 except:
                     #print('didnt work for', sequence, 'done so far:', stlst)
                     state = '-1'
@@ -2303,6 +2302,8 @@ def traverse(dfa, sinks, sequence, statelist=False):
               else:
                      return (dfa[state]["type"] == "1", stlst)
       stlst.append(state)
+      if state in sinks and len(str(sev)) >= 2:
+          sev_sinks.add(state)
   if not statelist:
       return dfa[state]["type"] == "1"
   else:
@@ -2737,7 +2738,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
                 
                 sinkflag = False
                 for sink in sev_sinks:    
-                    if obj.endswith(sink):
+                    if obj.split("|")[-1] == sink:
                         sinkflag = True
                         break
                 if sinkflag:
@@ -2775,7 +2776,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
                             else:
                                 sinkflag = False
                                 for sink in sev_sinks:    
-                                    if vname.endswith(sink): # else if a high-sev sink, make dotted too
+                                    if vname.split("|")[-1] == sink: # else if a high-sev sink, make dotted too
                                         sinkflag = True
                                         break
                                 if sinkflag:
@@ -2824,7 +2825,7 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
                 else:
                     sinkflag = False
                     for sink in sev_sinks:    
-                        if vname.endswith(sink):
+                        if vname.split("|")[-1] == sink:
                             sinkflag = True
                             break
                     if sinkflag:
