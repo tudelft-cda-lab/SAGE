@@ -12,8 +12,9 @@ COPY requirements.txt /root
 RUN cd /root \
 && mkdir input/
 
-#COPY alerts/*.json /root/input/ 
-#RUN chmod -R a+rw /root/input/
+# Make sure to put alert files into the directory
+COPY alerts/*.json /root/input/
+RUN chmod -R a+rw /root/input/
 
 
 ##########################################
@@ -30,11 +31,9 @@ RUN cd /root \
 	&& git clone https://github.com/tudelft-cda-lab/FlexFringe.git \
 	&& cd FlexFringe && make clean all
 
-COPY spdfa-config.ini /root/FlexFringe/ini/	
-
 RUN cd /root \
     && git clone https://github.com/tudelft-cda-lab/SAGE.git  \
-    && cd SAGE && cp sage.py ../
+    && cd SAGE && cp sage.py ../ && cp spdfa-config.ini ../FlexFringe/ini/
 
 
 
