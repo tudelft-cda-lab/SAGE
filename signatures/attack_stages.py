@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class MicroAttackStage(Enum):
     INIT = 0
 
@@ -56,4 +57,3 @@ class MacroAttackStage(Enum):
     DISTORT = 9
     DISCLOSURE = 10
     DELIVERY = 11
-
