@@ -37,7 +37,6 @@ ccdc_combined = {
     "ET WEB_CLIENT Hex Obfuscation of unescape % Encoding": MicroAttackStage.ARBITRARY_CODE_EXE,
     "ET WEB_CLIENT Hex Obfuscation of substr % Encoding": MicroAttackStage.ARBITRARY_CODE_EXE,
     "ET POLICY DNS Query For XXX Adult Site Top Level Domain": MicroAttackStage.NON_MALICIOUS,
-    "ET POLICY Dropbox Client Broadcasting": MicroAttackStage.DATA_EXFILTRATION,
     "ET POLICY Cleartext WordPress Login": MicroAttackStage.PRIV_ESC,
     "ET POLICY Http Client Body contains passwd= in cleartext": MicroAttackStage.PRIV_ESC,
     "ET POLICY Http Client Body contains pass= in cleartext": MicroAttackStage.PRIV_ESC,
@@ -54,8 +53,8 @@ ccdc_combined = {
     "ET POLICY Outdated Flash Version M1": MicroAttackStage.NON_MALICIOUS,
     "ET POLICY OpenVPN Update Check": MicroAttackStage.NON_MALICIOUS,
     "ET POLICY DynDNS CheckIp External IP Address Server Response": MicroAttackStage.INFO_DISC,
-    #"ET POLICY DNS Query for TOR Hidden Domain .onion Accessible Via TOR": MicroAttackStage.DEFENSE_EVASION,
-    #"ET POLICY TOR .exit Pseudo TLD DNS Query": MicroAttackStage.DEFENSE_EVASION,
+    # "ET POLICY DNS Query for TOR Hidden Domain .onion Accessible Via TOR": MicroAttackStage.DEFENSE_EVASION,
+    # "ET POLICY TOR .exit Pseudo TLD DNS Query": MicroAttackStage.DEFENSE_EVASION,
     "ET SNMP Attempt to retrieve Cisco Config via TFTP (CISCO-CONFIG-COPY)": MicroAttackStage.INFO_DISC,
     "ET WEB_SERVER ColdFusion componentutils access": MicroAttackStage.DATA_EXFILTRATION,
     "ET WEB_SERVER ColdFusion administrator access": MicroAttackStage.PRIV_ESC,
@@ -71,8 +70,7 @@ ccdc_combined = {
     "ET CURRENT_EVENTS Possible TLS HeartBleed Unencrypted Request Method 4 (Inbound to Common SSL Port)": MicroAttackStage.PRIV_ESC,
     "ET CURRENT_EVENTS Possible TLS HeartBleed Unencrypted Request Method 3 (Inbound to Common SSL Port)": MicroAttackStage.PRIV_ESC,
     "ET TROJAN HTTP Executable Download from suspicious domain with direct request/fake browser (multiple families) ": MicroAttackStage.DATA_DELIVERY,
-    #"ET POLICY TLS possible TOR SSL traffic": MicroAttackStage.DEFENSE_EVASION,
-    "ET POLICY PE EXE or DLL Windows file download HTTP": MicroAttackStage.DATA_DELIVERY,
+    # "ET POLICY TLS possible TOR SSL traffic": MicroAttackStage.DEFENSE_EVASION,
     "ET EXPLOIT Metasploit Random Base CharCode JS Encoded String": MicroAttackStage.ARBITRARY_CODE_EXE,
     "ET DOS Possible SSDP Amplification Scan in Progress": MicroAttackStage.NETWORK_DOS,
     "ET WEB_SERVER Possible CVE-2014-6271 Attempt in Headers": MicroAttackStage.ARBITRARY_CODE_EXE,
@@ -95,7 +93,7 @@ ccdc_combined = {
     "ET WEB_CLIENT HTA File containing Wscript.Shell Call - Potential CVE-2017-0199": MicroAttackStage.ARBITRARY_CODE_EXE,
     "ET SCAN Possible Nmap User-Agent Observed": MicroAttackStage.HOST_DISC,
     "ET POLICY Outdated Flash Version M2": MicroAttackStage.NON_MALICIOUS,
-    #"ET CURRENT_EVENTS Possible AMSI Powershell Bypass Attempt B642": MicroAttackStage.DEFENSE_EVASION,
+    # "ET CURRENT_EVENTS Possible AMSI Powershell Bypass Attempt B642": MicroAttackStage.DEFENSE_EVASION,
     "ET WEB_CLIENT PowerShell call in script 1": MicroAttackStage.ARBITRARY_CODE_EXE,
     "ET WEB_CLIENT PowerShell call in script 2": MicroAttackStage.ARBITRARY_CODE_EXE,
     "ET EXPLOIT Cisco Smart Install Exploitation Tool - ChangeConfig": MicroAttackStage.SERVICE_SPECIFIC,
@@ -193,29 +191,22 @@ ccdc_combined = {
     "ET POLICY User-Agent (NSIS_Inetc (Mozilla)) - Sometimes used by hostile installers": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET WEB_SERVER /bin/sh In URI Possible Shell Command Execution Attempt": MicroAttackStage.ARBITRARY_CODE_EXE,
     "ET WEB_SERVER PHP tags in HTTP POST": MicroAttackStage.DATA_DELIVERY,
-    "ET WEB_CLIENT Hex Obfuscation of document.write % Encoding": MicroAttackStage.ARBITRARY_CODE_EXE,
     "ET WEB_SERVER Likely Malicious Request for /proc/self/environ": MicroAttackStage.INFO_DISC,
     "ET POLICY Dropbox.com Offsite File Backup in Use": MicroAttackStage.DATA_EXFILTRATION,
     "ET POLICY Dropbox Client Broadcasting": MicroAttackStage.DATA_EXFILTRATION,
     "ET POLICY HTTP Request to a *.tk domain": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET WEB_SERVER PHP Possible php Remote File Inclusion Attempt": MicroAttackStage.DATA_DELIVERY,
-    "ET POLICY curl User-Agent Outbound": MicroAttackStage.DATA_DELIVERY,
-    "ET POLICY Python-urllib/ Suspicious User Agent": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET WEB_SERVER Muieblackcat scanner": MicroAttackStage.VULN_DISC,
     "ET POLICY Executable served from Amazon S3": MicroAttackStage.DATA_DELIVERY,
     "ET SCAN Apache mod_deflate DoS via many multiple byte Range values": MicroAttackStage.NETWORK_DOS,
-    "ET POLICY GNU/Linux APT User-Agent Outbound likely related to package management": MicroAttackStage.NON_MALICIOUS,
-    "ET POLICY GNU/Linux YUM User-Agent Outbound likely related to package management": MicroAttackStage.NON_MALICIOUS,
     "ET TROJAN Double HTTP/1.1 Header Inbound - Likely Hostile Traffic": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET MALWARE W32/OpenCandy Adware Checkin": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET MALWARE Common Adware Library ISX User Agent Detected": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET DNS Query for .su TLD (Soviet Union) Often Malware Related": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET WEB_SERVER IIS 8.3 Filename With Wildcard (Possible File/Dir Bruteforce)": MicroAttackStage.DATA_EXFILTRATION,
     "ET TROJAN Unknown - Loader - Check .exe Updated": MicroAttackStage.COMMAND_AND_CONTROL,
-    "ET WEB_SERVER ColdFusion administrator access": MicroAttackStage.PRIV_ESC,
     "ET SCAN GET with HTML tag in start of URI seen with PHPMyAdmin scanning": MicroAttackStage.VULN_DISC,
     "ET WEB_SERVER WebShell Generic - wget http - POST": MicroAttackStage.DATA_DELIVERY,
-    "ET DNS Query to a *.pw domain - Likely Hostile": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET WEB_SERVER allow_url_include PHP config option in uri": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET WEB_SERVER safe_mode PHP config option in uri": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET WEB_SERVER suhosin.simulation PHP config option in uri": MicroAttackStage.COMMAND_AND_CONTROL,
@@ -230,31 +221,24 @@ ccdc_combined = {
     "ET EXPLOIT Possible ZyXELs ZynOS Configuration Download Attempt (Contains Passwords)": MicroAttackStage.DATA_EXFILTRATION,
     "ET TROJAN Miuref/Boaxxe Checkin": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET POLICY PE EXE or DLL Windows file download HTTP": MicroAttackStage.DATA_DELIVERY,
-    "ET WEB_SERVER Possible CVE-2014-6271 Attempt in Headers": MicroAttackStage.ARBITRARY_CODE_EXE,
-    "ET WEB_SERVER Possible CVE-2014-6271 Attempt in HTTP Cookie": MicroAttackStage.ARBITRARY_CODE_EXE,
-    #"ET ATTACK_RESPONSE Output of id command from HTTP server": MicroAttackStage.INIT,
+    # "ET ATTACK_RESPONSE Output of id command from HTTP server": MicroAttackStage.INIT,
     "ET WEB_SERVER Possible bash shell piped to dev tcp Inbound to WebServer": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET WEB_SERVER CURL Command Specifying Output in HTTP Headers": MicroAttackStage.DATA_DELIVERY,
-    "ET WEB_SERVER WGET Command Specifying Output in HTTP Headers": MicroAttackStage.DATA_DELIVERY,
     "ET WEB_SERVER WGET Command Specifying Output in HTTP Headers": MicroAttackStage.DATA_DELIVERY,
     "ET POLICY SSLv3 outbound connection from client vulnerable to POODLE attack": MicroAttackStage.NON_MALICIOUS,
     "ET WEB_SERVER WEB-PHP phpinfo access": MicroAttackStage.ARBITRARY_CODE_EXE,
     "ET WEB_SERVER PHP.//Input in HTTP POST": MicroAttackStage.ARBITRARY_CODE_EXE,
     "ET WEB_SERVER PHP System Command in HTTP POST": MicroAttackStage.ARBITRARY_CODE_EXE,
-    "ET POLICY Dropbox DNS Lookup - Possible Offsite File Backup in Use": MicroAttackStage.DATA_EXFILTRATION,
     "ET CURRENT_EVENTS Unknown Malicious Second Stage Download URI Struct M2 Feb 06 2015": MicroAttackStage.ARBITRARY_CODE_EXE,
     "ET CURRENT_EVENTS Nuclear EK Landing Apr 03 2015": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET CURRENT_EVENTS Nuclear EK Landing Apr 08 2015": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET CURRENT_EVENTS Nuclear EK Landing Apr 22 2015": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET TROJAN Poweliks Clickfraud CnC M4": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET CURRENT_EVENTS Unknown Malicious Second Stage Download URI Struct Sept 15 2015": MicroAttackStage.ARBITRARY_CODE_EXE,
-    "ET WEB_SERVER Possible CVE-2014-6271 Attempt": MicroAttackStage.ARBITRARY_CODE_EXE,
-    "ET POLICY Outdated Flash Version M2": MicroAttackStage.NON_MALICIOUS,
     "ET WEB_SERVER 401TRG Generic Webshell Request - POST with wget in body": MicroAttackStage.DATA_DELIVERY,
     "ET TROJAN Possible NanoCore C2 60B": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET TROJAN Possible Metasploit Payload Common Construct Bind_API (from server)": MicroAttackStage.COMMAND_AND_CONTROL,
     "GPL CHAT Jabber/Google Talk Outgoing Traffic": MicroAttackStage.NON_MALICIOUS,
-    "GPL ATTACK_RESPONSE id check returned root": MicroAttackStage.PRIV_ESC,
     "GPL EXPLOIT .htr access": MicroAttackStage.INFO_DISC,
     "GPL WEB_SERVER iisadmin access": MicroAttackStage.INFO_DISC,
     "GPL EXPLOIT fpcount access": MicroAttackStage.ARBITRARY_CODE_EXE,
@@ -278,24 +262,8 @@ ccdc_combined = {
     "GPL WEB_SERVER perl post attempt": MicroAttackStage.ARBITRARY_CODE_EXE,
     "GPL WEB_SERVER Tomcat null byte directory listing attempt": MicroAttackStage.INFO_DISC,
     "GPL WEB_SERVER mod_gzip_status access": MicroAttackStage.INFO_DISC,
-    "SURICATA HTTP gzip decompression failed": MicroAttackStage.NON_MALICIOUS,
-    "SURICATA HTTP request field missing colon": MicroAttackStage.NON_MALICIOUS,
-    "SURICATA HTTP invalid transfer encoding value in request": MicroAttackStage.NON_MALICIOUS,
-    "SURICATA HTTP unable to match response to request": MicroAttackStage.NON_MALICIOUS,
-    "SURICATA HTTP request header invalid": MicroAttackStage.NON_MALICIOUS,
-    "SURICATA HTTP missing Host header": MicroAttackStage.NON_MALICIOUS,
-    "SURICATA HTTP Host header ambiguous": MicroAttackStage.NON_MALICIOUS,
-    "SURICATA HTTP response header invalid": MicroAttackStage.NON_MALICIOUS,
-    "SURICATA HTTP Host part of URI is invalid": MicroAttackStage.NON_MALICIOUS,
-    "SURICATA HTTP Host header invalid": MicroAttackStage.NON_MALICIOUS,
     "SURICATA HTTP URI terminated by non-compliant character": MicroAttackStage.NON_MALICIOUS,
-    "SURICATA HTTP METHOD terminated by non-compliant character": MicroAttackStage.NON_MALICIOUS,
     "SURICATA HTTP Request line with leading whitespace": MicroAttackStage.NON_MALICIOUS,
-    "SURICATA HTTP Request abnormal Content-Encoding header": MicroAttackStage.NON_MALICIOUS,
-    "SURICATA TLS invalid handshake message": MicroAttackStage.NON_MALICIOUS,
-    "SURICATA TLS invalid record/traffic": MicroAttackStage.NON_MALICIOUS,
-    "SURICATA TLS invalid record version": MicroAttackStage.NON_MALICIOUS,
-    "SURICATA DNS Unsolicited response": MicroAttackStage.NON_MALICIOUS,
     "ET CINS Active Threat Intelligence Poor Reputation IP group 66": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET CINS Active Threat Intelligence Poor Reputation IP group 91": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET CINS Active Threat Intelligence Poor Reputation IP group 100": MicroAttackStage.COMMAND_AND_CONTROL,
@@ -312,7 +280,7 @@ usual_mapping = {
     "ET CURRENT_EVENTS Possible TLS HeartBleed Unencrypted Request Method 3 (Inbound to Common SSL Port)": MicroAttackStage.DATA_EXFILTRATION,
     "ET CURRENT_EVENTS Possible ZyXELs ZynOS Configuration Download Attempt (Contains Passwords)": MicroAttackStage.DATA_EXFILTRATION,
     "ET CURRENT_EVENTS QNAP Shellshock CVE-2014-6271": MicroAttackStage.ARBITRARY_CODE_EXE,
-    "ET CURRENT_EVENTS Terse alphanumeric executable downloader high likelihood of being hostile": MicroAttackStage.DATA_DELIVERY, #
+    "ET CURRENT_EVENTS Terse alphanumeric executable downloader high likelihood of being hostile": MicroAttackStage.DATA_DELIVERY,
     "ET DNS Query for .su TLD (Soviet Union) Often Malware Related": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET DNS Query to a .tk domain - Likely Hostile": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET DOS Microsoft Remote Desktop (RDP) Syn then Reset 30 Second DoS Attempt": MicroAttackStage.NETWORK_DOS,
@@ -324,19 +292,19 @@ usual_mapping = {
     "ET EXPLOIT Possible SpamAssassin Milter Plugin Remote Arbitrary Command Injection Attempt": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET EXPLOIT REDIS Attempted SSH Key Upload": MicroAttackStage.USER_PRIV_ESC,
     "ET FTP Suspicious Quotation Mark Usage in FTP Username": MicroAttackStage.ACCT_MANIP,
-    "ET INFO Executable Download from dotted-quad Host": MicroAttackStage.COMMAND_AND_CONTROL, #Do we need a malware injection stage?
+    "ET INFO Executable Download from dotted-quad Host": MicroAttackStage.COMMAND_AND_CONTROL,  # Do we need a malware injection stage?
     "ET INFO Possible Windows executable sent when remote host claims to send a Text File": MicroAttackStage.COMMAND_AND_CONTROL,
-    "ET INFO WinHttp AutoProxy Request wpad.dat Possible BadTunnel": MicroAttackStage.DATA_EXFILTRATION, #This is more "man in the middle"
+    "ET INFO WinHttp AutoProxy Request wpad.dat Possible BadTunnel": MicroAttackStage.DATA_EXFILTRATION,  # This is more "man in the middle"
     "ET MOBILE_MALWARE Android/Code4hk.A Checkin": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET P2P TOR 1.0 Outbound Circuit Traffic": MicroAttackStage.DEFENSE_EVASION,
     "ET POLICY DNS Update From External net": MicroAttackStage.DATA_MANIPULATION,
-    "ET POLICY Executable and linking format (ELF) file download": MicroAttackStage.COMMAND_AND_CONTROL, #will need to be checked out
+    "ET POLICY Executable and linking format (ELF) file download": MicroAttackStage.COMMAND_AND_CONTROL,  # Will need to be checked out
     "ET POLICY Executable and linking format (ELF) file download Over HTTP": MicroAttackStage.COMMAND_AND_CONTROL,
-    "ET POLICY Http Client Body contains pass= in cleartext": MicroAttackStage.PRIV_ESC,  #Once again, check this out.
-    "ET POLICY Incoming Basic Auth Base64 HTTP Password detected unencrypted": MicroAttackStage.USER_PRIV_ESC ,
+    "ET POLICY Http Client Body contains pass= in cleartext": MicroAttackStage.PRIV_ESC,  # Once again, check this out.
+    "ET POLICY Incoming Basic Auth Base64 HTTP Password detected unencrypted": MicroAttackStage.USER_PRIV_ESC,
     "ET POLICY MS Remote Desktop Administrator Login Request": MicroAttackStage.ROOT_PRIV_ESC,
     "ET POLICY MS Terminal Server Root login": MicroAttackStage.ROOT_PRIV_ESC,
-    "ET POLICY Outgoing Basic Auth Base64 HTTP Password detected unencrypted": MicroAttackStage.USER_PRIV_ESC, #outgoing vs. incoming?
+    "ET POLICY Outgoing Basic Auth Base64 HTTP Password detected unencrypted": MicroAttackStage.USER_PRIV_ESC,  # Outgoing vs. incoming?
     "ET POLICY PE EXE or DLL Windows file download HTTP": MicroAttackStage.DATA_DELIVERY,
     "ET POLICY Python-urllib/ Suspicious User Agent": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET POLICY RDP connection confirm": MicroAttackStage.COMMAND_AND_CONTROL,
@@ -354,7 +322,7 @@ usual_mapping = {
     "ET SCAN Behavioral Unusual Port 445 traffic Potential Scan or Infection": MicroAttackStage.SERVICE_DISC,
     "ET SCAN Behavioral Unusually fast Terminal Server Traffic Potential Scan or Infection (Inbound)": MicroAttackStage.HOST_DISC,
     "ET SCAN DEBUG Method Request with Command": MicroAttackStage.PUBLIC_APP_EXP,
-    "ET SCAN DirBuster Scan in Progress": MicroAttackStage.VULN_DISC, #This is typically trying to see what directories are avabilable
+    "ET SCAN DirBuster Scan in Progress": MicroAttackStage.VULN_DISC,  # This is typically trying to see what directories are avabilable
     "ET SCAN DirBuster Web App Scan in Progress": MicroAttackStage.VULN_DISC,
     "ET SCAN Hydra User-Agent": MicroAttackStage.BRUTE_FORCE_CREDS,
     "ET SCAN LibSSH Based Frequent SSH Connections Likely BruteForce Attack": MicroAttackStage.BRUTE_FORCE_CREDS,
@@ -386,8 +354,8 @@ usual_mapping = {
     "ET TROJAN ATTACKER IRCBot - PRIVMSG Response - ipconfig command output": MicroAttackStage.DATA_EXFILTRATION,
     "ET TROJAN ATTACKER IRCBot - PRIVMSG Response - net command output": MicroAttackStage.DATA_EXFILTRATION,
     "ET TROJAN ATTACKER IRCBot - The command completed successfully - PRIVMSG Response": MicroAttackStage.DATA_EXFILTRATION,
-    "ET TROJAN DDoS.XOR Checkin": MicroAttackStage.NETWORK_DOS, #may also be network sniffing
-    "ET TROJAN NgrBot IRC CnC Channel Join": MicroAttackStage.COMMAND_AND_CONTROL, ##
+    "ET TROJAN DDoS.XOR Checkin": MicroAttackStage.NETWORK_DOS,  # May also be network sniffing
+    "ET TROJAN NgrBot IRC CnC Channel Join": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET TROJAN Windows WMIC COMPUTERSYSTEM get Microsoft Windows DOS prompt command exit OUTBOUND": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET TROJAN Windows WMIC NETLOGIN get Microsoft Windows DOS prompt command exit OUTBOUND": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET TROJAN Windows WMIC NIC get Microsoft Windows DOS prompt command exit OUTBOUND": MicroAttackStage.COMMAND_AND_CONTROL,
@@ -410,7 +378,7 @@ usual_mapping = {
     "ET TROJAN Windows qwinsta Microsoft Windows DOS prompt command exit OUTBOUND": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET WEB_CLIENT BeEF Cookie Outbound": MicroAttackStage.SERVICE_SPECIFIC,
     "ET WEB_SERVER DD-WRT Information Disclosure Attempt": MicroAttackStage.DATA_EXFILTRATION,
-    "ET WEB_SERVER HTTP 414 Request URI Too Large": MicroAttackStage.COMMAND_AND_CONTROL, #This is if the URL is too long AKA command injection
+    "ET WEB_SERVER HTTP 414 Request URI Too Large": MicroAttackStage.COMMAND_AND_CONTROL,  # This is if the URL is too long AKA command injection
     "ET WEB_SERVER PHP Possible file Remote File Inclusion Attempt": MicroAttackStage.DATA_DELIVERY,
     "ET WEB_SERVER PHP Possible https Local File Inclusion Attempt": MicroAttackStage.DATA_DELIVERY,
     "ET WEB_SERVER PHP Possible php Remote File Inclusion Attempt": MicroAttackStage.DATA_DELIVERY,
@@ -421,7 +389,7 @@ usual_mapping = {
     "ET WEB_SERVER Possible SQL Injection (exec)": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET WEB_SERVER Tilde in URI - potential .inc source disclosure vulnerability": MicroAttackStage.DATA_EXFILTRATION,
     "ET WEB_SERVER Tilde in URI - potential .php~ source disclosure vulnerability": MicroAttackStage.DATA_EXFILTRATION,
-    "ET WEB_SERVER WEB-PHP phpinfo access": MicroAttackStage.SURFING, #Changed from exfiltration
+    "ET WEB_SERVER WEB-PHP phpinfo access": MicroAttackStage.SURFING,  # Changed from exfiltration
     "ET WEB_SPECIFIC_APPS PHP-CGI query string parameter vulnerability": MicroAttackStage.DATA_EXFILTRATION,
     "GPL ATTACK_RESPONSE id check returned root": MicroAttackStage.ROOT_PRIV_ESC,
     "GPL DNS named authors attempt": MicroAttackStage.INFO_DISC,
@@ -465,12 +433,12 @@ usual_mapping = {
     "GPL RPC portmap ypserv request TCP": MicroAttackStage.SERVICE_DISC,
     "GPL RPC portmap ypupdated request TCP": MicroAttackStage.ARBITRARY_CODE_EXE,
     "GPL RPC xdmcp info query": MicroAttackStage.INFO_DISC,
-    "GPL SNMP private access udp": MicroAttackStage.ACCT_MANIP, #check this out, this is a bit unclear
+    "GPL SNMP private access udp": MicroAttackStage.ACCT_MANIP,  # Check this out, this is a bit unclear
     "GPL SNMP public access udp": MicroAttackStage.ACCT_MANIP,
-    "GPL WEB_SERVER globals.pl access": MicroAttackStage.INFO_DISC, #Changed from exfiltration
-    "GPL WEB_SERVER mod_gzip_status access": MicroAttackStage.INFO_DISC,#Changed from exfiltration
+    "GPL WEB_SERVER globals.pl access": MicroAttackStage.INFO_DISC,  # Changed from exfiltration
+    "GPL WEB_SERVER mod_gzip_status access": MicroAttackStage.INFO_DISC,  # Changed from exfiltration
     "GPL WEB_SERVER perl post attempt": MicroAttackStage.DATA_DELIVERY,
-    "ET ATTACK_RESPONSE Output of id command from HTTP server": MicroAttackStage.INFO_DISC,  #********  CPTC 2018 STARTS HERE **********
+    "ET ATTACK_RESPONSE Output of id command from HTTP server": MicroAttackStage.INFO_DISC,  # ********  CPTC 2018 STARTS HERE **********
     "ET CHAT MSN status change": MicroAttackStage.DATA_MANIPULATION,
     "ET CURRENT_EVENTS Possible TLS HeartBleed Unencrypted Request Method 4 (Inbound to Common SSL Port)": MicroAttackStage.VULN_DISC,
     "ET EXPLOIT Exim/Dovecot Possible MAIL FROM Command Execution": MicroAttackStage.COMMAND_AND_CONTROL,
@@ -516,7 +484,7 @@ usual_mapping = {
     "ET WEB_SERVER /etc/shadow Detected in URI": MicroAttackStage.DATA_EXFILTRATION,
     "ET WEB_SERVER /system32/ in Uri - Possible Protected Directory Access Attempt": MicroAttackStage.DATA_EXFILTRATION,
     "ET WEB_SERVER Access to /phppath/php Possible Plesk 0-day Exploit June 05 2013": MicroAttackStage.SERVICE_SPECIFIC,
-    "ET WEB_SERVER Attempt To Access MSSQL xp_cmdshell Stored Procedure Via URI": MicroAttackStage.ROOT_PRIV_ESC,  #May not be the case
+    "ET WEB_SERVER Attempt To Access MSSQL xp_cmdshell Stored Procedure Via URI": MicroAttackStage.ROOT_PRIV_ESC,   # May not be the case
     "ET WEB_SERVER CRLF Injection - Newline Characters in URL": MicroAttackStage.PUBLIC_APP_EXP,
     "ET WEB_SERVER ColdFusion adminapi access": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET WEB_SERVER ColdFusion administrator access": MicroAttackStage.ROOT_PRIV_ESC,
@@ -537,7 +505,7 @@ usual_mapping = {
     "ET WEB_SERVER PHP SERVER SuperGlobal in URI": MicroAttackStage.INFO_DISC,
     "ET WEB_SERVER PHP SESSION SuperGlobal in URI": MicroAttackStage.INFO_DISC,
     "ET WEB_SERVER PHP System Command in HTTP POST": MicroAttackStage.COMMAND_AND_CONTROL,
-    "ET WEB_SERVER PHP.//Input in HTTP POST": MicroAttackStage.INFO_DISC, #may be more than this
+    "ET WEB_SERVER PHP.//Input in HTTP POST": MicroAttackStage.INFO_DISC,  # May be more than this
     "ET WEB_SERVER Possible Attempt to Get SQL Server Version in URI using SELECT VERSION": MicroAttackStage.INFO_DISC,
     "ET WEB_SERVER Possible CVE-2013-0156 Ruby On Rails XML YAML tag with !ruby": MicroAttackStage.ARBITRARY_CODE_EXE,
     "ET WEB_SERVER Possible CVE-2014-6271 Attempt": MicroAttackStage.ARBITRARY_CODE_EXE,
@@ -606,7 +574,7 @@ usual_mapping = {
     "ET WEB_SPECIFIC_APPS PHP phpMyAgenda rootagenda Remote File Include Attempt": MicroAttackStage.DATA_DELIVERY,
     "ET WEB_SPECIFIC_APPS PHP-Paid4Mail RFI attempt ": MicroAttackStage.DATA_DELIVERY,
     "ET WEB_SPECIFIC_APPS PHPOF DB_AdoDB.Class.PHP PHPOF_INCLUDE_PATH parameter Remote File Inclusion": MicroAttackStage.DATA_DELIVERY,
-    "ET WEB_SPECIFIC_APPS PithCMS oldnews_reader.php lang Parameter Local File Inclusion Attempt": MicroAttackStage.DATA_EXFILTRATION, #This is local files only
+    "ET WEB_SPECIFIC_APPS PithCMS oldnews_reader.php lang Parameter Local File Inclusion Attempt": MicroAttackStage.DATA_EXFILTRATION,  # This is local files only
     "ET WEB_SPECIFIC_APPS Plone and Zope cmd Parameter Remote Command Execution Attempt": MicroAttackStage.DATA_DELIVERY,
     "ET WEB_SPECIFIC_APPS PointComma pctemplate.php pcConfig Parameter Remote File Inclusion Attempt": MicroAttackStage.DATA_DELIVERY,
     "ET WEB_SPECIFIC_APPS Possible JBoss JMX Console Beanshell Deployer WAR Upload and Deployment Exploit Attempt": MicroAttackStage.COMMAND_AND_CONTROL,
@@ -654,8 +622,8 @@ usual_mapping = {
     "ETPRO WEB_SPECIFIC_APPS PHPMoAdmin RCE Attempt": MicroAttackStage.ARBITRARY_CODE_EXE,
     "ETPRO WEB_SPECIFIC_APPS ipTIME firmware < 9.58 RCE": MicroAttackStage.ROOT_PRIV_ESC,
     "GPL ATTACK_RESPONSE directory listing": MicroAttackStage.INFO_DISC,
-    "GPL EXPLOIT .cnf access": MicroAttackStage.INFO_DISC, #Changed from exfiltration
-    "GPL EXPLOIT .htr access": MicroAttackStage.INFO_DISC, #Changed from exfiltration
+    "GPL EXPLOIT .cnf access": MicroAttackStage.INFO_DISC,  # Changed from exfiltration
+    "GPL EXPLOIT .htr access": MicroAttackStage.INFO_DISC,  # Changed from exfiltration
     "GPL EXPLOIT /iisadmpwd/aexp2.htr access": MicroAttackStage.ACCT_MANIP,
     "GPL EXPLOIT /msadc/samples/ access": MicroAttackStage.DATA_EXFILTRATION,
     "GPL EXPLOIT CodeRed v2 root.exe access": MicroAttackStage.ROOT_PRIV_ESC,
@@ -670,20 +638,20 @@ usual_mapping = {
     "GPL POLICY PCAnywhere server response": MicroAttackStage.SERVICE_DISC,
     "GPL SMTP expn root": MicroAttackStage.ROOT_PRIV_ESC,
     "GPL SMTP vrfy root": MicroAttackStage.ROOT_PRIV_ESC,
-    "GPL WEB_SERVER .htaccess access": MicroAttackStage.INFO_DISC, #Changed from exfiltration
-    "GPL WEB_SERVER .htpasswd access": MicroAttackStage.INFO_DISC, #Changed from exfiltration
-    "GPL WEB_SERVER /~root access": MicroAttackStage.INFO_DISC, #Changed from exfiltration
+    "GPL WEB_SERVER .htaccess access": MicroAttackStage.INFO_DISC,  # Changed from exfiltration
+    "GPL WEB_SERVER .htpasswd access": MicroAttackStage.INFO_DISC,  # Changed from exfiltration
+    "GPL WEB_SERVER /~root access": MicroAttackStage.INFO_DISC,  # Changed from exfiltration
     "GPL WEB_SERVER 403 Forbidden": MicroAttackStage.INFO_DISC,
     "GPL WEB_SERVER DELETE attempt": MicroAttackStage.DATA_DESTRUCTION,
     "GPL WEB_SERVER Oracle Java Process Manager access": MicroAttackStage.RESOURCE_HIJACKING,
     "GPL WEB_SERVER Tomcat server snoop access": MicroAttackStage.DATA_EXFILTRATION,
     "GPL WEB_SERVER author.exe access": MicroAttackStage.INFO_DISC,
     "GPL WEB_SERVER authors.pwd access": MicroAttackStage.INFO_DISC,
-    "GPL WEB_SERVER global.asa access": MicroAttackStage.INFO_DISC, #Changed from exfiltration
-    "GPL WEB_SERVER iisadmin access": MicroAttackStage.INFO_DISC,#Changed from exfiltration
-    "GPL WEB_SERVER printenv access": MicroAttackStage.INFO_DISC,#Changed from exfiltration
+    "GPL WEB_SERVER global.asa access": MicroAttackStage.INFO_DISC,  # Changed from exfiltration
+    "GPL WEB_SERVER iisadmin access": MicroAttackStage.INFO_DISC,  # Changed from exfiltration
+    "GPL WEB_SERVER printenv access": MicroAttackStage.INFO_DISC,  # Changed from exfiltration
     "GPL WEB_SERVER python access attempt": MicroAttackStage.COMMAND_AND_CONTROL,
-    "GPL WEB_SERVER service.cnf access": MicroAttackStage.INFO_DISC,#Changed from exfiltration
+    "GPL WEB_SERVER service.cnf access": MicroAttackStage.INFO_DISC,  # Changed from exfiltration
     "GPL WEB_SERVER service.pwd": MicroAttackStage.INFO_DISC,
     "GPL WEB_SERVER services.cnf access": MicroAttackStage.INFO_DISC,
     "GPL WEB_SERVER viewcode access": MicroAttackStage.INFO_DISC,
@@ -896,31 +864,31 @@ root_priv_signatures = [
 ]
 
 specific_exp_signatures = [
-    #"ET EXPLOIT Possible IE Scripting Engine Memory Corruption Vulnerability (CVE-2019-0752)", #moved to arb
-    #"ET EXPLOIT FortiOS SSL VPN - Pre-Auth Messages Payload Buffer Overflow (CVE-2018-13381)", #moved to net dos
-    "ET EXPLOIT Possible OpenVPN CVE-2014-6271 attempt", #moved to arb
+    # "ET EXPLOIT Possible IE Scripting Engine Memory Corruption Vulnerability (CVE-2019-0752)",  # Moved to arb
+    # "ET EXPLOIT FortiOS SSL VPN - Pre-Auth Messages Payload Buffer Overflow (CVE-2018-13381)",  # Moved to net dos
+    "ET EXPLOIT Possible OpenVPN CVE-2014-6271 attempt",  # Moved to arb
     "ET EXPLOIT Possible Palo Alto SSL VPN sslmgr Format String Vulnerability (Inbound)",
-    #"ET EXPLOIT Potential Internet Explorer Use After Free CVE-2013-3163 Exploit URI Struct 1", #moved to arv
+    # "ET EXPLOIT Potential Internet Explorer Use After Free CVE-2013-3163 Exploit URI Struct 1",  # Moved to arv
     "ET EXPLOIT QNAP Shellshock script retrieval",
     "ET EXPLOIT SolusVM 1.13.03 SQL injection",
-    #"ETPRO EXPLOIT Microsoft Edge CSS History Information Disclosure Vulnerability (CVE-2016-7206)", #moved to arb
+    # "ETPRO EXPLOIT Microsoft Edge CSS History Information Disclosure Vulnerability (CVE-2016-7206)",  # Moved to arb
     "ET EXPLOIT IBM WebSphere - RCE Java Deserialization",
-    #"ET EXPLOIT Possible iOS Pegasus Safari Exploit (CVE-2016-4657)",  #moved to arb
+    # "ET EXPLOIT Possible iOS Pegasus Safari Exploit (CVE-2016-4657)",  # Moved to arb
     "ET EXPLOIT Possible MySQL cnf overwrite CVE-2016-6662 Attempt",
     "ET EXPLOIT LastPass RCE Attempt",
-    #"ETPRO EXPLOIT Possible Wget Arbitrary File Write Exploit Attempt (CVE-2016-4971)", #data deliv
-    #"ETPRO EXPLOIT Internet Explorer Memory Corruption Vulnerability (CVE-2016-3211)", #arb
+    # "ETPRO EXPLOIT Possible Wget Arbitrary File Write Exploit Attempt (CVE-2016-4971)",  # data delivery
+    # "ETPRO EXPLOIT Internet Explorer Memory Corruption Vulnerability (CVE-2016-3211)",  # arb
     "ETPRO EXPLOIT Possible HP.SSF.WebService Exploit Attempt",
     "ET EXPLOIT Possible Internet Explorer VBscript failure to handle error case information disclosure CVE-2014-6332 Common Construct M2",
     "ETPRO EXPLOIT Microsoft Office Memory Corruption Vulnerability Pointer Reuse (CVE-2016-0021)",
     "ET EXPLOIT TrendMicro node.js HTTP RCE Exploit Inbound (openUrlInDefaultBrowser)",
     "ET EXPLOIT Possible Postfix CVE-2014-6271 attempt",
-    #"ETPRO EXPLOIT Possible HTML Meta Refresh (CVE-2015-6123) Inbound to Server", #arb
-    #"ETPRO EXPLOIT Possible HTML Meta Refresh (CVE-2015-6123) via IMAP/POP3", #arb
+    # "ETPRO EXPLOIT Possible HTML Meta Refresh (CVE-2015-6123) Inbound to Server",  # arb
+    # "ETPRO EXPLOIT Possible HTML Meta Refresh (CVE-2015-6123) via IMAP/POP3",  # arb
     "ET EXPLOIT Possible Redirect to SMB exploit attempt - 303",
-    #"ETPRO EXPLOIT MSXML3 Same Origin Policy SFB vulnerability 1 (CVE-2015-1646)", #exfil
+    # "ETPRO EXPLOIT MSXML3 Same Origin Policy SFB vulnerability 1 (CVE-2015-1646)",  # exfil
     "ETPRO EXPLOIT Possible Jetty Web Server Information Leak Attempt",
-    #"ETPRO EXPLOIT SChannel Possible Heap Overflow ECDSAWithSHA512 CVE-2014-6321", #arb
+    # "ETPRO EXPLOIT SChannel Possible Heap Overflow ECDSAWithSHA512 CVE-2014-6321",  # arb
     "ETPRO EXPLOIT Netcore Router Backdoor Usage",
 ]
 
@@ -1042,4 +1010,3 @@ attack_stage_mapping = {
     MicroAttackStage.DATA_EXFILTRATION : exfiltration_signatures,
     MicroAttackStage.NON_MALICIOUS : non_malicious_signatures,
 }
-
