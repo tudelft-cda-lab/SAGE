@@ -32,8 +32,8 @@ RUN cd /root \
 	&& cd FlexFringe && make clean all
 
 RUN cd /root \
-    && git clone https://github.com/tudelft-cda-lab/SAGE.git  \
-    && cd SAGE && cp sage.py ../ && cp spdfa-config.ini ../FlexFringe/ini/
+    && git clone https://github.com/tudelft-cda-lab/SAGE.git \
+    && cd SAGE && cp -R sage.py signatures/ ../ && cp spdfa-config.ini ../FlexFringe/ini/
 
 
 
