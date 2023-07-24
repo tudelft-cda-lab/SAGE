@@ -31,6 +31,7 @@ import re
 from collections import defaultdict
 
 IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
+IANA_NUM_RETRIES = 3
 DB_PATH = "./ports.json"
 SAVE = True
 DOCKER = True
@@ -1316,11 +1317,16 @@ ser_groups = dict({
         
 def load_IANA_mapping():
     """Download the IANA port-service mapping"""
-    response = requests.get(IANA_CSV_FILE)
-    if response.ok:
-        content = response.content.decode("utf-8")
-    else:
-        raise RuntimeError('Cannot download IANA ports')
+    # Perform the first request and in case of a failure retry the specified number of times
+    for attempt in range(IANA_NUM_RETRIES + 1):
+        response = requests.get(IANA_CSV_FILE)
+        if response.ok:
+            content = response.content.decode("utf-8")
+            break
+        elif attempt < IANA_NUM_RETRIES:
+            print('Could not download IANA ports. Retrying...')
+        else:
+            raise RuntimeError('Cannot download IANA ports')
     table = csv.reader(content.splitlines())
 
     # Drop headers (Service name, port, protocol, description, ...)
@@ -2903,6 +2909,7 @@ datafile = expname+'.txt'#'trace-uni-serGroup.txt'
    
 path_to_traces = datafile
 
+print('------ Downloading the IANA port-service mapping ---------')
 port_services = load_IANA_mapping()
 
 print('----- Reading alerts ----------')
