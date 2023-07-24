@@ -1,40 +1,3 @@
-mapping = {
-    "MicroAttackStage.TARGET_IDEN": "MacroAttackStage.PASSIVE_RECON",
-    "MicroAttackStage.SURFING": "MacroAttackStage.PASSIVE_RECON",
-    "MicroAttackStage.SOCIAL_ENGINEERING": "MacroAttackStage.PASSIVE_RECON",
-    "MicroAttackStage.HOST_DISC": "MacroAttackStage.ACTIVE_RECON",
-    "MicroAttackStage.SERVICE_DISC": "MacroAttackStage.ACTIVE_RECON",
-    "MicroAttackStage.VULN_DISC": "MacroAttackStage.ACTIVE_RECON",
-    "MicroAttackStage.INFO_DISC": "MacroAttackStage.ACTIVE_RECON",
-    "MicroAttackStage.PRIV_ESC": "MacroAttackStage.PRIVLEDGE_ESC",
-    "MicroAttackStage.USER_PRIV_ESC": "MacroAttackStage.PRIVLEDGE_ESC",
-    "MicroAttackStage.ROOT_PRIV_ESC": "MacroAttackStage.PRIVLEDGE_ESC",
-    "MicroAttackStage.NETWORK_SNIFFING": "MacroAttackStage.PRIVLEDGE_ESC",
-    "MicroAttackStage.BRUTE_FORCE_CREDS": "MacroAttackStage.PRIVLEDGE_ESC",
-    "MicroAttackStage.ACCT_MANIP": "MacroAttackStage.PRIVLEDGE_ESC",
-    "MicroAttackStage.TRUSTED_ORG_EXP": "MacroAttackStage.TARGETED_EXP",
-    "MicroAttackStage.PUBLIC_APP_EXP": "MacroAttackStage.TARGETED_EXP",
-    "MicroAttackStage.REMOTE_SERVICE_EXP": "MacroAttackStage.TARGETED_EXP",
-    "MicroAttackStage.SPEARPHISHING": "MacroAttackStage.TARGETED_EXP",
-    "MicroAttackStage.SERVICE_SPECIFIC": "MacroAttackStage.TARGETED_EXP",
-    "MicroAttackStage.ARBITRARY_CODE_EXE": "MacroAttackStage.TARGETED_EXP",
-    "MicroAttackStage.DEFENSE_EVASION": "MacroAttackStage.ENSURE_ACCESS",
-    "MicroAttackStage.COMMAND_AND_CONTROL": "MacroAttackStage.ENSURE_ACCESS",
-    "MicroAttackStage.LATERAL_MOVEMENT": "MacroAttackStage.ENSURE_ACCESS",
-    "MicroAttackStage.END_POINT_DOS": "MacroAttackStage.DISRUPT",
-    "MicroAttackStage.NETWORK_DOS": "MacroAttackStage.DISRUPT",
-    "MicroAttackStage.SERVICE_STOP": "MacroAttackStage.DISRUPT",
-    "MicroAttackStage.RESOURCE_HIJACKING": "MacroAttackStage.DISRUPT",
-    "MicroAttackStage.DATA_DESTRUCTION": "MacroAttackStage.DISTROY",
-    "MicroAttackStage.CONTENT_WIPE": "MacroAttackStage.DISTROY",
-    "MicroAttackStage.DATA_ENCRYPTION": "MacroAttackStage.DISTORT",
-    "MicroAttackStage.DEFACEMENT": "MacroAttackStage.DISTORT",
-    "MicroAttackStage.DATA_MANIPULATION": "MacroAttackStage.DISTORT",
-    "MicroAttackStage.DATA_EXFILTRATION": "MacroAttackStage.DISCLOSURE",
-    "MicroAttackStage.DATA_DELIVERY": "MacroAttackStage.DELIVERY",
-    "MicroAttackStage.NON_MALICIOUS": "MacroAttackStage.NONE",
-}
-
 macro = {
     0: "MacroAttackStage.NONE",
     1: "MacroAttackStage.PASSIVE_RECON",
@@ -99,6 +62,7 @@ micro2macro = {
     "MicroAttackStage.SERVICE_DISC": "MacroAttackStage.ACTIVE_RECON",
     "MicroAttackStage.VULN_DISC": "MacroAttackStage.ACTIVE_RECON",
     "MicroAttackStage.INFO_DISC": "MacroAttackStage.ACTIVE_RECON",
+    "MicroAttackStage.PRIV_ESC": "MacroAttackStage.PRIVLEDGE_ESC",
     "MicroAttackStage.USER_PRIV_ESC": "MacroAttackStage.PRIVLEDGE_ESC",
     "MicroAttackStage.ROOT_PRIV_ESC": "MacroAttackStage.PRIVLEDGE_ESC",
     "MicroAttackStage.NETWORK_SNIFFING": "MacroAttackStage.PRIVLEDGE_ESC",
@@ -124,8 +88,7 @@ micro2macro = {
     "MicroAttackStage.DATA_MANIPULATION": "MacroAttackStage.DISTORT",
     "MicroAttackStage.DATA_EXFILTRATION": "MacroAttackStage.DISCLOSURE",
     "MicroAttackStage.DATA_DELIVERY": "MacroAttackStage.DELIVERY",
-    "MicroAttackStage.NON_MALICIOUS": "MacroAttackStage.NONE",
-    "MicroAttackStage.PRIV_ESC": "MacroAttackStage.PRIVLEDGE_ESC"
+    "MicroAttackStage.NON_MALICIOUS": "MacroAttackStage.NONE"
 }
 
 mcols = list({(0.8941176470588236, 0.10196078431372549, 0.10980392156862745),

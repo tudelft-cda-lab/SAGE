@@ -108,7 +108,6 @@ ccdc_combined = {
     "ET POLICY Powershell Activity Over SMB - Likely Lateral Movement": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET POLICY Powershell Command With Hidden Window Argument Over SMB - Likely Lateral Movement": MicroAttackStage.COMMAND_AND_CONTROL,
     "ET POLICY Powershell Command With No Profile Argument Over SMB - Likely Lateral Movement": MicroAttackStage.COMMAND_AND_CONTROL,
-    "GPL CHAT Jabber/Google Talk Outgoing Traffic": MicroAttackStage.INFO_DISC,
     "GPL CHAT Google Talk Logon": MicroAttackStage.NON_MALICIOUS,
     "GPL ATTACK_RESPONSE id check returned root": MicroAttackStage.PRIV_ESC,
     "GPL CHAT Google Talk Startup": MicroAttackStage.NON_MALICIOUS,
