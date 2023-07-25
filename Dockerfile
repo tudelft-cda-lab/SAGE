@@ -20,9 +20,9 @@ RUN chmod -R a+rw /root/input/
 ##########################################
 ######       INTALL DEPENDENCIES  ########
 ##########################################
-#RUN apt-get update && apt-get -y upgrade 
+RUN apt-get update && apt-get -y upgrade
 
-#RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install git build-essential python3-dev python3-pip graphviz 
+RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install git build-essential python3-dev python3-pip graphviz
 
 RUN cd root/ \
 	&& pip3 install -r requirements.txt
