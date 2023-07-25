@@ -1,34 +1,24 @@
-import os,re,operator, json, datetime, glob
-import statistics 
-import seaborn as sns
-import pandas as pd
-import requests
 import csv
+import datetime
+import glob
 import json
+import math
+import os
 import os.path
-import matplotlib.pyplot as plt 
-import itertools
-import numpy as np
-import matplotlib.pyplot as plt
-from numpy import diff
-from pandas import DataFrame
-import math
-import math
-from itertools import accumulate
-import matplotlib.pyplot as plt
-import matplotlib.style
-import matplotlib as mpl
-mpl.style.use('default')
-import numpy as np
-import seaborn as sns
-import numpy as np 
+import re
 import subprocess
 import sys
-import graphviz
-from shutil import copyfile
-import json
-import re
 from collections import defaultdict
+from itertools import accumulate
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import matplotlib.style
+import numpy as np
+import requests
+from numpy import diff
+
+mpl.style.use('default')
 
 IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
 DB_PATH = "./ports.json"
@@ -1532,12 +1522,6 @@ def removeDup(unparse, plot=False, t=1.0):
         b2 = dict(sorted(removed.items()))
         print(b1.keys())
         print(b2.keys())
-        # libraries
-        import numpy as np
-        import matplotlib.pyplot as plt
-        import matplotlib.style
-        import matplotlib as mpl
-        mpl.style.use('default')
 
         fig = plt.figure(figsize=(20,20))
 
