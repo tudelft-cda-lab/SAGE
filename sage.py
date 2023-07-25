@@ -1299,11 +1299,6 @@ ser_groups = dict({
     'unassigned' : ['unknown', 'Unknown']
 })
 
-#ser_inv = {}
-#for k,v in ser_groups.items():
-#    for x in v:
-#        ser_inv.setdefault(x,[]).append(k)
-        
 def load_IANA_mapping():
     """Download the IANA port-service mapping"""
     response = requests.get(IANA_CSV_FILE)
@@ -1313,8 +1308,8 @@ def load_IANA_mapping():
         raise RuntimeError('Cannot download IANA ports')
     table = csv.reader(content.splitlines())
 
-    # Drop headers (Service name, port, protocol, description, ...)
-    headers = next(table)
+    # Drop headers (service name, port, protocol, description, ...)
+    next(table)
 
     # Note that ports might have holes
     ports = {}
@@ -1333,27 +1328,17 @@ def load_IANA_mapping():
                     "name": row[0] if row[0] else "unknown",
                     "description": row[3] if row[3] else "---",
                 }
-        else:
-            # Do nothing 
-            pass
     return ports
-    
+
+
 ## 3
 def readfile(fname):
-    unparsed_data = None
     with open(fname, 'r') as f:
         unparsed_data = json.load(f)
         
     unparsed_data = unparsed_data[::-1]
-    #print('# events: ', len(unparsed_data))
-    #print(unparsed_data[0])
     return unparsed_data
     
-
-#cats = dict()
-#ips = dict()
-#hosts = dict()
-#h_trig = []
 
 def parse(unparsed_data, alert_labels=[], slim=False):
     
@@ -1364,74 +1349,60 @@ def parse(unparsed_data, alert_labels=[], slim=False):
     __hosts = set()
     __sev = set()
     data = []
-    connections = dict()
 
     prev = -1
-    for id, d in enumerate(unparsed_data):
-        #print(d)
-        raw = ''
-        
-        try:
-             raw = json.loads(d['result']['_raw'])
-        except:
-            try:
-                raw = json.loads(d['_raw'])
-            except:
-                raw = d
-                
+    for d in unparsed_data:
+        if 'result' in d and '_raw' in d['result']:
+            raw = json.loads(d['result']['_raw'])
+        elif '_raw' in d:
+            raw = json.loads(d['_raw'])
+        else:
+            raw = d
+
         if raw['event_type'] != 'alert':
             continue
-        #app_proto = raw['app_proto']
-        host = ''
-        
-        try:
-            host = raw['host']
-        except:
-            try:
-                host = d['host'][3:]
-            except:
-                host = 'dummy'
-                
 
-        #print(host)
+        if 'host' in raw:
+            host = raw['host']
+        elif 'host' in d:
+            host = d['host'][3:]
+        else:
+            host = 'dummy'
+
         ts = raw['timestamp']
-        dt = datetime.datetime.strptime(ts, '%Y-%m-%dT%H:%M:%S.%f%z')# 2018-11-03T23:16:09.148520+0000
-        DIFF = 0.0 if prev== -1 else round((dt - prev).total_seconds(),2)
+        dt = datetime.datetime.strptime(ts, '%Y-%m-%dT%H:%M:%S.%f%z')  # 2018-11-03T23:16:09.148520+0000
+        diff_dt = 0.0 if prev == -1 else round((dt - prev).total_seconds(), 2)
         prev = dt
         
-                
         sig = raw['alert']['signature']
         cat = raw['alert']['category']
-        
         severity = raw['alert']['severity']
 
+        # Filter out the alert that occurs way too often
         if cat == 'Attempted Information Leak' and FILTER:
             continue
+
         srcip = raw['src_ip']
         srcport = None if 'src_port' not in raw.keys() else raw['src_port']
         dstip = raw['dest_ip']
         dstport = None if 'dest_port' not in raw.keys() else raw['dest_port']
 
-        # Filtering out mistaken alerts / uninteresting alerts
+        # Filter out mistaken alerts / uninteresting alerts
         if srcip == badIP or dstip == badIP or cat == 'Not Suspicious Traffic':
             continue
-            
+
         if not slim:
             mcat = get_attack_stage_mapping(sig)
-            data.append((DIFF, srcip, srcport, dstip, dstport, sig, cat, host, dt, mcat))
+            data.append((diff_dt, srcip, srcport, dstip, dstport, sig, cat, host, dt, mcat))
         else:
-            data.append((DIFF, srcip, srcport, dstip, dstport, sig, cat, host, dt))
+            data.append((diff_dt, srcip, srcport, dstip, dstport, sig, cat, host, dt))
 
-        #host_ip.append((host, srcip, dstip))
-       
-        
         __cats.add(cat)
         __ips.add(srcip)
         __ips.add(dstip)
         __hosts.add(host)
         __sev.add(severity)
 
-        
     '''_cats = [(id,c) for (id,c) in enumerate(__cats)]
     for (i,c) in _cats:
         if c not in cats.keys():
@@ -1444,17 +1415,13 @@ def parse(unparsed_data, alert_labels=[], slim=False):
     for (i,h) in _hosts:
         if h not in hosts.keys():
             hosts[h] = 0 if len(hosts.values())==0 else max(hosts.values())+1'''
-    
-    #print(cats)
-    #print(len(cats))
-    #print(data[0][1], data[0][3])
-    #print(data[1][1], data[1][3])
+
     print('Reading # alerts: ', len(data))
     
     if slim:
         print(len(data), len(alert_labels))
         j = 0
-        for i,al in enumerate(alert_labels):
+        for i, al in enumerate(alert_labels):
             spl = al.split(',')
             source = spl[0]
             dest = spl[1]
@@ -1470,7 +1437,7 @@ def parse(unparsed_data, alert_labels=[], slim=False):
                 
                 data[j] += (mcat,)
             j += 1
-    data = sorted(data, key=lambda x: x[8]) # Sort alerts into ascending order
+    data = sorted(data, key=lambda x: x[8])  # Sort alerts into ascending order
     return data    
 
 def removeDup(unparse, plot=False, t=1.0):
