@@ -8,7 +8,7 @@ import os.path
 import re
 import subprocess
 import sys
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from itertools import accumulate
 
 import matplotlib as mpl
@@ -1341,14 +1341,13 @@ def readfile(fname):
     
 
 def parse(unparsed_data, alert_labels=[], slim=False):
-    
+
     FILTER = False
     badIP = '169.254.169.254'
     __cats = set()
     __ips = set()
     __hosts = set()
-    __sev = set()
-    data = []
+    parsed_data = []
 
     prev = -1
     for d in unparsed_data:
@@ -1373,10 +1372,9 @@ def parse(unparsed_data, alert_labels=[], slim=False):
         dt = datetime.datetime.strptime(ts, '%Y-%m-%dT%H:%M:%S.%f%z')  # 2018-11-03T23:16:09.148520+0000
         diff_dt = 0.0 if prev == -1 else round((dt - prev).total_seconds(), 2)
         prev = dt
-        
+
         sig = raw['alert']['signature']
         cat = raw['alert']['category']
-        severity = raw['alert']['severity']
 
         # Filter out the alert that occurs way too often
         if cat == 'Attempted Information Leak' and FILTER:
@@ -1393,15 +1391,14 @@ def parse(unparsed_data, alert_labels=[], slim=False):
 
         if not slim:
             mcat = get_attack_stage_mapping(sig)
-            data.append((diff_dt, srcip, srcport, dstip, dstport, sig, cat, host, dt, mcat))
+            parsed_data.append((diff_dt, srcip, srcport, dstip, dstport, sig, cat, host, dt, mcat))
         else:
-            data.append((diff_dt, srcip, srcport, dstip, dstport, sig, cat, host, dt))
+            parsed_data.append((diff_dt, srcip, srcport, dstip, dstport, sig, cat, host, dt))
 
         __cats.add(cat)
         __ips.add(srcip)
         __ips.add(dstip)
         __hosts.add(host)
-        __sev.add(severity)
 
     '''_cats = [(id,c) for (id,c) in enumerate(__cats)]
     for (i,c) in _cats:
@@ -1416,10 +1413,10 @@ def parse(unparsed_data, alert_labels=[], slim=False):
         if h not in hosts.keys():
             hosts[h] = 0 if len(hosts.values())==0 else max(hosts.values())+1'''
 
-    print('Reading # alerts: ', len(data))
-    
+    print('Reading # alerts: ', len(parsed_data))
+
     if slim:
-        print(len(data), len(alert_labels))
+        print(len(parsed_data), len(alert_labels))
         j = 0
         for i, al in enumerate(alert_labels):
             spl = al.split(',')
@@ -1427,104 +1424,78 @@ def parse(unparsed_data, alert_labels=[], slim=False):
             dest = spl[1]
             mcat = int(spl[-1][:-1])
             cat = spl[2]
-            
+
             if source == badIP or dest == badIP or cat == 'Not Suspicious Traffic':
                 continue
             if spl[2] == 'Attempted Information Leak' and FILTER:
                 continue
-                
-            if source == data[j][1] and dest == data[j][3]:
-                
-                data[j] += (mcat,)
+
+            if source == parsed_data[j][1] and dest == parsed_data[j][3]:
+
+                parsed_data[j] += (mcat,)
             j += 1
-    data = sorted(data, key=lambda x: x[8])  # Sort alerts into ascending order
-    return data    
+    parsed_data = sorted(parsed_data, key=lambda x: x[8])  # Sort alerts into ascending order
+    return parsed_data
 
-def removeDup(unparse, plot=False, t=1.0):
-    
+
+def remove_duplicates(unfiltered, plot=False, gap=1.0):
+    filtered = [unfiltered[x] for x in range(1, len(unfiltered))
+                if unfiltered[x][9] != MicroAttackStage.NON_MALICIOUS  # Filter out non-malicious alerts
+                and not (unfiltered[x][0] <= gap  # Diff from previous alert is less than gap sec
+                         and unfiltered[x][1] == unfiltered[x - 1][1]  # Same srcIP
+                         and unfiltered[x][3] == unfiltered[x - 1][3]  # Same destIP
+                         and unfiltered[x][5] == unfiltered[x - 1][5]  # Same suricata category
+                         and unfiltered[x][2] == unfiltered[x - 1][2]  # Same srcPort
+                         and unfiltered[x][4] == unfiltered[x - 1][4])  # Same destPort
+                ]
     if plot:
-        orig, removed = dict(), dict()
-        
-        for _unparse in unparse:
-            
-            li = [x[9] for x in _unparse]
-            
-            for i in li:
-                orig[i] = orig.get(i, 0) + 1
-            print(orig.keys())
-            
-            li = [_unparse[x] for x in range(1,len(_unparse)) if _unparse[x][9] != 999 and not (_unparse[x][0] <= t  # Diff from previous alert is less than x sec
-                                                              and _unparse[x][1] == _unparse[x-1][1] # same srcIP
-                                                              and _unparse[x][3] == _unparse[x-1][3] # same destIP
-                                                              and _unparse[x][5] == _unparse[x-1][5] # same suricata category
-                                                              and _unparse[x][2] == _unparse[x-1][2] # same srcPort 
-                                                              and _unparse[x][4] == _unparse[x-1][4] # same destPort
-                                                                      )]
-            li = [x[9] for x in li]
-            for i in li:
-                removed[i] = removed.get(i, 0) + 1
-            print(removed.keys())
-        
-    else:
-        
-        
-        li = [unparse[x] for x in range(1,len(unparse)) if unparse[x][9] != 999 and not (unparse[x][0] <= t  # Diff from previous alert is less than x sec
-                                                              and unparse[x][1] == unparse[x-1][1] # same srcIP
-                                                              and unparse[x][3] == unparse[x-1][3] # same destIP
-                                                              and unparse[x][5] == unparse[x-1][5] # same suricata category
-                                                              and unparse[x][2] == unparse[x-1][2] # same srcPort 
-                                                              and unparse[x][4] == unparse[x-1][4] # same destPort
-                                                            )]
-        rem = [(unparse[x][9]) for x in range(1,len(unparse)) if  (unparse[x][0] <= t  # Diff from previous alert is less than x sec
-                                                              and unparse[x][1] == unparse[x-1][1] # same srcIP
-                                                              and unparse[x][3] == unparse[x-1][3] # same destIP
-                                                              and unparse[x][5] == unparse[x-1][5] # same suricata category
-                                                              and unparse[x][2] == unparse[x-1][2] # same srcPort 
-                                                              and unparse[x][4] == unparse[x-1][4] # same destPort
-                                                            )]
-    if plot:
-        print(orig)
-        print(removed)
-        b1 = dict(sorted(orig.items()))
-        b2 = dict(sorted(removed.items()))
-        print(b1.keys())
-        print(b2.keys())
+        original, remaining = dict(), dict()
+        original_mcat = [x[9] for x in unfiltered]  # Has to be changed if slim = True in the parse method above
+        for i in original_mcat:
+            original[i] = original.get(i, 0) + 1
 
-        fig = plt.figure(figsize=(20,20))
+        remaining_mcat = [x[9] for x in filtered]
+        for i in remaining_mcat:
+            remaining[i] = remaining.get(i, 0) + 1
+        if MicroAttackStage.NON_MALICIOUS in original:
+            remaining[MicroAttackStage.NON_MALICIOUS] = 0  # mcat that has been filtered (non-malicious)
 
-        # set width of bar
-        barWidth = 0.4
+        # Use ordered dictionaries to make sure that the labels (categories) are aligned
+        b1 = OrderedDict(sorted(original.items()))
+        b2 = OrderedDict(sorted(remaining.items()))
 
-        # set height of bar
-        bars1 = [(x) for x in b1.values()]
-        bars2 = [(x) for x in b2.values()]
+        plt.figure(figsize=(20, 20))
+        plt.gcf().subplots_adjust(bottom=0.2)  # To fit the x-labels
 
-        # Set position of bar on X axis
+        # Set width and height of bar
+        bar_width = 0.4
+        bars1 = [x for x in b1.values()]
+        bars2 = [x for x in b2.values()]
+
+        # Set position of bar on x-axis
         r1 = np.arange(len(bars1))
-        print(r1)
-        r2 = [x + barWidth for x in r1]
-        print('--', r2)
+        r2 = [x + bar_width for x in r1]
 
         # Make the plot
-        plt.bar(r1, bars1, color='skyblue', width=barWidth, edgecolor='white', label='Raw')
-        plt.bar(r2, bars2, color='salmon', width=barWidth, edgecolor='white', label='Cleaned')
+        plt.bar(r1, bars1, color='skyblue', width=bar_width, edgecolor='white', label='Raw')
+        plt.bar(r2, bars2, color='salmon', width=bar_width, edgecolor='white', label='Cleaned')
 
-        labs = [micro[x].split('.')[1] for x in b1.keys()]
-        #print([x for x in b1.keys()])
-        #print('ticks', [r + barWidth for r in range(len(b1.keys()))])
-        # Add xticks on the middle of the group bars
-        plt.ylabel('Frequency', fontweight='bold',fontsize='20')
-        plt.xlabel('Alert categories', fontweight='bold',fontsize='20')
-        plt.xticks( [x for x in r1], labs,fontsize='20', rotation='vertical')
+        labels = [micro[x].split('.')[1] for x in b1.keys()]
+
+        # Add xticks in the middle of the group bars
+        plt.ylabel('Frequency', fontweight='bold', fontsize='20')
+        plt.xlabel('Alert categories', fontweight='bold', fontsize='20')
+        plt.xticks([(x + bar_width / 2) for x in r1], labels, fontsize='10', rotation='vertical')
         plt.yticks(fontsize='20')
-        plt.title('High-frequency Alert Filtering', fontweight='bold',fontsize='20' )
+        plt.title('High-frequency Alert Filtering', fontweight='bold', fontsize='20')
+
         # Create legend & Show graphic
         plt.legend(prop={'size': 20})
         plt.show()
 
-    print('Filtered # alerts (remaining)', len(li))
-    return li
-    
+    print('Filtered # alerts (remaining)', len(filtered))
+    return filtered
+
 ## 5
 
 def load_data(path, t):
@@ -1543,7 +1514,7 @@ def load_data(path, t):
         
         unparse_ = parse(readfile(f), [])
         
-        unparse_ = removeDup(unparse_, t=t)
+        unparse_ = remove_duplicates(unparse_, gap=t)
         
         # EXP: Limit alerts by timing is better than limiting volume because each team is on a different scale. 50% alerts for one team end at a diff time than for others
         start_hours = _s_ # which hour to start from?
