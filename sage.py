@@ -1440,8 +1440,8 @@ def parse(unparsed_data, alert_labels=[], slim=False):
 
 def remove_duplicates(unfiltered, plot=False, gap=1.0):
     filtered = [unfiltered[x] for x in range(1, len(unfiltered))
-                if unfiltered[x][9] != MicroAttackStage.NON_MALICIOUS  # Filter out non-malicious alerts
-                and not (unfiltered[x][0] <= gap  # Diff from previous alert is less than gap sec
+                if unfiltered[x][9] != MicroAttackStage.NON_MALICIOUS.value  # Filter out non-malicious alerts
+                    and not (unfiltered[x][0] <= gap  # Diff from previous alert is less than gap sec
                          and unfiltered[x][1] == unfiltered[x - 1][1]  # Same srcIP
                          and unfiltered[x][3] == unfiltered[x - 1][3]  # Same destIP
                          and unfiltered[x][5] == unfiltered[x - 1][5]  # Same suricata category
@@ -1457,8 +1457,8 @@ def remove_duplicates(unfiltered, plot=False, gap=1.0):
         remaining_mcat = [x[9] for x in filtered]
         for i in remaining_mcat:
             remaining[i] = remaining.get(i, 0) + 1
-        if MicroAttackStage.NON_MALICIOUS in original:
-            remaining[MicroAttackStage.NON_MALICIOUS] = 0  # mcat that has been filtered (non-malicious)
+        if MicroAttackStage.NON_MALICIOUS.value in original:
+            remaining[MicroAttackStage.NON_MALICIOUS.value] = 0  # mcat that has been filtered (non-malicious)
 
         # Use ordered dictionaries to make sure that the labels (categories) are aligned
         b1 = OrderedDict(sorted(original.items()))
