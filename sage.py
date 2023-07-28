@@ -26,6 +26,12 @@ from signatures.attack_stages import MicroAttackStage, MacroAttackStage
 from signatures.mappings import micro, micro_inv, macro, macro_inv, micro2macro, mcols, small_mapping, rev_smallmapping, verbose_micro, ser_groups
 from signatures.alert_signatures import usual_mapping, unknown_mapping, ccdc_combined, attack_stage_mapping
 
+# Import attack stages, mappings and alert signatures
+sys.path.insert(0, './signatures')
+from attack_stages import MicroAttackStage, MacroAttackStage
+from mappings import micro, micro_inv, macro, macro_inv, micro2macro, mcols, small_mapping, rev_smallmapping, verbose_micro, ser_groups
+from alert_signatures import usual_mapping, unknown_mapping, ccdc_combined, attack_stage_mapping
+
 IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
 IANA_NUM_RETRIES = 3
 DB_PATH = "./ports.json"
@@ -49,6 +55,7 @@ def get_attack_stage_mapping(signature):
     
     return micro_inv[str(result)]
 
+ 
 # Program to find most frequent  
 def most_frequent(serv): 
     max_frequency = 0
@@ -59,7 +66,7 @@ def most_frequent(serv):
             most_frequent_service = s
             max_frequency = frequency
     return most_frequent_service
-    
+
 
 def load_IANA_mapping():
     """Download the IANA port-service mapping"""
