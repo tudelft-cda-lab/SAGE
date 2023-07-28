@@ -22,9 +22,9 @@ mpl.style.use('default')
 
 # Import attack stages, mappings and alert signatures
 sys.path.insert(0, './signatures')
-from attack_stages import MicroAttackStage, MacroAttackStage
-from mappings import micro, micro_inv, macro, macro_inv, micro2macro, mcols, small_mapping, rev_smallmapping, verbose_micro, ser_groups
-from alert_signatures import usual_mapping, unknown_mapping, ccdc_combined, attack_stage_mapping
+from signatures.attack_stages import MicroAttackStage, MacroAttackStage
+from signatures.mappings import micro, micro_inv, macro, macro_inv, micro2macro, mcols, small_mapping, rev_smallmapping, verbose_micro, ser_groups
+from signatures.alert_signatures import usual_mapping, unknown_mapping, ccdc_combined, attack_stage_mapping
 
 IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
 IANA_NUM_RETRIES = 3
@@ -263,12 +263,12 @@ def remove_duplicates(unfiltered, plot=False, gap=1.0):
     print('Filtered # alerts (remaining)', len(filtered))
     return filtered
 
-## 5
 
-def load_data(path, t):
-    unparse = []
+## 5
+def load_data(path_to_alerts, t):
+    team_alerts = []
     team_labels = []
-    files = glob.glob(path+"/*.json")
+    files = glob.glob(path_to_alerts + "/*.json")
     print('About to read json files...')
     if len(files) < 1:
         print('No alert files found.')
@@ -277,108 +277,98 @@ def load_data(path, t):
         name = os.path.basename(f)[:-5]
         print(name)
         team_labels.append(name)
-        unparse_ = []
+
+        parsed_alerts = parse(readfile(f), [])
+
+        parsed_alerts = remove_duplicates(parsed_alerts, gap=t)
         
-        unparse_ = parse(readfile(f), [])
+        # EXP: Limit alerts by timing is better than limiting volume because each team is on a different scale.
+        # 50% alerts for one team end at a diff time than for others
+        end_time_limit = 3600 * end_hour       # Which hour to end at?
+        start_time_limit = 3600 * start_hour   # Which hour to start from?
         
-        unparse_ = remove_duplicates(unparse_, gap=t)
-        
-        # EXP: Limit alerts by timing is better than limiting volume because each team is on a different scale. 50% alerts for one team end at a diff time than for others
-        start_hours = _s_ # which hour to start from?
-        end_hours = _e_ # which hour to end at?
-        end_time_limit = 3600*end_hours 
-        start_time_limit = 3600*start_hours
-        
-        first_ts = unparse_[0][8]
+        first_ts = parsed_alerts[0][8]
         startTimes.append(first_ts)
-        filtered_unparse = []
+
+        filtered_alerts = [x for x in parsed_alerts if (((x[8] - first_ts).total_seconds() <= end_time_limit)
+                                                and ((x[8] - first_ts).total_seconds() >= start_time_limit))]
+        team_alerts.append(filtered_alerts)
         
-        
-        filtered_unparse = [x for x in unparse_ if (((x[8]-first_ts).total_seconds() <= end_time_limit) \
-                                                and ((x[8]-first_ts).total_seconds() >= start_time_limit))]
-                                                
-        unparse.append(filtered_unparse)
-        
-    return (unparse, team_labels)
+    return team_alerts, team_labels
     
 ## 11
-## Plotting for each team, how much categories are consumed
-def plot_histogram(unparse, team_labels):
+# Plotting for each team, how many categories are consumed
+def plot_histogram(team_alerts, team_labels):
     # Choice of: Suricata category usage or Micro attack stage usage?
     SURICATA_SUMMARY = False
-    cats = {'A Network Trojan was detected': 0, 'Generic Protocol Command Decode': 1, 'Attempted Denial of Service': 2, 'Attempted User Privilege Gain': 3, 'Misc activity': 4, 'Attempted Administrator Privilege Gain': 5, 'access to a potentially vulnerable web application': 6, 'Information Leak': 7, 'Web Application Attack': 8, 'Successful Administrator Privilege Gain': 9, 'Potential Corporate Privacy Violation': 10, 'Detection of a Network Scan': 11, 'Not Suspicious Traffic': 12, 'Potentially Bad Traffic': 13, 'Attempted Information Leak': 14}
+    suricata_categories = {'A Network Trojan was detected': 0, 'Generic Protocol Command Decode': 1, 'Attempted Denial of Service': 2,
+            'Attempted User Privilege Gain': 3, 'Misc activity': 4, 'Attempted Administrator Privilege Gain': 5,
+            'access to a potentially vulnerable web application': 6, 'Information Leak': 7, 'Web Application Attack': 8,
+            'Successful Administrator Privilege Gain': 9, 'Potential Corporate Privacy Violation': 10,
+            'Detection of a Network Scan': 11, 'Not Suspicious Traffic': 12, 'Potentially Bad Traffic': 13,
+            'Attempted Information Leak': 14}
 
     cols = ['b', 'r', 'g', 'c', 'm', 'y', 'k', 'olive', 'lightcoral', 'skyblue', 'mediumpurple', 'springgreen', 'chocolate', 'cadetblue', 'lavender']
 
-    ids = [x for x,y in micro.items()]
-    vals = [y for x,y in micro.items()]
-    N = -1
-    t = []
+    micro_attack_stages_codes = [x for x, _ in micro.items()]
+    micro_attack_stages = [y for _, y in micro.items()]
 
     if SURICATA_SUMMARY:
-        N = len(cats)
-        t = [[0]*len(cats) for x in range(len(unparse))]
+        num_categories = len(suricata_categories)
+        percentages = [[0] * len(suricata_categories) for _ in range(len(team_alerts))]
     else:
-        N = len(vals)
-        t = [[0]*len(vals) for x in range(len(unparse))]
-    ind = np.arange(N)    # the x locations for the groups
-    width = 0.75       # the width of the bars: can also be len(x) sequence
+        num_categories = len(micro_attack_stages)
+        percentages = [[0] * len(micro_attack_stages) for _ in range(len(team_alerts))]
+    indices = np.arange(num_categories)    # The x locations for the groups
+    bar_width = 0.75       # The width of the bars: can also be len(x) sequence
 
-    for tid,team in enumerate(unparse):
-        count = 0
-        for ev in team:
-            #if ev[9] == 999:
+    for tid, team in enumerate(team_alerts):
+        for alert in team:
+            # if alert[9] == 999:
             #    continue
-            count += 1
-            #print(ev[9])
             if SURICATA_SUMMARY:
-                #if cats[ev[6]] != 14:
-                    t[tid][cats[ev[6]]] += 1
+                # if suricata_cats[alert[6]] != 14:
+                percentages[tid][suricata_categories[alert[6]]] += 1
             else:
-                t[tid][ids.index(ev[9])] += 1 
-        #print(count)
-        for i,acat in enumerate(t[tid]):
-            t[tid][i] = acat/len(team)
-        #print('Total percentage: '+ str(sum(t[tid])), 'Actual len: ', str(len(team)))
-    p = []
-    for tid,team in enumerate(unparse):
-        plot = None
+                percentages[tid][micro_attack_stages_codes.index(alert[9])] += 1
+        for i, acat in enumerate(percentages[tid]):
+            percentages[tid][i] = acat / len(team)
+    plots = []
+    for tid, team in enumerate(team_alerts):
         if tid == 0:
-            plot = plt.bar(ind, t[tid], width)
-        elif tid==1:
-            plot = plt.bar(ind, t[tid], width,
-                 bottom=t[tid-1]) 
+            plot = plt.bar(indices, percentages[tid], bar_width)
+        elif tid == 1:
+            plot = plt.bar(indices, percentages[tid], bar_width, bottom=percentages[tid-1])
         else:
-            inde = [x for x in range(tid)]
-            bot = np.add(t[0], t[1])
-            for i in inde[2:]:
-                bot = np.add(bot, t[i]).tolist()
-            plot = plt.bar(ind, t[tid], width,
-                 bottom=bot) 
-        p.append(plot)
+            index = [x for x in range(tid)]
+            bottom = np.add(percentages[0], percentages[1])
+            for i in index[2:]:
+                bottom = np.add(bottom, percentages[i]).tolist()
+            plot = plt.bar(indices, percentages[tid], bar_width, bottom=bottom)
+        plots.append(plot)
 
         # TODO: Decide whether to put it like this or normalize over columns
-    #print(t)
-    plt.ylabel('Percentage of occurance')
+    plt.ylabel('Percentage of occurrence')
     plt.title('Frequency of alert category')
     if SURICATA_SUMMARY:
-        plt.xticks(ind, ('c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'c10', 'c11', 'c12', 'c13', 'c14'))
+        plt.xticks(indices, ('c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'c10', 'c11', 'c12', 'c13', 'c14'))
     else:
-        plt.xticks(ind, [x.split('.')[1] for x in vals], rotation='vertical')
+        plt.xticks(indices, [x.split('.')[1] for x in micro_attack_stages], rotation='vertical')
     plt.tick_params(axis='x', which='major', labelsize=8)
     plt.tick_params(axis='x', which='minor', labelsize=8)
-    #plt.yticks(np.arange(0, 13000, 1000))
-    plt.legend([plot[0] for plot in p], team_labels)
+    # plt.yticks(np.arange(0, 13000, 1000))
+    plt.legend([plot[0] for plot in plots], team_labels)
     plt.tight_layout()
-    #plt.show() 
+    # plt.show()
     return plt
+
 
 ## 14
 def legend_without_duplicate_labels(ax, fontsize=10, loc='upper right'):
     handles, labels = ax.get_legend_handles_labels()
     unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
-    unique = sorted(unique, key = lambda x: x[1])
-    ax.legend(*zip(*unique), loc=loc, fontsize=fontsize) 
+    unique = sorted(unique, key=lambda x: x[1])
+    ax.legend(*zip(*unique), loc=loc, fontsize=fontsize)
     
 ## 13
 # Goal: (1) To first form a collective attack profile of a team
@@ -1569,14 +1559,14 @@ folder = sys.argv[1]
 expname = sys.argv[2]
 t = float(sys.argv[3])
 w = int(sys.argv[4])
-_s_,_e_ = 0, 100
+start_hour, end_hour = 0, 100
 if len(sys.argv) > 5:
     #range_ = str(sys.argv[5])
     try:
         #range_ = range_.replace('(', '').replace(')', '').split(',')
-        _s_ = float(sys.argv[5])#int(range_[0])
-        _e_ = float(sys.argv[6])#int(range_[1])
-        print('Filtering alerts. Only parsing from %d-th to %d-th hour (relative to the start of the alert capture)'%(_s_,_e_))
+        start_hour = float(sys.argv[5])#int(range_[0])
+        end_hour = float(sys.argv[6])#int(range_[1])
+        print('Filtering alerts. Only parsing from %d-th to %d-th hour (relative to the start of the alert capture)' % (start_hour, end_hour))
     except:
         print('Error parsing hour filter range')
         sys.exit()
@@ -1596,11 +1586,11 @@ print('------ Downloading the IANA port-service mapping ---------')
 port_services = load_IANA_mapping()
 
 print('----- Reading alerts ----------')
-(unparse, team_labels) = load_data(folder, t) # t = minimal window for alert filtering
-plt = plot_histogram(unparse, team_labels)
+(team_alerts, team_labels) = load_data(folder, t)  # t = minimal window for alert filtering
+plt = plot_histogram(team_alerts, team_labels)
 plt.savefig('data_histogram-'+expname+'.png')
 print('------ Converting to episodes ---------')
-team_episodes,_ = aggregate_into_episodes(unparse, team_labels, step=w) # step = w
+team_episodes,_ = aggregate_into_episodes(team_alerts, team_labels, step=w)  # step = w
 print('\n---- Converting to episode sequences -----------')
 host_data  =  host_episode_sequences(team_episodes)
 print('----- breaking into sub-sequences and making traces----------')
