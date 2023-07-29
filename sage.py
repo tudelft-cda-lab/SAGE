@@ -26,11 +26,6 @@ from signatures.attack_stages import MicroAttackStage, MacroAttackStage
 from signatures.mappings import micro, micro_inv, macro, macro_inv, micro2macro, mcols, small_mapping, rev_smallmapping, verbose_micro, ser_groups
 from signatures.alert_signatures import usual_mapping, unknown_mapping, ccdc_combined, attack_stage_mapping
 
-# Import attack stages, mappings and alert signatures
-sys.path.insert(0, './signatures')
-from attack_stages import MicroAttackStage, MacroAttackStage
-from mappings import micro, micro_inv, macro, macro_inv, micro2macro, mcols, small_mapping, rev_smallmapping, verbose_micro, ser_groups
-from alert_signatures import usual_mapping, unknown_mapping, ccdc_combined, attack_stage_mapping
 
 IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
 IANA_NUM_RETRIES = 3
@@ -315,8 +310,6 @@ def plot_histogram(team_alerts, team_labels):
             'Detection of a Network Scan': 11, 'Not Suspicious Traffic': 12, 'Potentially Bad Traffic': 13,
             'Attempted Information Leak': 14}
 
-    cols = ['b', 'r', 'g', 'c', 'm', 'y', 'k', 'olive', 'lightcoral', 'skyblue', 'mediumpurple', 'springgreen', 'chocolate', 'cadetblue', 'lavender']
-
     micro_attack_stages_codes = [x for x, _ in micro.items()]
     micro_attack_stages = [y for _, y in micro.items()]
 
@@ -376,23 +369,42 @@ def legend_without_duplicate_labels(ax, fontsize=10, loc='upper right'):
     unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
     unique = sorted(unique, key=lambda x: x[1])
     ax.legend(*zip(*unique), loc=loc, fontsize=fontsize)
-    
+
+
+def _get_ups_and_downs(frequencies, slopes):
+    positive = [(0, slopes[0])]  # (index, slope)
+    positive.extend([(i, slopes[i]) for i in range(1, len(slopes)) if (slopes[i - 1] <= 0 and slopes[i] > 0)])
+    negative = [(i + 1, slopes[i + 1]) for i in range(0, len(slopes) - 1) if (slopes[i] < 0 and slopes[i + 1] >= 0)]
+    if slopes[-1] < 0:  # Special case for last ramp down that's not fully gone down
+        negative.append((len(slopes), slopes[-1]))
+    elif slopes[-1] > 0:  # Special case for last ramp up without any ramp down
+        negative.append((len(slopes), slopes[-1]))
+
+    common = set(negative).intersection(positive)
+    negative = [item for item in negative if item not in common]
+    positive = [item for item in positive if item not in common]
+
+    negative = [x for x in negative if (frequencies[x[0]] <= 0 or x[0] == len(frequencies) - 1)]
+    positive = [x for x in positive if (frequencies[x[0]] <= 0 or x[0] == 0)]
+    return positive, negative, common
+
+
 ## 13
 # Goal: (1) To first form a collective attack profile of a team
-# and then (2) TO compare attack profiles of teams
-def getepisodes(action_seq, mcat, plot, debug=False):
-    
+# and then (2) To compare attack profiles of teams
+def get_episodes(alert_seq, mcat, plot):
+    # x-axis represents the time, y-axis represents the frequencies of alerts within a window
     dx = 0.1
-    #print(h_d_mindata)
-    y = [len(x) for x in action_seq]#
-    
+    frequencies = [len(x) for x in alert_seq]
+
+    # TODO: move these test cases into a separate test file
     # test case 1: normal sequence
     #y = [11, 0, 0, 2, 5, 2, 2, 2, 4, 2, 0, 0, 8, 6, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 13, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 9, 2]
     # test case 2: start is not detected
     #y = [ 0, 2, 145, 0, 0, 1, 101, 45, 0, 1, 18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
-    # test case 2.5: start not detected (unfinfihed)
+    # test case 2.5: start not detected (unfinished)
     #y = [39, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 28, 0, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 0, 0, 1, 1, 2, 1, 2, 2, 1, 1, 1, 2, 0, 1, 2, 0, 2, 1, 1, 1, 2, 1, 1, 0, 1, 1, 1, 1]
-    # test case 3: last peak not detected (unfinsihed)
+    # test case 3: last peak not detected (unfinished)
     #y = [36, 0, 0, 0, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 17, 0, 0, 0, 0, 0, 0, 33, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 6, 5, 6, 1, 2, 2]
     # test case 4: last peak undetected (finished)
     #y = [1, 0, 0, 1, 3, 0, 1, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 2, 21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -406,88 +418,65 @@ def getepisodes(action_seq, mcat, plot, debug=False):
     #y = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     # test case 9: single peak at the very end
     #y = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 294]
-    # test acse 10: ramp up at end
+    # test case 10: ramp up at end
     #y = [0, 0, 0, 0, 190, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 300, 38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 271, 272]
     #print(y)
     #y = [1, 0, 64, 2]
     #y = [2, 0, 0, 0, 0, 0, 0, 2, 3, 0, 0, 0, 0, 2, 3]
     #y = [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
 
-    if sum(y) == 0:
+    if sum(frequencies) == 0:
         return []
-    if len(y) == 1: # artifically augemnting list for a single action to be picked up                                                                 
-        y = [y[0], 0]  
-    cap  = max(y)+1
-    dy = diff(y)/dx
-    
+    if len(frequencies) == 1:  # Artificially augmenting list for a single action to be picked up
+        frequencies = [frequencies[0], 0]
+    cap = max(frequencies) + 1
+    slopes = diff(frequencies) / dx  # Taking derivative of frequencies
 
-    dim = len(dy)
-    #print(list(zip(y[:dim],dy[:dim])))
-    
-    positive = [(0, dy[0])]
-    positive.extend( [(ind, dy[ind]) for ind in range(1, dim) if (dy[ind-1]<=0 and dy[ind] > 0 )])# or ind-1 == 0]
-    negative = [(ind+1, dy[ind+1]) for ind in range(0, dim-1) if (dy[ind] < 0 and dy[ind+1] >= 0)]
-    if dy[-1] < 0: # special case for last ramp down thats not fully gone down
-        negative.append((len(dy), dy[-1]))
-    elif dy[-1] > 0: # special case for last ramp up without any ramp down
-        #print('adding somthing at the end ', (len(dy), dy[-1]))
-        negative.append((len(dy), dy[-1]))
- 
-   
-    common = list(set(negative).intersection(positive))
-    negative = [item for item in negative if item not in common]
-    positive = [item for item in positive if item not in common]
-    
-    #print('--', [x[0] for x in negative] , len(y))
-    negative = [x for x in negative if (y[x[0]] <= 0 or x[0] == len(y)-1)]
-    positive = [x for x in positive if (y[x[0]] <= 0 or x[0] == 0)]
-    
-    #print(positive)
-    #print(negative)
-    
+    positive, negative, common = _get_ups_and_downs(frequencies, slopes)
+
     if len(negative) < 1 or len(positive) < 1:
         return []
 
-    episodes_ = [] # Tuple (startInd, endInd)
-    for i in range(len(positive)-1):
+    # Get episodes (down between ups)
+    episodes_ = []  # Tuple (start_index, end_index)
+    for i in range(len(positive) - 1):
         ep1 = positive[i][0]
-        ep2 = positive[i+1][0]
+        ep2 = positive[i + 1][0]
         ends = []
         for j in range(len(negative)):
-
-            if negative[j][0] >= ep1 and negative[j][0] < ep2:
-                    ends.append(negative[j])
+            if ep1 <= negative[j][0] < ep2:
+                ends.append(negative[j])
         
         if len(ends) > 0:
             episode = (ep1, max([x[0] for x in ends]))
             episodes_.append(episode)
-    if (len(positive) == 1 and len(negative) == 1):
+
+    # Handle edge cases
+    if len(positive) == 1 and len(negative) == 1:
         episode = (positive[0][0], negative[0][0])
         episodes_.append(episode)
         
-    if (len(episodes_) > 0 and negative[-1][0] != episodes_[-1][1] ):  
+    if len(episodes_) > 0 and negative[-1][0] != episodes_[-1][1]:
         episode = (positive[-1][0], negative[-1][0])
         episodes_.append(episode)
      
-    
-    if (len(episodes_) > 0 and positive[-1][0] != episodes_[-1][0]):# and positive[-1][0] < episodes[-1][1]): 
+    if len(episodes_) > 0 and positive[-1][0] != episodes_[-1][0]:# and positive[-1][0] < episodes[-1][1]):
         elim = [x[0] for x in common]
         if len(elim) > 0 and max(elim) > positive[-1][0]:
             episode = (positive[-1][0], max(elim))
             episodes_.append(episode)
             
-    if (len(episodes_) == 0 and len(positive) == 2 and len(negative) == 1):
+    if len(episodes_) == 0 and len(positive) == 2 and len(negative) == 1:
         episode = (positive[1][0], negative[0][0])
         episodes_.append(episode)
-    
+
     if plot:
-        fig = plt.figure()
+        plt.figure()
         plt.title(mcat)
         plt.xlabel('Time ->')
-        plt.ylabel('Slope')
-        plt.plot(y, 'gray')
+        plt.ylabel('Frequency')
+        plt.plot(frequencies, 'gray')
         for ep in episodes_:
-            #print(ep)
             xax_start = [ep[0]]*cap
             xax_end = [ep[1]]*cap
             yax = list(range(cap))
@@ -496,243 +485,159 @@ def getepisodes(action_seq, mcat, plot, debug=False):
             plt.plot(xax_end, yax, 'r', linestyle=(0, (5, 10)))
 
         plt.show()
-    #print('number episodes ', len(episodes_))
     return episodes_
 
-def aggregate_into_episodes(unparse, team_labels, step=150):
-    cols = ['b', 'r', 'g', 'c', 'm', 'y', 'k', 'olive', 'lightcoral', 'skyblue', 'mediumpurple', 'springgreen', 'chocolate', 'cadetblue', 'lavender']
 
+def aggregate_into_episodes(team_alerts, step=150):
     PRINT = False
-    interesting = []
-    # Reorganize data for each attacker per team 
-    team_data = dict()
-    s_t = dict()
-    for tid,team in enumerate(unparse):
-        #attackers = list(set([x[1] for x in team])) # collecting all src ip
-        #attackers.extend(list(set([x[3] for x in team]))) # collection all dst ip
-        #attackers = [x for x in attackers if x not in hostip.keys()] # filtering only attackers
-        
-        
-        host_alerts = dict()
 
-        for ev in team:
-            #print(ev[0])
-            h = ev[7]
-            s = ev[1]
-            d = ev[3]
-            c = ev[9]
-            ts = ev[8]
-            sp = ev[2] if ev[2] != None else 65000 
-            dp = ev[4] if ev[4] != None else 65000
-            signature = ev[5]
-            # Simply respect the source,dst format! (Correction: source is always source and dest alwyas dest!)
+    # Reorganize data for each attacker per team
+    team_data = dict()
+    for tid, team in enumerate(team_alerts):
+        host_alerts = dict()  # (attacker, victim) -> alerts
+
+        for alert in team:
+            # Alert format: (diff_dt, src_ip, src_port, dst_ip, dst_port, sig, cat, host, ts, mcat)
+            src_ip, dst_ip, signature, ts, mcat = alert[1], alert[3], alert[5], alert[8], alert[9]
+            dst_port = alert[4] if alert[4] is not None else 65000
+            # Simply respect the source,dst format! (Correction: source is always source and dest always dest!)
+
+            # Say 'unknown' if the port cannot be resolved
+            dst_port = 'unknown' if (dst_port not in port_services.keys() or port_services[dst_port] == 'unknown') else port_services[dst_port]['name']
             
-            source, dest, port = -1, -1, -1
-            #print(s, d, sp, dp)
-            #assert sp >= dp
-            
-            source = s #if s not in inv_hostip.keys() else inv_hostip[s]
-            dest = d #if d not in inv_hostip.keys() else inv_hostip[d]
-            # explicit name if cant resolve
-            #port = str(dp) if (dp not in port_services.keys() or port_services[dp] == 'unknown') else port_services[dp]['name'] 
-            
-            # say unknown if cant resolve it
-            port = 'unknown' if (dp not in port_services.keys() or port_services[dp] == 'unknown') else port_services[dp]['name']
-            
-            if (source,dest) not in host_alerts.keys() and (dest,source) not in host_alerts.keys():
-                host_alerts[(source,dest)] = []
-                #print(tid, (source,dest), 'first', ev[8])
-                s_t[str(tid)+"|"+str(source)+"->"+str(dest)] = ev[8]
-                
-            if((source,dest) in host_alerts.keys()):
-                host_alerts[(source,dest)].append((dest, c, ts, port, signature)) # TODO: remove the redundant host names
-                #print(source, dest, (micro[c].split('.'))[-1], port)
+            if (src_ip, dst_ip) not in host_alerts.keys() and (dst_ip, src_ip) not in host_alerts.keys():
+                host_alerts[(src_ip, dst_ip)] = []
+
+            if (src_ip, dst_ip) in host_alerts.keys():
+                host_alerts[(src_ip, dst_ip)].append((dst_ip, mcat, ts, dst_port, signature)) # TODO: remove the redundant host names
             else:
-                host_alerts[(dest,source)].append((source, c, ts, port, signature))
-                #print(dest,source, (micro[c].split('.'))[-1], port)
+                host_alerts[(dst_ip, src_ip)].append((src_ip, mcat, ts, dst_port, signature))
 
         team_data[tid] = host_alerts.items()
         
     # Calculate number of alerts over time for each attacker 
-    #print(len(s_t))
-    team_episodes = []
-
+    team_episodes_ = []
     team_times = []
 
-    mcats = list(micro.keys())
-    mcats_lab = [x.split('.')[1] for x in micro.values()]
     print('---------------- TEAMS -------------------------')
 
+    mcats = list(micro.keys())
     for tid, team in team_data.items():
-        print(tid, sep=' ', end=' ', flush=True )
-        t_ep = dict()
+        print(tid, sep=' ', end=' ', flush=True)
+        team_host_episodes = dict()
         _team_times = dict()
-        for attacker, alerts in team:
-            #if re.search('[a-z]', attacker):
-            #    continue
-            #if attacker != ('corp-mail-00', 'corp-onramp-00'):
-            #    continue
+        for attacker_victim, alerts in team:
             if len(alerts) <= 1:
-                #print('kill ', attacker)
                 continue
-            
-            #print(attacker, len([(x[1]) for x in alerts])) # TODO: what about IPs that are not attacker related?
-            first_elapsed_time = round((alerts[0][2]-startTimes[tid]).total_seconds(),2)
-            # debugging if start times of each connection are correct.
-            #print(first_elapsed_time, round( (s_t[str(tid)+"|"+str(attacker[0])+"->"+str(attacker[1])] - startTimes[tid]).total_seconds(),2))
-            #last_elapsed_time = round((alerts[-1][2] - alerts[0][2]).total_seconds() + first_elapsed_time,2)
-            #print(first_elapsed_time, last_elapsed_time)
-            
-            _team_times['->'.join(attacker)] = (first_elapsed_time)#, last_elapsed_time)
+
+            # Alert format: (dst_ip, mcat, ts, dst_port, signature)
+            #print(attacker_victim, len([(x[1]) for x in alerts])) # TODO: what about IPs that are not attacker related?
+            first_elapsed_time = round((alerts[0][2] - startTimes[tid]).total_seconds(), 2)
+
+            _team_times['->'.join(attacker_victim)] = first_elapsed_time
+
             ts = [x[2] for x in alerts]
-            rest = [(x[0], x[1], x[2], x[3], x[4]) for x in alerts]
+            diff_ts = [0.0]
+            for i in range(1, len(ts)):
+                diff_ts.append(round((ts[i] - ts[i - 1]).total_seconds(), 2))
+            elapsed_time = list(accumulate(diff_ts))
+            relative_elapsed_time = [round(x + first_elapsed_time, 2) for x in elapsed_time]
 
-            prev = -1
-            DIFF = []
-            relative_elapsed_time = []
-            for timeid, dt in enumerate(ts):
-                if timeid == 0:
-                    DIFF.append( 0.0)#round((dt - startTimes[tid]).total_seconds(),2) )
-                else:
-                    DIFF.append( round((dt - prev).total_seconds(),2) )
-                prev = dt
-            #print(DIFF[:5])
-            assert(len(ts) == len(DIFF))
-            elapsed_time = list(accumulate(DIFF))
-            relative_elapsed_time = [round(x+first_elapsed_time,2) for x in elapsed_time]
-            
-            
-            assert(len(elapsed_time) == len(DIFF))
-
-            t0 = int(first_elapsed_time)#int(relative_elapsed_time[0])
-            tn = int(relative_elapsed_time[-1])
-            
-            #step = 150 # 2.5 minute fixed step. Can be reduced or increased depending on required granularity
-
-            h_ep = []
-            #mindatas = []
+            host_episodes = []
             for mcat in mcats:
-                
-                mindata = []
-                for i in range(t0, tn, step):
-                    li = [a for d,a in zip(relative_elapsed_time, rest) if (d>=i and d<(i+step)) and a[1] == mcat]  
-                    mindata.append(li) # alerts per 'step' seconds
+                # 2.5-minute (150s) fixed step (window). Can be reduced or increased depending on required granularity
+                alert_seq = []
+                for i in range(int(first_elapsed_time), int(relative_elapsed_time[-1]), step):
+                    window = [a for dt, a in zip(relative_elapsed_time, alerts) if (i <= dt < (i + step)) and a[1] == mcat]
+                    alert_seq.append(window)  # Alerts per 'step' seconds (window)
 
-                #print([len(x) for x in mindata])
-                episodes = []
-                
-                
-                episodes = getepisodes(mindata, micro[mcat], False)
+                raw_episodes = get_episodes(alert_seq, micro[mcat], plot=False)
 
-                if len(episodes) > 0:
-                    
-                    events  = [len(x) for x in mindata]
-                    raw_ports = []
-                    raw_sign = []
-                    timestamps = []
-                    
-                    for e in mindata:
-                        if len(e) > 0:
-                            raw_ports.append([(x[3]) for x in e])
-                            raw_sign.append([(x[4]) for x in e])
-                            timestamps.append([(x[2]) for x in e])
-                        else:
-                            raw_ports.append([])
-                            raw_sign.append([])
-                            timestamps.append([])
+                if len(raw_episodes) > 0:
+                    # For each episode, flatten relevant data from the windows of the corresponding alert sequence
+                    for epi in raw_episodes:
+                        alert_seq_epi = alert_seq[epi[0]:epi[1]+1]
+                        services = [alert[3] for window in alert_seq_epi for alert in window]
+                        unique_signatures = list(set([alert[4] for window in alert_seq_epi for alert in window]))
+                        events = [len(window) for window in alert_seq_epi]
+                        alert_volume = round(sum(events) / float(len(events)), 1)
 
-                    _flat_ports = [item for sublist in raw_ports for item in sublist]
-                    
-                    # The following makes exact start/end times based on alert timestamps
-                    filtered_timestamps = [timestamps[x[0]:x[1]+1] for x in episodes]
-                    start_end_timestamps = [(sorted([item for sublist in x for item in sublist])[0], sorted([item for sublist in x for item in sublist])[-1]) for x in filtered_timestamps]
-                    minute_info = [((x[0]-startTimes[tid]).total_seconds(), (x[1]-startTimes[tid]).total_seconds()) for x in start_end_timestamps]
+                        # Make exact start/end times based on alert timestamps
+                        timestamps = [alert[2] for window in alert_seq_epi for alert in window]
+                        first_ts, last_ts = min(timestamps), max(timestamps)
 
-                    episode = [(mi[0], mi[1], mcat, events[x[0]:x[1]+1], 
-                                   raw_ports[x[0]:x[1]+1], raw_sign[x[0]:x[1]+1], filtered_timestamps)
-                                 for x,mi in zip(episodes, minute_info)] # now the start and end are actual elapsed times
-                    
-                    #EPISODE DEF: (startTime, endTime, mcat, len(rawevents), volume(alerts), epiPeriod, epiServices, list of unique signatures, (1st timestamp, last timestamp)
-                    episode = [(x[0], x[1], x[2], x[3], round(sum(x[3])/float(len(x[3])),1), (x[1]-x[0]),
-                                [item for sublist in x[4] for item in sublist], list(set([item for sublist in x[5] for item in sublist])),
-                                se_ts) for x,se_ts in zip(episode,start_end_timestamps)]
-                    h_ep.extend(episode) 
+                        # Make the start/end times the actual elapsed times
+                        start_time = (first_ts - startTimes[tid]).total_seconds()
+                        end_time = (last_ts - startTimes[tid]).total_seconds()
+                        period = end_time - start_time
 
-            if len(h_ep) == 0:
+                        episode = (start_time, end_time, mcat, len(events), alert_volume, period, services, unique_signatures, (first_ts, last_ts))
+                        host_episodes.append(episode)
+
+            if len(host_episodes) == 0:
                 continue
 
-            h_ep.sort(key=lambda tup: tup[0])
-            t_ep[attacker] = h_ep
-            
+            host_episodes.sort(key=lambda tup: tup[0])
+            team_host_episodes[attacker_victim] = host_episodes
+
             if PRINT:
-                fig = plt.figure(figsize=(10,10))
+                plt.figure(figsize=(10, 10))
                 ax = plt.gca()
-                plt.title('Micro attack episodes | Team: '+str(tid) +' | Host: '+ '->'.join([x for x in attacker]))
+                plt.title('Micro attack episodes | Team: ' + str(tid) + ' | Host: ' + '->'.join(attacker_victim))
                 plt.xlabel('Time Window (sec)')
                 plt.ylabel('Micro attack stages')
-                # NOTE: Line thicknesses are on per host basis
-                tmax= max([x[4] for x in h_ep])
-                tmin = min([x[4] for x in h_ep])
-                for idx, ep in enumerate(h_ep):
-                    #print(idx, (ep[0], ep[1]), ep[2], ep[3][ep[0]:ep[1]+1])
-                    xax = list(range(ep[0], ep[1]+1))
-                    yax = [mcats.index(ep[2])]*len(xax)
-                    thickness  = ep[4]
-                    lsize = ((thickness - tmin)/ (tmax - tmin)) * (5-0.5) + 0.5 if (tmax - tmin) != 0.0 else 0.5
-                    #lsize = np.log(thickness) + 1 TODO: Either take log or normalize between [0.5 5]
-                    msize = (lsize*2)+1
+                # NOTE: Line thicknesses are on per-host basis
+                tmax = max([epi[4] for epi in host_episodes])
+                tmin = min([epi[4] for epi in host_episodes])
+                for idx, ep in enumerate(host_episodes):
+                    xax = list(np.arange(ep[0], ep[1]+1))
+                    yax = [mcats.index(ep[2])] * len(xax)
+                    thickness = ep[4]
+                    lsize = ((thickness - tmin) / (tmax - tmin)) * (5 - 0.5) + 0.5 if (tmax - tmin) != 0.0 else 0.5
+                    # lsize = np.log(thickness) + 1 TODO: Either take log or normalize between [0.5 5]
+                    msize = (lsize * 2) + 1
                     ax.plot(xax, yax, color=mcols[macro_inv[micro2macro[micro[ep[2]]]]], linewidth=lsize)
                     ax.plot(ep[0], mcats.index(ep[2]), color=mcols[macro_inv[micro2macro[micro[ep[2]]]]], marker='.', linewidth=0, markersize=msize, label=micro2macro[micro[ep[2]]])
                     ax.plot(ep[1], mcats.index(ep[2]), color=mcols[macro_inv[micro2macro[micro[ep[2]]]]], marker='.', linewidth=0, markersize=msize)
-                    plt.yticks(range(len(mcats)), mcats_lab, rotation='0')
+                    plt.yticks(range(len(mcats)), [x.split('.')[1] for x in micro.values()], rotation=0)
                 legend_without_duplicate_labels(ax)
                 plt.grid(True, alpha=0.4)
                 
-                #plt.tight_layout()
-                #plt.savefig('Pres-Micro-attack-episodes-Team'+str(tid) +'-Connection'+ attacker[0]+'--'+attacker[1]+'.png')
+                # plt.tight_layout()
+                # plt.savefig('Pres-Micro-attack-episodes-Team'+str(tid) +'-Connection'+ attacker[0]+'--'+attacker[1]+'.png')
                 plt.show()
         
-        team_episodes.append(t_ep)
+        team_episodes_.append(team_host_episodes)
         team_times.append(_team_times)
-    return (team_episodes, team_times)
-            
+    return team_episodes_, team_times
+
+
 ## 17
 
 #### Host = [connections] instead of team level representation
 def host_episode_sequences(team_episodes):
     host_data = {}
-    #team_host_data= []
     print('# teams ', len(team_episodes))
     print('----- TEAMS -----')
     for tid, team in enumerate(team_episodes):
-        print(tid, sep=' ', end=' ', flush=True )
-        #print(len(set([x[0] for x in team.keys()])))
-        for attacker,episodes in team.items():
-            #print(attacker)
+        print(tid, sep=' ', end=' ', flush=True)
+        for (attacker, victim), episodes in team.items():
             if len(episodes) < 2:
                 continue
-            perp= attacker[0]
-            vic = attacker[1]
-            #print(perp)
-            #if ('10.0.0' in perp or '10.0.1' in perp):
+            # if ('10.0.0' in attacker or '10.0.1' in attacker):
             #        continue
             
-            att = 't'+str(tid)+'-'+perp
-            #print(att)
+            att = 't' + str(tid) + '-' + attacker
             if att not in host_data.keys():
-                host_data[att] = []  
-            #EPISODE DEF: (startTime, endTime, mcat, len(rawevents), volume(alerts), epiPeriod, epiServices, list of unique signatures)
-            ext = [(x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], vic) for x in episodes]
+                host_data[att] = []
 
-            host_data[att].append(ext)
+            extended_episode = [epi + (victim,) for epi in episodes]
+
+            host_data[att].append(extended_episode)
             host_data[att].sort(key=lambda tup: tup[0][0])
             
     print('\n# episode sequences ', len(host_data))   
-
-    team_strat = list(host_data.values())
-    #print(len(team_strat[0]), [(len(x)) for x in team_strat[0]])
-    #print([[a[2] for a in x] for x in team_strat[0]])  
-    return (host_data)        
+    return host_data
 
 def break_into_subbehaviors(host_data):        
     attackers = []
@@ -1596,8 +1501,10 @@ print('----- Reading alerts ----------')
 (team_alerts, team_labels) = load_data(folder, t)  # t = minimal window for alert filtering
 plt = plot_histogram(team_alerts, team_labels)
 plt.savefig('data_histogram-'+expname+'.png')
+
 print('------ Converting to episodes ---------')
-team_episodes,_ = aggregate_into_episodes(team_alerts, team_labels, step=w)  # step = w
+team_episodes, _ = aggregate_into_episodes(team_alerts, step=w)  # step = w
+
 print('\n---- Converting to episode sequences -----------')
 host_data  =  host_episode_sequences(team_episodes)
 print('----- breaking into sub-sequences and making traces----------')
