@@ -4,21 +4,15 @@ import glob
 import json
 import math
 import os
-import os.path
 import re
 import subprocess
 import sys
 from collections import defaultdict, OrderedDict
 from itertools import accumulate
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.style
 import numpy as np
 import requests
-from numpy import diff
-
-mpl.style.use('default')
 
 # Import attack stages, mappings and alert signatures
 sys.path.insert(0, './signatures')
@@ -28,10 +22,10 @@ from signatures.alert_signatures import usual_mapping, unknown_mapping, ccdc_com
 
 
 IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
-IANA_NUM_RETRIES = 3
+IANA_NUM_RETRIES = 5
 DB_PATH = "./ports.json"
 SAVE = True
-DOCKER = True
+DOCKER = False
 
 
 def get_attack_stage_mapping(signature):
@@ -43,11 +37,10 @@ def get_attack_stage_mapping(signature):
     elif signature in ccdc_combined.keys():
         result = ccdc_combined[signature]
     else:
-        for k,v in attack_stage_mapping.items():
+        for k, v in attack_stage_mapping.items():
             if signature in v:
                 result = k
                 break
-    
     return micro_inv[str(result)]
 
  
@@ -56,8 +49,8 @@ def most_frequent(serv):
     max_frequency = 0
     most_frequent_service = None
     for s in serv:
-       frequency = serv.count(s)
-       if frequency > max_frequency:
+        frequency = serv.count(s)
+        if frequency > max_frequency:
             most_frequent_service = s
             max_frequency = frequency
     return most_frequent_service
@@ -107,7 +100,7 @@ def readfile(fname):
         
     unparsed_data = unparsed_data[::-1]
     return unparsed_data
-    
+
 
 def parse(unparsed_data, alert_labels=[], slim=False):
 
@@ -149,24 +142,24 @@ def parse(unparsed_data, alert_labels=[], slim=False):
         if cat == 'Attempted Information Leak' and FILTER:
             continue
 
-        srcip = raw['src_ip']
-        srcport = None if 'src_port' not in raw.keys() else raw['src_port']
-        dstip = raw['dest_ip']
-        dstport = None if 'dest_port' not in raw.keys() else raw['dest_port']
+        src_ip = raw['src_ip']
+        src_port = None if 'src_port' not in raw.keys() else raw['src_port']
+        dst_ip = raw['dest_ip']
+        dst_port = None if 'dest_port' not in raw.keys() else raw['dest_port']
 
         # Filter out mistaken alerts / uninteresting alerts
-        if srcip == badIP or dstip == badIP or cat == 'Not Suspicious Traffic':
+        if src_ip == badIP or dst_ip == badIP or cat == 'Not Suspicious Traffic':
             continue
 
         if not slim:
             mcat = get_attack_stage_mapping(sig)
-            parsed_data.append((diff_dt, srcip, srcport, dstip, dstport, sig, cat, host, dt, mcat))
+            parsed_data.append((diff_dt, src_ip, src_port, dst_ip, dst_port, sig, cat, host, dt, mcat))
         else:
-            parsed_data.append((diff_dt, srcip, srcport, dstip, dstport, sig, cat, host, dt))
+            parsed_data.append((diff_dt, src_ip, src_port, dst_ip, dst_port, sig, cat, host, dt))
 
         __cats.add(cat)
-        __ips.add(srcip)
-        __ips.add(dstip)
+        __ips.add(src_ip)
+        __ips.add(dst_ip)
         __hosts.add(host)
 
     '''_cats = [(id,c) for (id,c) in enumerate(__cats)]
@@ -200,73 +193,77 @@ def parse(unparsed_data, alert_labels=[], slim=False):
                 continue
 
             if source == parsed_data[j][1] and dest == parsed_data[j][3]:
-
                 parsed_data[j] += (mcat,)
             j += 1
     parsed_data = sorted(parsed_data, key=lambda x: x[8])  # Sort alerts into ascending order
     return parsed_data
 
 
-def remove_duplicates(unfiltered, plot=False, gap=1.0):
-    filtered = [unfiltered[x] for x in range(1, len(unfiltered))
-                if unfiltered[x][9] != MicroAttackStage.NON_MALICIOUS.value  # Filter out non-malicious alerts
-                    and not (unfiltered[x][0] <= gap  # Diff from previous alert is less than gap sec
-                         and unfiltered[x][1] == unfiltered[x - 1][1]  # Same srcIP
-                         and unfiltered[x][3] == unfiltered[x - 1][3]  # Same destIP
-                         and unfiltered[x][5] == unfiltered[x - 1][5]  # Same suricata category
-                         and unfiltered[x][2] == unfiltered[x - 1][2]  # Same srcPort
-                         and unfiltered[x][4] == unfiltered[x - 1][4])  # Same destPort
-                ]
+def _plot_alert_filtering(unfiltered_alerts, filtered_alerts):
+    original, remaining = dict(), dict()
+    original_mcat = [x[9] for x in unfiltered_alerts]
+    for i in original_mcat:
+        original[i] = original.get(i, 0) + 1
+
+    remaining_mcat = [x[9] for x in filtered_alerts]
+    for i in remaining_mcat:
+        remaining[i] = remaining.get(i, 0) + 1
+    if MicroAttackStage.NON_MALICIOUS.value in original:
+        remaining[MicroAttackStage.NON_MALICIOUS.value] = 0  # mcat that has been filtered (non-malicious)
+
+    # Use ordered dictionaries to make sure that the labels (categories) are aligned
+    b1 = OrderedDict(sorted(original.items()))
+    b2 = OrderedDict(sorted(remaining.items()))
+
+    plt.figure(figsize=(20, 20))
+    plt.gcf().subplots_adjust(bottom=0.2)  # To fit the x-labels
+
+    # Set width and height of bar
+    bar_width = 0.4
+    bars1 = [x for x in b1.values()]
+    bars2 = [x for x in b2.values()]
+
+    # Set position of bar on x-axis
+    r1 = np.arange(len(bars1))
+    r2 = [x + bar_width for x in r1]
+
+    # Make the plot
+    plt.bar(r1, bars1, color='skyblue', width=bar_width, edgecolor='white', label='Raw')
+    plt.bar(r2, bars2, color='salmon', width=bar_width, edgecolor='white', label='Cleaned')
+
+    labels = [micro[x].split('.')[1] for x in b1.keys()]
+
+    # Add xticks in the middle of the group bars
+    plt.ylabel('Frequency', fontweight='bold', fontsize='20')
+    plt.xlabel('Alert categories', fontweight='bold', fontsize='20')
+    plt.xticks([(x + bar_width / 2) for x in r1], labels, fontsize='10', rotation='vertical')
+    plt.yticks(fontsize='20')
+    plt.title('High-frequency Alert Filtering', fontweight='bold', fontsize='20')
+
+    # Create legend & Show graphic
+    plt.legend(prop={'size': 20})
+    plt.show()
+    return
+
+
+# Step 2: Remove duplicate alerts (defined by the parameter t)
+def remove_duplicates(unfiltered_alerts, plot=False, gap=1.0):
+    filtered_alerts = [unfiltered_alerts[x] for x in range(1, len(unfiltered_alerts))
+                       if unfiltered_alerts[x][9] != MicroAttackStage.NON_MALICIOUS.value  # Filter out non-malicious alerts
+                       and not (unfiltered_alerts[x][0] <= gap  # Diff from previous alert is less than gap sec
+                                and unfiltered_alerts[x][1] == unfiltered_alerts[x - 1][1]  # Same srcIP
+                                and unfiltered_alerts[x][3] == unfiltered_alerts[x - 1][3]  # Same destIP
+                                and unfiltered_alerts[x][5] == unfiltered_alerts[x - 1][5]  # Same suricata category
+                                and unfiltered_alerts[x][2] == unfiltered_alerts[x - 1][2]  # Same srcPort
+                                and unfiltered_alerts[x][4] == unfiltered_alerts[x - 1][4])]  # Same destPort
     if plot:
-        original, remaining = dict(), dict()
-        original_mcat = [x[9] for x in unfiltered]  # Has to be changed if slim = True in the parse method above
-        for i in original_mcat:
-            original[i] = original.get(i, 0) + 1
+        _plot_alert_filtering(unfiltered_alerts, filtered_alerts)
 
-        remaining_mcat = [x[9] for x in filtered]
-        for i in remaining_mcat:
-            remaining[i] = remaining.get(i, 0) + 1
-        if MicroAttackStage.NON_MALICIOUS.value in original:
-            remaining[MicroAttackStage.NON_MALICIOUS.value] = 0  # mcat that has been filtered (non-malicious)
-
-        # Use ordered dictionaries to make sure that the labels (categories) are aligned
-        b1 = OrderedDict(sorted(original.items()))
-        b2 = OrderedDict(sorted(remaining.items()))
-
-        plt.figure(figsize=(20, 20))
-        plt.gcf().subplots_adjust(bottom=0.2)  # To fit the x-labels
-
-        # Set width and height of bar
-        bar_width = 0.4
-        bars1 = [x for x in b1.values()]
-        bars2 = [x for x in b2.values()]
-
-        # Set position of bar on x-axis
-        r1 = np.arange(len(bars1))
-        r2 = [x + bar_width for x in r1]
-
-        # Make the plot
-        plt.bar(r1, bars1, color='skyblue', width=bar_width, edgecolor='white', label='Raw')
-        plt.bar(r2, bars2, color='salmon', width=bar_width, edgecolor='white', label='Cleaned')
-
-        labels = [micro[x].split('.')[1] for x in b1.keys()]
-
-        # Add xticks in the middle of the group bars
-        plt.ylabel('Frequency', fontweight='bold', fontsize='20')
-        plt.xlabel('Alert categories', fontweight='bold', fontsize='20')
-        plt.xticks([(x + bar_width / 2) for x in r1], labels, fontsize='10', rotation='vertical')
-        plt.yticks(fontsize='20')
-        plt.title('High-frequency Alert Filtering', fontweight='bold', fontsize='20')
-
-        # Create legend & Show graphic
-        plt.legend(prop={'size': 20})
-        plt.show()
-
-    print('Filtered # alerts (remaining)', len(filtered))
-    return filtered
+    print('Filtered # alerts (remaining):', len(filtered_alerts))
+    return filtered_alerts
 
 
-## 5
+# Step 1: Read the alerts
 def load_data(path_to_alerts, t):
     team_alerts = []
     team_labels = []
@@ -283,32 +280,32 @@ def load_data(path_to_alerts, t):
         parsed_alerts = parse(readfile(f), [])
 
         parsed_alerts = remove_duplicates(parsed_alerts, gap=t)
-        
+
         # EXP: Limit alerts by timing is better than limiting volume because each team is on a different scale.
         # 50% alerts for one team end at a diff time than for others
         end_time_limit = 3600 * end_hour       # Which hour to end at?
         start_time_limit = 3600 * start_hour   # Which hour to start from?
-        
+
         first_ts = parsed_alerts[0][8]
         startTimes.append(first_ts)
 
         filtered_alerts = [x for x in parsed_alerts if (((x[8] - first_ts).total_seconds() <= end_time_limit)
-                                                and ((x[8] - first_ts).total_seconds() >= start_time_limit))]
+                                                        and ((x[8] - first_ts).total_seconds() >= start_time_limit))]
         team_alerts.append(filtered_alerts)
-        
+
     return team_alerts, team_labels
-    
+
 ## 11
 # Plotting for each team, how many categories are consumed
 def plot_histogram(team_alerts, team_labels):
     # Choice of: Suricata category usage or Micro attack stage usage?
     SURICATA_SUMMARY = False
     suricata_categories = {'A Network Trojan was detected': 0, 'Generic Protocol Command Decode': 1, 'Attempted Denial of Service': 2,
-            'Attempted User Privilege Gain': 3, 'Misc activity': 4, 'Attempted Administrator Privilege Gain': 5,
-            'access to a potentially vulnerable web application': 6, 'Information Leak': 7, 'Web Application Attack': 8,
-            'Successful Administrator Privilege Gain': 9, 'Potential Corporate Privacy Violation': 10,
-            'Detection of a Network Scan': 11, 'Not Suspicious Traffic': 12, 'Potentially Bad Traffic': 13,
-            'Attempted Information Leak': 14}
+                           'Attempted User Privilege Gain': 3, 'Misc activity': 4, 'Attempted Administrator Privilege Gain': 5,
+                           'access to a potentially vulnerable web application': 6, 'Information Leak': 7, 'Web Application Attack': 8,
+                           'Successful Administrator Privilege Gain': 9, 'Potential Corporate Privacy Violation': 10,
+                           'Detection of a Network Scan': 11, 'Not Suspicious Traffic': 12, 'Potentially Bad Traffic': 13,
+                           'Attempted Information Leak': 14}
 
     micro_attack_stages_codes = [x for x, _ in micro.items()]
     micro_attack_stages = [y for _, y in micro.items()]
@@ -389,6 +386,26 @@ def _get_ups_and_downs(frequencies, slopes):
     return positive, negative, common
 
 
+def _plot_episodes(frequencies, episodes, mcat):
+    cap = max(frequencies) + 1
+
+    plt.figure()
+    plt.title(mcat)
+    plt.xlabel('Time ->')
+    plt.ylabel('Frequency')
+    plt.plot(frequencies, 'gray')
+    for ep in episodes:
+        xax_start = [ep[0]] * cap
+        xax_end = [ep[1]] * cap
+        yax = list(range(cap))
+
+        plt.plot(xax_start, yax, 'g', linestyle=(0, (5, 10)))
+        plt.plot(xax_end, yax, 'r', linestyle=(0, (5, 10)))
+
+    plt.show()
+    return
+
+
 ## 13
 # Goal: (1) To first form a collective attack profile of a team
 # and then (2) To compare attack profiles of teams
@@ -429,16 +446,15 @@ def get_episodes(alert_seq, mcat, plot):
         return []
     if len(frequencies) == 1:  # Artificially augmenting list for a single action to be picked up
         frequencies = [frequencies[0], 0]
-    cap = max(frequencies) + 1
-    slopes = diff(frequencies) / dx  # Taking derivative of frequencies
 
+    slopes = np.diff(frequencies) / dx  # Taking derivative of frequencies
     positive, negative, common = _get_ups_and_downs(frequencies, slopes)
 
     if len(negative) < 1 or len(positive) < 1:
         return []
 
     # Get episodes (down between ups)
-    episodes_ = []  # Tuple (start_index, end_index)
+    episodes = []  # Tuple (start_index, end_index)
     for i in range(len(positive) - 1):
         ep1 = positive[i][0]
         ep2 = positive[i + 1][0]
@@ -446,52 +462,38 @@ def get_episodes(alert_seq, mcat, plot):
         for j in range(len(negative)):
             if ep1 <= negative[j][0] < ep2:
                 ends.append(negative[j])
-        
+
         if len(ends) > 0:
             episode = (ep1, max([x[0] for x in ends]))
-            episodes_.append(episode)
+            episodes.append(episode)
 
     # Handle edge cases
     if len(positive) == 1 and len(negative) == 1:
         episode = (positive[0][0], negative[0][0])
-        episodes_.append(episode)
-        
-    if len(episodes_) > 0 and negative[-1][0] != episodes_[-1][1]:
+        episodes.append(episode)
+
+    if len(episodes) > 0 and negative[-1][0] != episodes[-1][1]:
         episode = (positive[-1][0], negative[-1][0])
-        episodes_.append(episode)
-     
-    if len(episodes_) > 0 and positive[-1][0] != episodes_[-1][0]:# and positive[-1][0] < episodes[-1][1]):
+        episodes.append(episode)
+
+    if len(episodes) > 0 and positive[-1][0] != episodes[-1][0]:
         elim = [x[0] for x in common]
         if len(elim) > 0 and max(elim) > positive[-1][0]:
             episode = (positive[-1][0], max(elim))
-            episodes_.append(episode)
-            
-    if len(episodes_) == 0 and len(positive) == 2 and len(negative) == 1:
+            episodes.append(episode)
+
+    if len(episodes) == 0 and len(positive) == 2 and len(negative) == 1:
         episode = (positive[1][0], negative[0][0])
-        episodes_.append(episode)
+        episodes.append(episode)
 
     if plot:
-        plt.figure()
-        plt.title(mcat)
-        plt.xlabel('Time ->')
-        plt.ylabel('Frequency')
-        plt.plot(frequencies, 'gray')
-        for ep in episodes_:
-            xax_start = [ep[0]]*cap
-            xax_end = [ep[1]]*cap
-            yax = list(range(cap))
+        _plot_episodes(frequencies, episodes, mcat)
 
-            plt.plot(xax_start, yax, 'g', linestyle=(0, (5, 10)))
-            plt.plot(xax_end, yax, 'r', linestyle=(0, (5, 10)))
-
-        plt.show()
-    return episodes_
+    return episodes
 
 
-def aggregate_into_episodes(team_alerts, step=150):
-    PRINT = False
-
-    # Reorganize data for each attacker per team
+def _group_alerts_per_team(_team_alerts):
+    """Reorganise alerts for each attacker per team"""
     team_data = dict()
     for tid, team in enumerate(team_alerts):
         host_alerts = dict()  # (attacker, victim) -> alerts
@@ -504,7 +506,7 @@ def aggregate_into_episodes(team_alerts, step=150):
 
             # Say 'unknown' if the port cannot be resolved
             dst_port = 'unknown' if (dst_port not in port_services.keys() or port_services[dst_port] == 'unknown') else port_services[dst_port]['name']
-            
+
             if (src_ip, dst_ip) not in host_alerts.keys() and (dst_ip, src_ip) not in host_alerts.keys():
                 host_alerts[(src_ip, dst_ip)] = []
 
@@ -514,9 +516,65 @@ def aggregate_into_episodes(team_alerts, step=150):
                 host_alerts[(dst_ip, src_ip)].append((src_ip, mcat, ts, dst_port, signature))
 
         team_data[tid] = host_alerts.items()
-        
-    # Calculate number of alerts over time for each attacker 
-    team_episodes_ = []
+    return team_data
+
+
+def _plot_alert_volume_per_episode(tid, attacker_victim, host_episodes, mcats):
+    plt.figure(figsize=(10, 10))
+    ax = plt.gca()
+    plt.title('Micro attack episodes | Team: ' + str(tid) + ' | Host: ' + '->'.join(attacker_victim))
+    plt.xlabel('Time Window (sec)')
+    plt.ylabel('Micro attack stages')
+    # NOTE: Line thicknesses are on per-host basis
+    tmax = max([epi[4] for epi in host_episodes])
+    tmin = min([epi[4] for epi in host_episodes])
+    for idx, ep in enumerate(host_episodes):
+        xax = list(np.arange(ep[0], ep[1] + 1))
+        yax = [mcats.index(ep[2])] * len(xax)
+        thickness = ep[4]
+        lsize = ((thickness - tmin) / (tmax - tmin)) * (5 - 0.5) + 0.5 if (tmax - tmin) != 0.0 else 0.5
+        # lsize = np.log(thickness) + 1 TODO: Either take log or normalize between [0.5 5]
+        msize = (lsize * 2) + 1
+        ax.plot(xax, yax, color=mcols[macro_inv[micro2macro[micro[ep[2]]]]], linewidth=lsize)
+        ax.plot(ep[0], mcats.index(ep[2]), color=mcols[macro_inv[micro2macro[micro[ep[2]]]]], marker='.', linewidth=0,
+                markersize=msize, label=micro2macro[micro[ep[2]]])
+        ax.plot(ep[1], mcats.index(ep[2]), color=mcols[macro_inv[micro2macro[micro[ep[2]]]]], marker='.', linewidth=0,
+                markersize=msize)
+        plt.yticks(range(len(mcats)), [x.split('.')[1] for x in micro.values()], rotation=0)
+    legend_without_duplicate_labels(ax)
+    plt.grid(True, alpha=0.4)
+
+    # plt.tight_layout()
+    # plt.savefig('Pres-Micro-attack-episodes-Team'+str(tid) +'-Connection'+ attacker[0]+'--'+attacker[1]+'.png')
+    plt.show()
+
+
+def _create_episode(alert_seq_epi, mcat, tid):
+    # Flatten relevant data from the windows of the corresponding alert sequence
+    services = [alert[3] for window in alert_seq_epi for alert in window]
+    unique_signatures = list(set([alert[4] for window in alert_seq_epi for alert in window]))
+    events = [len(window) for window in alert_seq_epi]
+    alert_volume = round(sum(events) / float(len(events)), 1)
+
+    # Make exact start/end times based on alert timestamps
+    timestamps = [alert[2] for window in alert_seq_epi for alert in window]
+    first_ts, last_ts = min(timestamps), max(timestamps)
+
+    # Make the start/end times the actual elapsed times
+    start_time = (first_ts - startTimes[tid]).total_seconds()
+    end_time = (last_ts - startTimes[tid]).total_seconds()
+    period = end_time - start_time
+
+    episode = (start_time, end_time, mcat, len(events), alert_volume, period, services, unique_signatures, (first_ts, last_ts))
+    return episode
+
+
+# Steps 3:
+def aggregate_into_episodes(_team_alerts, step=150):
+    PRINT = False
+
+    team_data = _group_alerts_per_team(_team_alerts)
+    _team_episodes = []
     team_times = []
 
     print('---------------- TEAMS -------------------------')
@@ -552,26 +610,10 @@ def aggregate_into_episodes(team_alerts, step=150):
                     alert_seq.append(window)  # Alerts per 'step' seconds (window)
 
                 raw_episodes = get_episodes(alert_seq, micro[mcat], plot=False)
-
                 if len(raw_episodes) > 0:
-                    # For each episode, flatten relevant data from the windows of the corresponding alert sequence
                     for epi in raw_episodes:
                         alert_seq_epi = alert_seq[epi[0]:epi[1]+1]
-                        services = [alert[3] for window in alert_seq_epi for alert in window]
-                        unique_signatures = list(set([alert[4] for window in alert_seq_epi for alert in window]))
-                        events = [len(window) for window in alert_seq_epi]
-                        alert_volume = round(sum(events) / float(len(events)), 1)
-
-                        # Make exact start/end times based on alert timestamps
-                        timestamps = [alert[2] for window in alert_seq_epi for alert in window]
-                        first_ts, last_ts = min(timestamps), max(timestamps)
-
-                        # Make the start/end times the actual elapsed times
-                        start_time = (first_ts - startTimes[tid]).total_seconds()
-                        end_time = (last_ts - startTimes[tid]).total_seconds()
-                        period = end_time - start_time
-
-                        episode = (start_time, end_time, mcat, len(events), alert_volume, period, services, unique_signatures, (first_ts, last_ts))
+                        episode = _create_episode(alert_seq_epi, mcat, tid)
                         host_episodes.append(episode)
 
             if len(host_episodes) == 0:
@@ -581,52 +623,28 @@ def aggregate_into_episodes(team_alerts, step=150):
             team_host_episodes[attacker_victim] = host_episodes
 
             if PRINT:
-                plt.figure(figsize=(10, 10))
-                ax = plt.gca()
-                plt.title('Micro attack episodes | Team: ' + str(tid) + ' | Host: ' + '->'.join(attacker_victim))
-                plt.xlabel('Time Window (sec)')
-                plt.ylabel('Micro attack stages')
-                # NOTE: Line thicknesses are on per-host basis
-                tmax = max([epi[4] for epi in host_episodes])
-                tmin = min([epi[4] for epi in host_episodes])
-                for idx, ep in enumerate(host_episodes):
-                    xax = list(np.arange(ep[0], ep[1]+1))
-                    yax = [mcats.index(ep[2])] * len(xax)
-                    thickness = ep[4]
-                    lsize = ((thickness - tmin) / (tmax - tmin)) * (5 - 0.5) + 0.5 if (tmax - tmin) != 0.0 else 0.5
-                    # lsize = np.log(thickness) + 1 TODO: Either take log or normalize between [0.5 5]
-                    msize = (lsize * 2) + 1
-                    ax.plot(xax, yax, color=mcols[macro_inv[micro2macro[micro[ep[2]]]]], linewidth=lsize)
-                    ax.plot(ep[0], mcats.index(ep[2]), color=mcols[macro_inv[micro2macro[micro[ep[2]]]]], marker='.', linewidth=0, markersize=msize, label=micro2macro[micro[ep[2]]])
-                    ax.plot(ep[1], mcats.index(ep[2]), color=mcols[macro_inv[micro2macro[micro[ep[2]]]]], marker='.', linewidth=0, markersize=msize)
-                    plt.yticks(range(len(mcats)), [x.split('.')[1] for x in micro.values()], rotation=0)
-                legend_without_duplicate_labels(ax)
-                plt.grid(True, alpha=0.4)
-                
-                # plt.tight_layout()
-                # plt.savefig('Pres-Micro-attack-episodes-Team'+str(tid) +'-Connection'+ attacker[0]+'--'+attacker[1]+'.png')
-                plt.show()
-        
-        team_episodes_.append(team_host_episodes)
+                _plot_alert_volume_per_episode(tid, attacker_victim, host_episodes, mcats)
+
+        _team_episodes.append(team_host_episodes)
         team_times.append(_team_times)
-    return team_episodes_, team_times
+    return _team_episodes, team_times
 
 
 ## 17
 
 #### Host = [connections] instead of team level representation
-def host_episode_sequences(team_episodes):
+def host_episode_sequences(_team_episodes):
     host_data = {}
-    print('# teams ', len(team_episodes))
+    print('# teams ', len(_team_episodes))
     print('----- TEAMS -----')
-    for tid, team in enumerate(team_episodes):
+    for tid, team in enumerate(_team_episodes):
         print(tid, sep=' ', end=' ', flush=True)
         for (attacker, victim), episodes in team.items():
             if len(episodes) < 2:
                 continue
             # if ('10.0.0' in attacker or '10.0.1' in attacker):
             #        continue
-            
+
             att = 't' + str(tid) + '-' + attacker
             if att not in host_data.keys():
                 host_data[att] = []
@@ -635,19 +653,18 @@ def host_episode_sequences(team_episodes):
 
             host_data[att].append(extended_episode)
             host_data[att].sort(key=lambda tup: tup[0][0])
-            
-    print('\n# episode sequences ', len(host_data))   
+
+    print('\n# episode sequences ', len(host_data))
     return host_data
 
 
 # Split episode sequences for an attacker-victim pair into episode subsequences.
 # Each episode subsequence represents an attack attempt.
 def break_into_subbehaviors(host_data):
-    attacks = []
-    subsequences = []
+    _subsequences = dict()
     cut_length = 4
     FULL_SEQ = False
-        
+
     print('----- Sub-sequences -----')
     for i, (attacker, victim_episodes) in enumerate(host_data.items()):
         print((i + 1), sep=' ', end=' ', flush=True)
@@ -656,50 +673,43 @@ def break_into_subbehaviors(host_data):
                 continue
 
             victim = episodes[0][-1]
-            attack = attacker + '->' + victim
+            attacker_victim = attacker + '->' + victim
             pieces = math.floor(len(episodes) / cut_length)
             if FULL_SEQ:
-                attacks.append(attack)
-                subsequences.append(episodes)
+                _subsequences[attacker_victim] = episodes
                 continue
             if pieces < 1:
-                attacks.append(attack + '-0')
-                subsequences.append(episodes)
+                _subsequences[attacker_victim + '-0'] = episodes
                 continue
 
             # Cut episode sequence when a low-severity episode follows a high-severity episode
             count = 0
             mcats = [epi[2] for epi in episodes]
-            cuts = [i for i in range(len(episodes) - 1) if (len(str(mcats[i])) > len(str(mcats[i + 1])))]#(ep[i] > 100 and ep[i+1] < 10)]
-            if len(cuts) == 0:
-                attacks.append(attack + '-0')
-                subsequences.append(episodes)
-                continue
+            cuts = [i for i in range(len(episodes) - 1) if (len(str(mcats[i])) > len(str(mcats[i + 1])))]  # (ep[i] > 100 and ep[i+1] < 10)]
 
-            rest = (-1, -1)
-            for i in range(len(cuts)):
-                start = 0 if i == 0 else cuts[i - 1] + 1
-                end = cuts[i]
+            rest = (0, len(episodes) - 1)
+            for j in range(len(cuts)):
+                start = 0 if j == 0 else cuts[j - 1] + 1
+                end = cuts[j]
                 rest = (end + 1, len(episodes) - 1)
                 subsequence = episodes[start:end+1]
                 if len(subsequence) < 2:
                     continue
-                attacks.append(attack + '-' + str(count))
-                subsequences.append(subsequence)
+                _subsequences[attacker_victim + '-' + str(count)] = subsequence
                 count += 1
             subsequence = episodes[rest[0]:rest[1]+1]
             if len(subsequence) < 2:
-                #print('discarding symbol ', [x[2] for x in al]) # TODO This one is not cool1
+                # print('discarding symbol ', [x[2] for x in al]) # TODO This one is not cool1
                 continue
-            attacks.append(attack + '-' + str(count))
-            subsequences.append(subsequence)
-    print('\n# sub-sequences', len(attacks))
-    return subsequences, attacks
+            _subsequences[attacker_victim + '-' + str(count)] = subsequence
+
+    print('\n# sub-sequences', len(_subsequences))
+    return _subsequences
 
 
 ## 27 Aug 2020: Generating traces for FlexFringe
 def generate_traces(subsequences, datafile):
-    all_services = [[most_frequent(epi[6]) for epi in subseq] for subseq in subsequences]
+    all_services = [[most_frequent(epi[6]) for epi in subseq] for subseq in subsequences.values()]
     print('----- All unique services -----')
     print(set([service for services_subseq in all_services for service in services_subseq]))
     print('---- end ----- ')
@@ -708,7 +718,7 @@ def generate_traces(subsequences, datafile):
     unique_mcat_mserv = set()  # FlexFringe treats the (mcat,mserv) pairs as symbols of the alphabet
 
     episode_traces = []
-    for i, episodes in enumerate(subsequences):
+    for i, episodes in enumerate(subsequences.values()):
         if len(episodes) < 3:
             continue
         num_traces += 1
@@ -939,12 +949,12 @@ def find_severe_states(traces, m, m2):
     return(med_states, sev_states, sev_sinks)
 
 ## collecting sub-behaviors back into the same trace -- condensed_data is the new object to deal with
-def make_condensed_data(alerts, keys, state_traces, med_states, sev_states):
+def make_condensed_data(subsequences, state_traces, med_states, sev_states):
     levelone = set()
     levelone_ben = set()
     condensed_data = dict()
     counter = -1
-    for tid, (attacker, episodes) in enumerate(zip(keys, alerts)):
+    for tid, (attacker, episodes) in enumerate(subsequences.items()):
 
         if len(episodes) < 3:
             continue
@@ -1471,8 +1481,8 @@ print('\n---- Converting to episode sequences -----------')
 host_data = host_episode_sequences(team_episodes)
 
 print('----- Breaking into sub-sequences and generating traces ----------')
-(subsequences, attacks) = break_into_subbehaviors(host_data)
-generate_traces(subsequences, datafile)
+episode_subsequences = break_into_subbehaviors(host_data)
+generate_traces(episode_subsequences, datafile)
 
 
 print('------ Learning S-PDFA ---------')
@@ -1523,7 +1533,7 @@ print('------- Encoding into state sequences --------')
 # Encoding traces into state sequences  
 (traces, state_traces) = encode_sequences(m,m2)
 (med_states, sev_states, sev_sinks) = find_severe_states(traces, m, m2)    
-condensed_data = make_condensed_data(subsequences, attacks, state_traces, med_states, sev_states)
+condensed_data = make_condensed_data(episode_subsequences, state_traces, med_states, sev_states)
 
 print('------- clustering state groups --------')
 state_groups = make_state_groups(condensed_data, modelname)
