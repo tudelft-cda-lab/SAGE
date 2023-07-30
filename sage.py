@@ -28,7 +28,7 @@ SAVE = True
 DOCKER = False
 
 
-def get_attack_stage_mapping(signature):
+def _get_attack_stage_mapping(signature):
     result = MicroAttackStage.NON_MALICIOUS
     if signature in usual_mapping.keys():
         result = usual_mapping[signature]
@@ -44,8 +44,7 @@ def get_attack_stage_mapping(signature):
     return micro_inv[str(result)]
 
  
-# Program to find most frequent  
-def most_frequent(serv): 
+def _most_frequent(serv):
     max_frequency = 0
     most_frequent_service = None
     for s in serv:
@@ -56,8 +55,8 @@ def most_frequent(serv):
     return most_frequent_service
 
 
-def load_IANA_mapping():
-    """Download the IANA port-service mapping"""
+# Step 0: Download the IANA port-service mapping"""
+def load_iana_mapping():
     # Perform the first request and in case of a failure retry the specified number of times
     for attempt in range(IANA_NUM_RETRIES + 1):
         response = requests.get(IANA_CSV_FILE)
@@ -77,7 +76,7 @@ def load_IANA_mapping():
     ports = {}
     for row in table:
         # Drop missing port number, Unassigned and Reserved ports
-        if row[1] and 'Unassigned' not in row[3]:# and 'Reserved' not in row[3]:
+        if row[1] and 'Unassigned' not in row[3]:  # and 'Reserved' not in row[3]:
             
             # Split range in single ports
             if '-' in row[1]:
@@ -93,8 +92,7 @@ def load_IANA_mapping():
     return ports
 
 
-## 3
-def readfile(fname):
+def _readfile(fname):
     with open(fname, 'r') as f:
         unparsed_data = json.load(f)
         
@@ -102,8 +100,8 @@ def readfile(fname):
     return unparsed_data
 
 
+# Step 1.1: Parse the input alerts
 def parse(unparsed_data, alert_labels=[], slim=False):
-
     FILTER = False
     badIP = '169.254.169.254'
     __cats = set()
@@ -130,8 +128,7 @@ def parse(unparsed_data, alert_labels=[], slim=False):
         else:
             host = 'dummy'
 
-        ts = raw['timestamp']
-        dt = datetime.datetime.strptime(ts, '%Y-%m-%dT%H:%M:%S.%f%z')  # 2018-11-03T23:16:09.148520+0000
+        dt = datetime.datetime.strptime(raw['timestamp'], '%Y-%m-%dT%H:%M:%S.%f%z')  # 2018-11-03T23:16:09.148520+0000
         diff_dt = 0.0 if prev == -1 else round((dt - prev).total_seconds(), 2)
         prev = dt
 
@@ -152,7 +149,7 @@ def parse(unparsed_data, alert_labels=[], slim=False):
             continue
 
         if not slim:
-            mcat = get_attack_stage_mapping(sig)
+            mcat = _get_attack_stage_mapping(sig)
             parsed_data.append((diff_dt, src_ip, src_port, dst_ip, dst_port, sig, cat, host, dt, mcat))
         else:
             parsed_data.append((diff_dt, src_ip, src_port, dst_ip, dst_port, sig, cat, host, dt))
@@ -240,13 +237,13 @@ def _plot_alert_filtering(unfiltered_alerts, filtered_alerts):
     plt.yticks(fontsize='20')
     plt.title('High-frequency Alert Filtering', fontweight='bold', fontsize='20')
 
-    # Create legend & Show graphic
+    # Create legend & show graphic
     plt.legend(prop={'size': 20})
     plt.show()
     return
 
 
-# Step 2: Remove duplicate alerts (defined by the parameter t)
+# Step 1.2: Remove duplicate alerts (defined by the alert_filtering_window parameter)
 def remove_duplicates(unfiltered_alerts, plot=False, gap=1.0):
     filtered_alerts = [unfiltered_alerts[x] for x in range(1, len(unfiltered_alerts))
                        if unfiltered_alerts[x][9] != MicroAttackStage.NON_MALICIOUS.value  # Filter out non-malicious alerts
@@ -263,10 +260,10 @@ def remove_duplicates(unfiltered_alerts, plot=False, gap=1.0):
     return filtered_alerts
 
 
-# Step 1: Read the alerts
-def load_data(path_to_alerts, t):
-    team_alerts = []
-    team_labels = []
+# Step 1: Read the input alerts
+def load_data(path_to_alerts, filtering_window):
+    _team_alerts = []
+    _team_labels = []
     files = glob.glob(path_to_alerts + "/*.json")
     print('About to read json files...')
     if len(files) < 1:
@@ -275,11 +272,10 @@ def load_data(path_to_alerts, t):
     for f in files:
         name = os.path.basename(f)[:-5]
         print(name)
-        team_labels.append(name)
+        _team_labels.append(name)
 
-        parsed_alerts = parse(readfile(f), [])
-
-        parsed_alerts = remove_duplicates(parsed_alerts, gap=t)
+        parsed_alerts = parse(_readfile(f), [])
+        parsed_alerts = remove_duplicates(parsed_alerts, gap=filtering_window)
 
         # EXP: Limit alerts by timing is better than limiting volume because each team is on a different scale.
         # 50% alerts for one team end at a diff time than for others
@@ -287,17 +283,17 @@ def load_data(path_to_alerts, t):
         start_time_limit = 3600 * start_hour   # Which hour to start from?
 
         first_ts = parsed_alerts[0][8]
-        startTimes.append(first_ts)
+        start_times.append(first_ts)
 
         filtered_alerts = [x for x in parsed_alerts if (((x[8] - first_ts).total_seconds() <= end_time_limit)
                                                         and ((x[8] - first_ts).total_seconds() >= start_time_limit))]
-        team_alerts.append(filtered_alerts)
+        _team_alerts.append(filtered_alerts)
 
-    return team_alerts, team_labels
+    return _team_alerts, _team_labels
 
-## 11
+
 # Plotting for each team, how many categories are consumed
-def plot_histogram(team_alerts, team_labels):
+def plot_histogram(_team_alerts, _team_labels):
     # Choice of: Suricata category usage or Micro attack stage usage?
     SURICATA_SUMMARY = False
     suricata_categories = {'A Network Trojan was detected': 0, 'Generic Protocol Command Decode': 1, 'Attempted Denial of Service': 2,
@@ -312,14 +308,14 @@ def plot_histogram(team_alerts, team_labels):
 
     if SURICATA_SUMMARY:
         num_categories = len(suricata_categories)
-        percentages = [[0] * len(suricata_categories) for _ in range(len(team_alerts))]
+        percentages = [[0] * len(suricata_categories) for _ in range(len(_team_alerts))]
     else:
         num_categories = len(micro_attack_stages)
-        percentages = [[0] * len(micro_attack_stages) for _ in range(len(team_alerts))]
+        percentages = [[0] * len(micro_attack_stages) for _ in range(len(_team_alerts))]
     indices = np.arange(num_categories)    # The x locations for the groups
     bar_width = 0.75       # The width of the bars: can also be len(x) sequence
 
-    for tid, team in enumerate(team_alerts):
+    for tid, team in enumerate(_team_alerts):
         for alert in team:
             # if alert[9] == 999:
             #    continue
@@ -331,11 +327,11 @@ def plot_histogram(team_alerts, team_labels):
         for i, acat in enumerate(percentages[tid]):
             percentages[tid][i] = acat / len(team)
     plots = []
-    for tid, team in enumerate(team_alerts):
+    for tid, team in enumerate(_team_alerts):
         if tid == 0:
             plot = plt.bar(indices, percentages[tid], bar_width)
         elif tid == 1:
-            plot = plt.bar(indices, percentages[tid], bar_width, bottom=percentages[tid-1])
+            plot = plt.bar(indices, percentages[tid], bar_width, bottom=percentages[tid - 1])
         else:
             index = [x for x in range(tid)]
             bottom = np.add(percentages[0], percentages[1])
@@ -354,18 +350,10 @@ def plot_histogram(team_alerts, team_labels):
     plt.tick_params(axis='x', which='major', labelsize=8)
     plt.tick_params(axis='x', which='minor', labelsize=8)
     # plt.yticks(np.arange(0, 13000, 1000))
-    plt.legend([plot[0] for plot in plots], team_labels)
+    plt.legend([plot[0] for plot in plots], _team_labels)
     plt.tight_layout()
+    plt.savefig('data_histogram-' + experiment_name + '.png')
     # plt.show()
-    return plt
-
-
-## 14
-def legend_without_duplicate_labels(ax, fontsize=10, loc='upper right'):
-    handles, labels = ax.get_legend_handles_labels()
-    unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
-    unique = sorted(unique, key=lambda x: x[1])
-    ax.legend(*zip(*unique), loc=loc, fontsize=fontsize)
 
 
 def _get_ups_and_downs(frequencies, slopes):
@@ -406,10 +394,9 @@ def _plot_episodes(frequencies, episodes, mcat):
     return
 
 
-## 13
 # Goal: (1) To first form a collective attack profile of a team
 # and then (2) To compare attack profiles of teams
-def get_episodes(alert_seq, mcat, plot):
+def _get_episodes(alert_seq, mcat, plot):
     # x-axis represents the time, y-axis represents the frequencies of alerts within a window
     dx = 0.1
     frequencies = [len(x) for x in alert_seq]
@@ -519,6 +506,13 @@ def _group_alerts_per_team(_team_alerts):
     return team_data
 
 
+def _legend_without_duplicate_labels(ax, fontsize=10, loc='upper right'):
+    handles, labels = ax.get_legend_handles_labels()
+    unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
+    unique = sorted(unique, key=lambda x: x[1])
+    ax.legend(*zip(*unique), loc=loc, fontsize=fontsize)
+
+
 def _plot_alert_volume_per_episode(tid, attacker_victim, host_episodes, mcats):
     plt.figure(figsize=(10, 10))
     ax = plt.gca()
@@ -541,7 +535,7 @@ def _plot_alert_volume_per_episode(tid, attacker_victim, host_episodes, mcats):
         ax.plot(ep[1], mcats.index(ep[2]), color=mcols[macro_inv[micro2macro[micro[ep[2]]]]], marker='.', linewidth=0,
                 markersize=msize)
         plt.yticks(range(len(mcats)), [x.split('.')[1] for x in micro.values()], rotation=0)
-    legend_without_duplicate_labels(ax)
+    _legend_without_duplicate_labels(ax)
     plt.grid(True, alpha=0.4)
 
     # plt.tight_layout()
@@ -561,15 +555,15 @@ def _create_episode(alert_seq_epi, mcat, tid):
     first_ts, last_ts = min(timestamps), max(timestamps)
 
     # Make the start/end times the actual elapsed times
-    start_time = (first_ts - startTimes[tid]).total_seconds()
-    end_time = (last_ts - startTimes[tid]).total_seconds()
+    start_time = (first_ts - start_times[tid]).total_seconds()
+    end_time = (last_ts - start_times[tid]).total_seconds()
     period = end_time - start_time
 
     episode = (start_time, end_time, mcat, len(events), alert_volume, period, services, unique_signatures, (first_ts, last_ts))
     return episode
 
 
-# Steps 3:
+# Step 2: Create alert sequence and get episodes
 def aggregate_into_episodes(_team_alerts, step=150):
     PRINT = False
 
@@ -589,8 +583,8 @@ def aggregate_into_episodes(_team_alerts, step=150):
                 continue
 
             # Alert format: (dst_ip, mcat, ts, dst_port, signature)
-            #print(attacker_victim, len([(x[1]) for x in alerts])) # TODO: what about IPs that are not attacker related?
-            first_elapsed_time = round((alerts[0][2] - startTimes[tid]).total_seconds(), 2)
+            # print(attacker_victim, len([(x[1]) for x in alerts])) # TODO: what about IPs that are not attacker related?
+            first_elapsed_time = round((alerts[0][2] - start_times[tid]).total_seconds(), 2)
 
             _team_times['->'.join(attacker_victim)] = first_elapsed_time
 
@@ -609,7 +603,7 @@ def aggregate_into_episodes(_team_alerts, step=150):
                     window = [a for dt, a in zip(relative_elapsed_time, alerts) if (i <= dt < (i + step)) and a[1] == mcat]
                     alert_seq.append(window)  # Alerts per 'step' seconds (window)
 
-                raw_episodes = get_episodes(alert_seq, micro[mcat], plot=False)
+                raw_episodes = _get_episodes(alert_seq, micro[mcat], plot=False)
                 if len(raw_episodes) > 0:
                     for epi in raw_episodes:
                         alert_seq_epi = alert_seq[epi[0]:epi[1]+1]
@@ -630,12 +624,11 @@ def aggregate_into_episodes(_team_alerts, step=150):
     return _team_episodes, team_times
 
 
-## 17
-
-#### Host = [connections] instead of team level representation
+# Step 3: Create episode sequences
+# Host = [connections] instead of team level representation
 def host_episode_sequences(_team_episodes):
-    host_data = {}
-    print('# teams ', len(_team_episodes))
+    _host_data = {}
+    print('# teams:', len(_team_episodes))
     print('----- TEAMS -----')
     for tid, team in enumerate(_team_episodes):
         print(tid, sep=' ', end=' ', flush=True)
@@ -646,27 +639,27 @@ def host_episode_sequences(_team_episodes):
             #        continue
 
             att = 't' + str(tid) + '-' + attacker
-            if att not in host_data.keys():
-                host_data[att] = []
+            if att not in _host_data.keys():
+                _host_data[att] = []
 
             extended_episode = [epi + (victim,) for epi in episodes]
 
-            host_data[att].append(extended_episode)
-            host_data[att].sort(key=lambda tup: tup[0][0])
+            _host_data[att].append(extended_episode)
+            _host_data[att].sort(key=lambda tup: tup[0][0])
 
-    print('\n# episode sequences ', len(host_data))
-    return host_data
+    print('\n# episode sequences:', len(_host_data))
+    return _host_data
 
 
-# Split episode sequences for an attacker-victim pair into episode subsequences.
+# Step 4.1: Split episode sequences for an attacker-victim pair into episode subsequences.
 # Each episode subsequence represents an attack attempt.
-def break_into_subbehaviors(host_data):
+def break_into_subbehaviors(_host_data):
     _subsequences = dict()
     cut_length = 4
     FULL_SEQ = False
 
     print('----- Sub-sequences -----')
-    for i, (attacker, victim_episodes) in enumerate(host_data.items()):
+    for i, (attacker, victim_episodes) in enumerate(_host_data.items()):
         print((i + 1), sep=' ', end=' ', flush=True)
         for episodes in victim_episodes:
             if len(episodes) < 2:
@@ -703,13 +696,13 @@ def break_into_subbehaviors(host_data):
                 continue
             _subsequences[attacker_victim + '-' + str(count)] = subsequence
 
-    print('\n# sub-sequences', len(_subsequences))
+    print('\n# sub-sequences:', len(_subsequences))
     return _subsequences
 
 
-## 27 Aug 2020: Generating traces for FlexFringe
+# Step 4.2: Generate traces for FlexFringe (27 Aug 2020)
 def generate_traces(subsequences, datafile):
-    all_services = [[most_frequent(epi[6]) for epi in subseq] for subseq in subsequences.values()]
+    all_services = [[_most_frequent(epi[6]) for epi in subseq] for subseq in subsequences.values()]
     print('----- All unique services -----')
     print(set([service for services_subseq in all_services for service in services_subseq]))
     print('---- end ----- ')
@@ -724,7 +717,7 @@ def generate_traces(subsequences, datafile):
         num_traces += 1
         mcats = [x[2] for x in episodes]
         num_services = [len(set((x[6]))) for x in episodes]
-        max_services = [most_frequent(x[6]) for x in episodes]
+        max_services = [_most_frequent(x[6]) for x in episodes]
         stime = [x[0] for x in episodes]
 
         #multi = [str(c) + ":" + str(n) + "," + str(s) for (c, s, n) in zip(mcats, max_services, num_services)] # multivariate case
@@ -739,9 +732,10 @@ def generate_traces(subsequences, datafile):
     for trace in episode_traces:
         f.write(trace)
     f.close()
+    print('\n# episode traces:', len(episode_traces))
 
 
-## 2 sept 2020: Learning the model
+# Step 5: Learn the S-PDFA model (2 sept 2020)
 def flexfringe(*args, **kwargs):
     """Wrapper to call the flexfringe binary
 
@@ -968,7 +962,7 @@ def make_condensed_data(subsequences, state_traces, med_states, sev_states):
         tr = [int(x) for x in state_traces[counter]]
         #print(counter)
         num_servs = [len(set((x[6]))) for x in episodes]
-        max_servs = [most_frequent(x[6]) for x in episodes]
+        max_servs = [_most_frequent(x[6]) for x in episodes]
         #print(max_servs)
         
         if 0 in tr and (not set(tr).isdisjoint(sev_states) or not set(tr).isdisjoint(med_states)):
@@ -1431,77 +1425,60 @@ def make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, datafile,
     #    print(attackerID, len(v), set([x.split('|')[0] for x in v]))
 
 
-
-
-## ----- main ------    
+# ----- MAIN ------
 
 if len(sys.argv) < 5:
-    print('USAGE: sage.py {path/to/json/files} {experiment_name} {alert_filtering_window (def=1.0)} {alert_aggr_window (def=150)} {(start_hour,end_hour)[Optional]}')
+    print('Usage: sage.py {path/to/json/files} {experiment_name} {alert_filtering_window (def=1.0)} {alert_aggr_window (def=150)} {(start_hour,end_hour)[Optional]}')
     sys.exit()
 
-folder = sys.argv[1]
-expname = sys.argv[2]
-t = float(sys.argv[3])
-w = int(sys.argv[4])
+path_to_json_files = sys.argv[1]
+experiment_name = sys.argv[2]
+alert_filtering_window = float(sys.argv[3])
+alert_aggr_window = int(sys.argv[4])
 start_hour, end_hour = 0, 100
 if len(sys.argv) > 5:
-    #range_ = str(sys.argv[5])
     try:
-        #range_ = range_.replace('(', '').replace(')', '').split(',')
-        start_hour = float(sys.argv[5])#int(range_[0])
-        end_hour = float(sys.argv[6])#int(range_[1])
+        start_hour = float(sys.argv[5])
+        end_hour = float(sys.argv[6])
         print('Filtering alerts. Only parsing from %d-th to %d-th hour (relative to the start of the alert capture)' % (start_hour, end_hour))
-    except:
+    except (ValueError, TypeError) as e:
         print('Error parsing hour filter range')
         sys.exit()
 
-startTimes = [] # We cheat a bit: In case user filters to only see alerts from (s,e) range, 
-#                    we record the first alert just to get the real time-elapsed since first alert
-    
-outaddress = ""
+# We cheat a bit: In case user filters to only see alerts from (s,e) range,
+#   we record the first alert just to get the real time-elapsed since first alert
+start_times = []
+
 path_to_ini = "FlexFringe/ini/spdfa-config.ini"
 
-modelname = expname+'.txt'#'test-trace-uni-serGroup.txt'
-datafile = expname+'.txt'#'trace-uni-serGroup.txt'
-   
-path_to_traces = datafile
+path_to_traces = experiment_name + '.txt'
 
-print('------ Downloading the IANA port-service mapping ---------')
-port_services = load_IANA_mapping()
+print('------ Downloading the IANA port-service mapping ------')
+port_services = load_iana_mapping()
 
-print('----- Reading alerts ----------')
-(team_alerts, team_labels) = load_data(folder, t)  # t = minimal window for alert filtering
-plt = plot_histogram(team_alerts, team_labels)
-plt.savefig('data_histogram-'+expname+'.png')
+print('------ Reading alerts ------')
+(team_alerts, team_labels) = load_data(path_to_json_files, alert_filtering_window)
+plot_histogram(team_alerts, team_labels)
 
-print('------ Converting to episodes ---------')
-team_episodes, _ = aggregate_into_episodes(team_alerts, step=w)
+print('------ Converting to episodes ------')
+team_episodes, _ = aggregate_into_episodes(team_alerts, step=alert_aggr_window)
 
-print('\n---- Converting to episode sequences -----------')
+print('\n------ Converting to episode sequences ------')
 host_data = host_episode_sequences(team_episodes)
 
-print('----- Breaking into sub-sequences and generating traces ----------')
+print('------ Breaking into sub-sequences and generating traces ------')
 episode_subsequences = break_into_subbehaviors(host_data)
-generate_traces(episode_subsequences, datafile)
+generate_traces(episode_subsequences, path_to_traces)
 
 
 print('------ Learning S-PDFA ---------')
 flexfringe(path_to_traces, ini=path_to_ini, symbol_count="2", state_count="4")
 
-## Copying files
-outfile = (outaddress+datafile)
-o = (outaddress+modelname)
-os.system("dot -Tpng "+outfile+".ff.final.dot -o "+o+".png")
-#files = [ datafile+'.ff.final.dot', datafile+'.ff.final.dot.json', datafile+'.ff.sinksfinal.json', datafile+'.ff.init_dfa.dot', datafile+'.ff.init_dfa.dot.json']
-#outfiles = [ modelname+'.ff.final.dot', modelname+'.ff.final.dot.json', modelname+'.ff.sinksfinal.json', modelname+'.ff.init_dfa.dot', modelname+'.ff.init_dfa.dot.json']
-#for (file,out) in zip(files,outfiles):
-#    copyfile(outaddress+file, outaddress+out)
-    
-path_to_model = outaddress+modelname
+os.system("dot -Tpng " + path_to_traces + ".ff.final.dot -o " + path_to_traces + ".png")
 
 print('------ !! Special: Fixing syntax error in main model and sink files  ---------')
 print('--- Sinks')
-with open(path_to_model+".ff.finalsinks.json", 'r') as file:
+with open(path_to_traces + ".ff.finalsinks.json", 'r') as file:
     filedata = file.read()
 stripped = re.sub('[\s+]', '', filedata)
 extracommas = re.search('(}(,+)\]}$)', stripped)
@@ -1509,11 +1486,11 @@ if extracommas is not None:
     c = (extracommas.group(0)).count(',')
     print(extracommas.group(0), c)
     filedata = ''.join(filedata.rsplit(',', c))
-    with open(path_to_model+".ff.finalsinks.json", 'w') as file:
+    with open(path_to_traces + ".ff.finalsinks.json", 'w') as file:
         file.write(filedata)
   
 print('--- Main')  
-with open(path_to_model+".ff.final.json", 'r') as file:
+with open(path_to_traces + ".ff.final.json", 'r') as file:
     filedata = file.read()
 stripped = re.sub('[\s+]', '', filedata)
 extracommas = re.search('(}(,+)\]}$)', stripped)
@@ -1521,13 +1498,13 @@ if extracommas is not None:
     c = (extracommas.group(0)).count(',')
     print(extracommas.group(0), c)
     filedata = ''.join(filedata.rsplit(',', c))
-    with open(path_to_model+".ff.final.json", 'w') as file:
+    with open(path_to_traces + ".ff.final.json", 'w') as file:
         file.write(filedata)
 
 print('------ Loading and traversing SPDFA ---------')
 # Load S-PDFA
-m, data = loadmodel(path_to_model+".ff.final.json")
-m2,data2 = loadmodel(path_to_model+".ff.finalsinks.json")
+m, data = loadmodel(path_to_traces + ".ff.final.json")
+m2,data2 = loadmodel(path_to_traces+".ff.finalsinks.json")
 
 print('------- Encoding into state sequences --------')
 # Encoding traces into state sequences  
@@ -1536,23 +1513,23 @@ print('------- Encoding into state sequences --------')
 condensed_data = make_condensed_data(episode_subsequences, state_traces, med_states, sev_states)
 
 print('------- clustering state groups --------')
-state_groups = make_state_groups(condensed_data, modelname)
+state_groups = make_state_groups(condensed_data, path_to_traces)
 (condensed_a_data, condensed_v_data) = make_av_data(condensed_data)
 
 print('------- Making alert-driven AGs--------')
-make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, modelname, expname)
+make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, path_to_traces, experiment_name)
 
 if DOCKER:
     print('Deleting extra files')
-    os.system("rm "+outfile+".ff.final.dot")
-    os.system("rm "+outfile+".ff.final.json")
-    os.system("rm "+outfile+".ff.finalsinks.json")
-    os.system("rm "+outfile+".ff.finalsinks.dot")
-    os.system("rm "+outfile+".ff.init.dot")
-    os.system("rm "+outfile+".ff.init.json")
-    os.system("rm "+outfile+".ff.initsinks.dot")
-    os.system("rm "+outfile+".ff.initsinks.json")
-    os.system("rm "+"spdfa-clustered-"+datafile+"-dfa.dot")
+    os.system("rm " + path_to_traces + ".ff.final.dot")
+    os.system("rm " + path_to_traces + ".ff.final.json")
+    os.system("rm " + path_to_traces + ".ff.finalsinks.json")
+    os.system("rm " + path_to_traces + ".ff.finalsinks.dot")
+    os.system("rm " + path_to_traces + ".ff.init.dot")
+    os.system("rm " + path_to_traces + ".ff.init.json")
+    os.system("rm " + path_to_traces + ".ff.initsinks.dot")
+    os.system("rm " + path_to_traces + ".ff.initsinks.json")
+    os.system("rm " + "spdfa-clustered-" + path_to_traces + "-dfa.dot")
 
 print('\n------- FIN -------')
-## ----- main END ------  
+# ----- END MAIN ------
