@@ -25,7 +25,7 @@ IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/ser
 IANA_NUM_RETRIES = 5
 DB_PATH = "./ports.json"
 SAVE = True
-DOCKER = False
+DOCKER = True
 
 
 def _get_attack_stage_mapping(signature):
@@ -101,7 +101,7 @@ def _readfile(fname):
 
 
 # Step 1.1: Parse the input alerts
-def parse(unparsed_data, alert_labels=[], slim=False):
+def _parse(unparsed_data, alert_labels=[], slim=False):
     FILTER = False
     badIP = '169.254.169.254'
     __cats = set()
@@ -244,7 +244,7 @@ def _plot_alert_filtering(unfiltered_alerts, filtered_alerts):
 
 
 # Step 1.2: Remove duplicate alerts (defined by the alert_filtering_window parameter)
-def remove_duplicates(unfiltered_alerts, plot=False, gap=1.0):
+def _remove_duplicates(unfiltered_alerts, plot=False, gap=1.0):
     filtered_alerts = [unfiltered_alerts[x] for x in range(1, len(unfiltered_alerts))
                        if unfiltered_alerts[x][9] != MicroAttackStage.NON_MALICIOUS.value  # Filter out non-malicious alerts
                        and not (unfiltered_alerts[x][0] <= gap  # Diff from previous alert is less than gap sec
@@ -274,8 +274,8 @@ def load_data(path_to_alerts, filtering_window):
         print(name)
         _team_labels.append(name)
 
-        parsed_alerts = parse(_readfile(f), [])
-        parsed_alerts = remove_duplicates(parsed_alerts, gap=filtering_window)
+        parsed_alerts = _parse(_readfile(f), [])
+        parsed_alerts = _remove_duplicates(parsed_alerts, gap=filtering_window)
 
         # EXP: Limit alerts by timing is better than limiting volume because each team is on a different scale.
         # 50% alerts for one team end at a diff time than for others
@@ -354,6 +354,33 @@ def plot_histogram(_team_alerts, _team_labels):
     plt.tight_layout()
     plt.savefig('data_histogram-' + experiment_name + '.png')
     # plt.show()
+
+
+def _group_alerts_per_team(_team_alerts):
+    """Reorganise alerts for each attacker per team"""
+    team_data = dict()
+    for tid, team in enumerate(team_alerts):
+        host_alerts = dict()  # (attacker, victim) -> alerts
+
+        for alert in team:
+            # Alert format: (diff_dt, src_ip, src_port, dst_ip, dst_port, sig, cat, host, ts, mcat)
+            src_ip, dst_ip, signature, ts, mcat = alert[1], alert[3], alert[5], alert[8], alert[9]
+            dst_port = alert[4] if alert[4] is not None else 65000
+            # Simply respect the source,dst format! (Correction: source is always source and dest always dest!)
+
+            # Say 'unknown' if the port cannot be resolved
+            dst_port = 'unknown' if (dst_port not in port_services.keys() or port_services[dst_port] == 'unknown') else port_services[dst_port]['name']
+
+            if (src_ip, dst_ip) not in host_alerts.keys() and (dst_ip, src_ip) not in host_alerts.keys():
+                host_alerts[(src_ip, dst_ip)] = []
+
+            if (src_ip, dst_ip) in host_alerts.keys():
+                host_alerts[(src_ip, dst_ip)].append((dst_ip, mcat, ts, dst_port, signature)) # TODO: remove the redundant host names
+            else:
+                host_alerts[(dst_ip, src_ip)].append((src_ip, mcat, ts, dst_port, signature))
+
+        team_data[tid] = host_alerts.items()
+    return team_data
 
 
 def _get_ups_and_downs(frequencies, slopes):
@@ -479,31 +506,24 @@ def _get_episodes(alert_seq, mcat, plot):
     return episodes
 
 
-def _group_alerts_per_team(_team_alerts):
-    """Reorganise alerts for each attacker per team"""
-    team_data = dict()
-    for tid, team in enumerate(team_alerts):
-        host_alerts = dict()  # (attacker, victim) -> alerts
+def _create_episode(alert_seq_epi, mcat, tid):
+    # Flatten relevant data from the windows of the corresponding alert sequence
+    services = [alert[3] for window in alert_seq_epi for alert in window]
+    unique_signatures = list(set([alert[4] for window in alert_seq_epi for alert in window]))
+    events = [len(window) for window in alert_seq_epi]
+    alert_volume = round(sum(events) / float(len(events)), 1)
 
-        for alert in team:
-            # Alert format: (diff_dt, src_ip, src_port, dst_ip, dst_port, sig, cat, host, ts, mcat)
-            src_ip, dst_ip, signature, ts, mcat = alert[1], alert[3], alert[5], alert[8], alert[9]
-            dst_port = alert[4] if alert[4] is not None else 65000
-            # Simply respect the source,dst format! (Correction: source is always source and dest always dest!)
+    # Make exact start/end times based on alert timestamps
+    timestamps = [alert[2] for window in alert_seq_epi for alert in window]
+    first_ts, last_ts = min(timestamps), max(timestamps)
 
-            # Say 'unknown' if the port cannot be resolved
-            dst_port = 'unknown' if (dst_port not in port_services.keys() or port_services[dst_port] == 'unknown') else port_services[dst_port]['name']
+    # Make the start/end times the actual elapsed times
+    start_time = (first_ts - start_times[tid]).total_seconds()
+    end_time = (last_ts - start_times[tid]).total_seconds()
+    period = end_time - start_time
 
-            if (src_ip, dst_ip) not in host_alerts.keys() and (dst_ip, src_ip) not in host_alerts.keys():
-                host_alerts[(src_ip, dst_ip)] = []
-
-            if (src_ip, dst_ip) in host_alerts.keys():
-                host_alerts[(src_ip, dst_ip)].append((dst_ip, mcat, ts, dst_port, signature)) # TODO: remove the redundant host names
-            else:
-                host_alerts[(dst_ip, src_ip)].append((src_ip, mcat, ts, dst_port, signature))
-
-        team_data[tid] = host_alerts.items()
-    return team_data
+    episode = (start_time, end_time, mcat, len(events), alert_volume, period, services, unique_signatures, (first_ts, last_ts))
+    return episode
 
 
 def _legend_without_duplicate_labels(ax, fontsize=10, loc='upper right'):
@@ -541,26 +561,6 @@ def _plot_alert_volume_per_episode(tid, attacker_victim, host_episodes, mcats):
     # plt.tight_layout()
     # plt.savefig('Pres-Micro-attack-episodes-Team'+str(tid) +'-Connection'+ attacker[0]+'--'+attacker[1]+'.png')
     plt.show()
-
-
-def _create_episode(alert_seq_epi, mcat, tid):
-    # Flatten relevant data from the windows of the corresponding alert sequence
-    services = [alert[3] for window in alert_seq_epi for alert in window]
-    unique_signatures = list(set([alert[4] for window in alert_seq_epi for alert in window]))
-    events = [len(window) for window in alert_seq_epi]
-    alert_volume = round(sum(events) / float(len(events)), 1)
-
-    # Make exact start/end times based on alert timestamps
-    timestamps = [alert[2] for window in alert_seq_epi for alert in window]
-    first_ts, last_ts = min(timestamps), max(timestamps)
-
-    # Make the start/end times the actual elapsed times
-    start_time = (first_ts - start_times[tid]).total_seconds()
-    end_time = (last_ts - start_times[tid]).total_seconds()
-    period = end_time - start_time
-
-    episode = (start_time, end_time, mcat, len(events), alert_volume, period, services, unique_signatures, (first_ts, last_ts))
-    return episode
 
 
 # Step 2: Create alert sequence and get episodes
