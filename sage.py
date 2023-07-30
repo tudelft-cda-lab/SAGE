@@ -639,155 +639,117 @@ def host_episode_sequences(team_episodes):
     print('\n# episode sequences ', len(host_data))   
     return host_data
 
-def break_into_subbehaviors(host_data):        
-    attackers = []
-    keys = []
-    alerts = []
-    cutlen = 4
-    FULL_SEQ= False
+
+# Split episode sequences for an attacker-victim pair into episode subsequences.
+# Each episode subsequence represents an attack attempt.
+def break_into_subbehaviors(host_data):
+    attacks = []
+    subsequences = []
+    cut_length = 4
+    FULL_SEQ = False
         
-    #print(len(team))
     print('----- Sub-sequences -----')
-    for tid, (atta,victims) in enumerate(host_data.items()):
-        print((tid+1), sep=' ', end=' ', flush=True)
-        #print(atta)
-        #print(len(victims))
-        for episodes in victims:
+    for i, (attacker, victim_episodes) in enumerate(host_data.items()):
+        print((i + 1), sep=' ', end=' ', flush=True)
+        for episodes in victim_episodes:
             if len(episodes) < 2:
                 continue
+
             victim = episodes[0][-1]
-            pieces = math.floor(len(episodes)/cutlen)
-            _episodes = []
+            attack = attacker + '->' + victim
+            pieces = math.floor(len(episodes) / cut_length)
             if FULL_SEQ:
-                att = atta+'->'+victim
-                #print(att, [x[2] for x in episodes])
-                keys.append(att)
-                alerts.append(episodes)
+                attacks.append(attack)
+                subsequences.append(episodes)
+                continue
+            if pieces < 1:
+                attacks.append(attack + '-0')
+                subsequences.append(episodes)
+                continue
 
-            else:
-                if pieces < 1:
-                    att = atta+'->'+victim+'-0'
-                    #print('---', att, [x[2] for x in episodes])
-                    keys.append(att)
-                    alerts.append(episodes)
-                else:
-                    c = 0
-                    ep = [x[2] for x in episodes]
-                    #print(ep)
-                    cuts = [i for i in range(len(episodes)-1) if (len(str(ep[i])) > len(str(ep[i+1]))) ]#(ep[i] > 100 and ep[i+1] < 10)]
-                    #print(cuts)
-                    if len(cuts) == 0:
-                        att = atta+'->'+victim+'-0'
-                        #print('---', att, [x[2] for x in episodes])
-                        keys.append(att)
-                        alerts.append(episodes)
-                        #pass
-                    else:
-                        rest = (-1,-1)
-                       
-                        for i in range(len(cuts)):
-                            start, end = 0, 0
-                            if i == 0:
-                                start = 0
-                                end = cuts[i]  
-                            else:
-                                start = cuts[i-1]+1
-                                end = cuts[i]
-                            rest = (end+1, len(ep)-1)
-                            al = episodes[start:end+1]
-                            if len(al) < 2:
-                                #print('discarding symbol ', [x[2] for x in al])#, start, end, len(episodes))
-                                continue
-                            att = atta+'->'+victim+'-'+str(c)
-                            #print('---', att, [x[2] for x in al])
-                            keys.append(att)
-                            alerts.append(al)
-                            c+=1
-                        #print('--', ep[rest[0]: rest[1]+1])
-                        al = episodes[rest[0]: rest[1]+1]
-                        if len(al) < 2:
-                            #print('discarding symbol ', [x[2] for x in al]) # TODO This one is not cool1
-                            continue
-                        att = atta+'->'+victim+'-'+str(c)
-                        #print('---', att, [x[2] for x in al])
-                        keys.append(att)
-                        alerts.append(al)
-    print('\n# sub-sequences', len(keys))
-    return (alerts, keys)
+            # Cut episode sequence when a low-severity episode follows a high-severity episode
+            count = 0
+            mcats = [epi[2] for epi in episodes]
+            cuts = [i for i in range(len(episodes) - 1) if (len(str(mcats[i])) > len(str(mcats[i + 1])))]#(ep[i] > 100 and ep[i+1] < 10)]
+            if len(cuts) == 0:
+                attacks.append(attack + '-0')
+                subsequences.append(episodes)
+                continue
 
-## 27 Aug 2020: Generating traces for flexfringe 
-def generate_traces(alerts, keys, datafile, test_ratio=0.0):
-    victims = alerts
-    al_services = [[most_frequent(y[6]) for y in x] for x in victims]
-    print('----- All unique servcies -----')
-    print(set([item for sublist in al_services for item in sublist]))
+            rest = (-1, -1)
+            for i in range(len(cuts)):
+                start = 0 if i == 0 else cuts[i - 1] + 1
+                end = cuts[i]
+                rest = (end + 1, len(episodes) - 1)
+                subsequence = episodes[start:end+1]
+                if len(subsequence) < 2:
+                    continue
+                attacks.append(attack + '-' + str(count))
+                subsequences.append(subsequence)
+                count += 1
+            subsequence = episodes[rest[0]:rest[1]+1]
+            if len(subsequence) < 2:
+                #print('discarding symbol ', [x[2] for x in al]) # TODO This one is not cool1
+                continue
+            attacks.append(attack + '-' + str(count))
+            subsequences.append(subsequence)
+    print('\n# sub-sequences', len(attacks))
+    return subsequences, attacks
+
+
+## 27 Aug 2020: Generating traces for FlexFringe
+def generate_traces(subsequences, datafile):
+    all_services = [[most_frequent(epi[6]) for epi in subseq] for subseq in subsequences]
+    print('----- All unique services -----')
+    print(set([service for services_subseq in all_services for service in services_subseq]))
     print('---- end ----- ')
 
-    count_lines = 0
-    count_cats = set()
+    num_traces = 0
+    unique_mcat_mserv = set()  # FlexFringe treats the (mcat,mserv) pairs as symbols of the alphabet
 
-    f = open(datafile, 'w')
-    lengths = []
-    lines = []
-    for i,episodes in enumerate(victims):
-        #print(episodes)
-        num_behav = keys[i].split('-')[-1]
-        #print(keys[i], num_behav)
+    episode_traces = []
+    for i, episodes in enumerate(subsequences):
         if len(episodes) < 3:
             continue
-        #lengths+= len(episodes)
-        count_lines += 1
-        mcats = [str(x[2]) for x in episodes]
-        num_servs = [len(set((x[6]))) for x in episodes]
-        max_servs = [most_frequent(x[6]) for x in episodes]
+        num_traces += 1
+        mcats = [x[2] for x in episodes]
+        num_services = [len(set((x[6]))) for x in episodes]
+        max_services = [most_frequent(x[6]) for x in episodes]
         stime = [x[0] for x in episodes]
-        #print(stime)
-        #print(' '.join(mcats))
 
-        #multi = [str(c)+":"+str(n)+","+str(s) for (c,s,n) in zip(mcats,max_servs,num_servs)] # multivariate case
-        multi = [str(small_mapping[int(c)])+"|"+str(s) for (c,s,n,st) in zip(mcats,max_servs,num_servs, stime)] # merging mcat and serv into one
-        #print(multi)
-        for e in multi:
-            feat = e.split(':')[0]
-            count_cats.add(feat)
-        multi.reverse()
-        st = '1' + " "+ str(len(mcats)) + ' ' + ' '.join(multi) + '\n'
-        #f.write(st)
-        lines.append(st)
-    f.write(str(count_lines) + ' ' + str(len(count_cats)) + '\n')
-    for st in lines:
-        f.write(st)
+        #multi = [str(c) + ":" + str(n) + "," + str(s) for (c, s, n) in zip(mcats, max_services, num_services)] # multivariate case
+        mcat_mserv_pairs = [small_mapping[mcat] + "|" + mserv for mcat, mserv in zip(mcats, max_services)]
+        unique_mcat_mserv.update(mcat_mserv_pairs)
+        mcat_mserv_pairs.reverse()  # Reverse traces to accentuate high-severity episodes (to create an S-PDFA)
+        trace = '1' + " " + str(len(mcats)) + ' ' + ' '.join(mcat_mserv_pairs) + '\n'
+        episode_traces.append(trace)
+
+    f = open(datafile, 'w')
+    f.write(str(num_traces) + ' ' + str(len(unique_mcat_mserv)) + '\n')
+    for trace in episode_traces:
+        f.write(trace)
     f.close()
-    #print(lengths, lengths/float(count_lines))
-    
+
+
 ## 2 sept 2020: Learning the model
 def flexfringe(*args, **kwargs):
-  """Wrapper to call the flexfringe binary
+    """Wrapper to call the flexfringe binary
 
-   Keyword arguments:
-   position 0 -- input file with trace samples
-   kwargs -- list of key=value arguments to pass as command line arguments
-  """  
-  command = ["--help"]
+    Keyword arguments:
+    position 0 -- input file with trace samples
+    kwargs -- list of key=value arguments to pass as command line arguments
+    """
 
-  if(len(kwargs) >= 1):
     command = []
+    if len(kwargs) == 1:
+        command = ["--help"]
     for key in kwargs:
-      command += ["--" + key + "=" + kwargs[key]]
+        command += ["--" + key + "=" + kwargs[key]]
 
-  result = subprocess.run(["FlexFringe/flexfringe",] + command + [args[0]], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-  print(result.returncode, result.stdout, result.stderr)
+    result = subprocess.run(["FlexFringe/flexfringe"] + command + [args[0]], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    print(result.returncode, result.stdout, result.stderr)
 
-  
-  try:
-    with open("dfafinal.dot") as fh:
-      return fh.read()
-  except FileNotFoundError:
-    pass
-  
-  return "No output file was generated."
 
-   
 def loadmodel(modelfile):
 
   """Wrapper to load resulting model json file
@@ -1503,17 +1465,17 @@ plt = plot_histogram(team_alerts, team_labels)
 plt.savefig('data_histogram-'+expname+'.png')
 
 print('------ Converting to episodes ---------')
-team_episodes, _ = aggregate_into_episodes(team_alerts, step=w)  # step = w
+team_episodes, _ = aggregate_into_episodes(team_alerts, step=w)
 
 print('\n---- Converting to episode sequences -----------')
-host_data  =  host_episode_sequences(team_episodes)
-print('----- breaking into sub-sequences and making traces----------')
-(alerts, keys) = break_into_subbehaviors(host_data)
-generate_traces(alerts, keys, datafile)
+host_data = host_episode_sequences(team_episodes)
+
+print('----- Breaking into sub-sequences and generating traces ----------')
+(subsequences, attacks) = break_into_subbehaviors(host_data)
+generate_traces(subsequences, datafile)
 
 
-print('------ Learning SPDFA ---------')
-# Learn S-PDFA
+print('------ Learning S-PDFA ---------')
 flexfringe(path_to_traces, ini=path_to_ini, symbol_count="2", state_count="4")
 
 ## Copying files
@@ -1561,7 +1523,7 @@ print('------- Encoding into state sequences --------')
 # Encoding traces into state sequences  
 (traces, state_traces) = encode_sequences(m,m2)
 (med_states, sev_states, sev_sinks) = find_severe_states(traces, m, m2)    
-condensed_data = make_condensed_data(alerts, keys, state_traces, med_states, sev_states)
+condensed_data = make_condensed_data(subsequences, attacks, state_traces, med_states, sev_states)
 
 print('------- clustering state groups --------')
 state_groups = make_state_groups(condensed_data, modelname)
