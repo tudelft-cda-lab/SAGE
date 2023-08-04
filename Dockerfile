@@ -20,9 +20,9 @@ RUN chmod -R a+rw /root/input/
 ##########################################
 ######       INTALL DEPENDENCIES  ########
 ##########################################
-#RUN apt-get update && apt-get -y upgrade 
+RUN apt-get update && apt-get -y upgrade
 
-#RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install git build-essential python3-dev python3-pip graphviz 
+RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install git build-essential python3-dev python3-pip graphviz
 
 RUN cd root/ \
 	&& pip3 install -r requirements.txt
@@ -32,8 +32,8 @@ RUN cd /root \
 	&& cd FlexFringe && make clean all
 
 RUN cd /root \
-    && git clone https://github.com/tudelft-cda-lab/SAGE.git  \
-    && cd SAGE && cp sage.py ../ && cp spdfa-config.ini ../FlexFringe/ini/
+    && git clone https://github.com/tudelft-cda-lab/SAGE.git \
+    && cd SAGE && cp -R sage.py signatures/ ../ && cp spdfa-config.ini ../FlexFringe/ini/
 
 
 
