@@ -754,193 +754,103 @@ def flexfringe(*args, **kwargs):
     print(result.returncode, result.stdout, result.stderr)
 
 
-def loadmodel(modelfile):
+def load_model(model_file):
+    """Wrapper to load resulting model json file
 
-  """Wrapper to load resulting model json file
+    Keyword arguments:
+    model_file -- path to the json model file
+    """
 
-   Keyword arguments:
-   modelfile -- path to the json model file
-  """  
+    # Because users can provide unescaped new lines breaking json conventions
+    #   in the labels, we are removing them from the label fields
+    with open(model_file) as fh:
+        model_data = fh.read()
+        model_data = re.sub(r'\"label\" : \"([^\n|]*)\n([^\n]*)\"', r'"label" : "\1 \2"', model_data)
 
-  # because users can provide unescaped new lines breaking json conventions
-  # in the labels, we are removing them from the label fields
-  with open(modelfile) as fh:
-    data = fh.read()
-  data = re.sub( r'\"label\" : \"([^\n|]*)\n([^\n]*)\"', r'"label" : "\1 \2"', data )
-  
-  data = data.replace('\n', '').replace(',,', ',')#.replace(', ,', ',')#.replace('\t', ' ')
+    model_data = model_data.replace('\n', '').replace(',,', ',')
+    model_data = re.sub(',+', ',', model_data)
+    machine = json.loads(model_data)
+
+    dfa = defaultdict(lambda: defaultdict(str))
+    for edge in machine["edges"]:
+        dfa[edge["source"]][edge["name"]] = edge["target"]
+
+    # If you want to add some properties of the nodes, uncomment the following lines and add the properties you need
+    # for entry in machine["nodes"]:
+    #    dfa[str(entry['id'])]["isred"] = int(entry['isred'])
+
+    return dfa
 
 
-  data = re.sub(',+', ',', data)
-  machine = json.loads(data)
+def traverse(dfa, sinks, sequence):
+    """Wrapper to traverse a given model with a string to create a state subsequence.
+
+    Keyword arguments:
+    dfa -- loaded main model
+    sinks -- loaded sinks model
+    sequence -- space-separated string to accept/reject in dfa
+    """
+    sev_sinks = set()
+    state = "0"
+    state_list = ["0"]
+    for event in sequence.split(" "):
+        sym = event.split(":")[0]  # TODO: remove in case multi is removed in `generate_traces` method
+        sev = rev_smallmapping[sym.split('|')[0]]
+        state = dfa[state][sym]
+        if state == "":
+            # Only keep IDs of medium- and high-severity sinks
+            if len(str(sev)) >= 2:
+                if state_list[-1] in sinks and sym in sinks[state_list[-1]]:
+                    state = sinks[state_list[-1]][sym]
+                else:
+                    state = '-1'  # With `printblue = 1` in spdfa-config.ini this should not happen
+            else:
+                state = '-1'
+
+        state_list.append(state)
+        if state in sinks and len(str(sev)) >= 2:
+            sev_sinks.add(state)
+
+    return state_list, sev_sinks
 
 
-  dfa = defaultdict(lambda: defaultdict(str))
-
-  for edge in machine["edges"]:
-      dfa[ edge["source"] ][ edge["name"] ] = (edge["target"], edge["appearances"])
-
-  for entry in machine["nodes"]:
-      dfa[ str(entry['id']) ]["type"] = "0"
-      dfa[str(entry['id']) ]["isred"] = int(entry['isred'])
-
-  return (dfa, machine)
-
-def traverse(dfa, sinks, sequence, statelist=False):
-  """Wrapper to traverse a given model with a string
-
-   Keyword arguments:
-   dfa -- loaded model
-   sequence -- space-separated string to accept/reject in dfa
-  """  
-  #print(dfa)
-  #in_main_model = set()
-  sev_sinks = set()
-  state = "0"
-  stlst = ["0"]
-  #print('This seq', sequence.split(" "))
-  for event in sequence.split(" "):
-      sym = event.split(":")[0]
-      sev = rev_smallmapping[sym.split('|')[0]]
-      
-      #print('curr symbol ', sym, 'state no.', dfa[state][sym]) 
-      
-      state = dfa[state][sym]
-      isred = 0
-      
-      if state != "":
-         isred = dfa[state[0]]["isred"]
-      #print(state)
-      #if state != "":
-      #if isred == 1:
-      #      in_main_model.add(state[0])
-      if state == "":
-          # return -1 for low sev symbols
-          #print(sev)
-          if len(str(sev)) >= 2:
-                #print('high-sev sink found', sev)
-                #print(stlst[-1], sinks[stlst[-1]], stlst)
-                try:
-                    state = sinks[stlst[-1]][sym][0]
-                except:
-                    #print('didnt work for', sequence, 'done so far:', stlst)
-                    state = '-1'
-          else:
-              state = '-1'
-          #print("Must look in sinks")
-          #print('prev symb: ', sym, 'and prev state no.', stlst[-1])
-          #print('BUT this last state no in sink gives ', sinks[stlst[-1]][sym])
-          #print('curr sym', sym)
-          #print('previous state no.:', stlst[-1], 'results in sink id:', sinks[stlst[-1]][sym] )
-          #if sinks[stlst[-1]][sym] == "":
-                
-                #print('prob')
-                #print(sequence)
-                #state = '-1'
-          #else:
-          #      state = sinks[stlst[-1]][sym][0]
-          #
-          #if not statelist:
-          #        return dfa[state]["type"] == "1"
-          #else:
-          #        return (dfa[state]["type"] == "1", stlst)
-
-      else:
-          try:
-              #print('weird place')
-              # take target id, discard counts
-              state = state[0]
-          except IndexError:
-              print("Out of alphabet: alternatives")
-          
-              stlst.append("-1")
-              if not statelist:
-                     return dfa[state]["type"] == "1"
-              else:
-                     return (dfa[state]["type"] == "1", stlst)
-      stlst.append(state)
-      if state in sinks and len(str(sev)) >= 2:
-          sev_sinks.add(state)
-  if not statelist:
-      return dfa[state]["type"] == "1"
-  else:
-      return (dfa[state]["type"] == "1", stlst, sev_sinks)
-
-def encode_sequences(m, m2):
-    #print(m2)
+def encode_sequences(dfa, sinks):
     traces = []
-    sp = []
-    orig = []
     with open(path_to_traces) as tf:
         lines = tf.readlines()[1:]
-    #print(len(lines))
 
-    for line in lines:
-        if line == lines[-1]:
-             spl = line.split(' ')
-        else:
-            spl = line[:-1].split(' ')
-        
-        line = ' '.join(spl[2:])
-        #print(spl[2:])
-        orig.append([(x) for x in spl[2:] if x != ''])
-        traces.append(line)
-    num_sink = 0   
-    total = 0
+    for line in lines:  # TODO: reuse the traces created in generate_traces method
+        parts = line.strip('\n').split(' ')
+        trace = ' '.join(parts[2:])
+        traces.append(trace)
+
+    traces_in_sinks, total_traces = 0, 0
     state_traces = dict()
-    for i,sample in enumerate(traces):
-        #print(sample)
-        r, s, _ = traverse(m, m2, sample, statelist=True)
-        s = [(x) for x in s]
-        sp.append(s)
-        state_traces[i] = s
+    med_sev_states, high_sev_states, sev_sinks = set(), set(), set()
+    for i, sample in enumerate(traces):
+        state_list, _sev_sinks = traverse(dfa, sinks, sample)
+        state_traces[i] = state_list
 
-        total += len(s)
-        true = [1 if x == '-1' else 0 for x in s]
-        
-        num_sink += sum(true)
-        
-        #print('encoded', sample, state_traces[i])
-        assert (len(sample.split(' '))+1 == len(state_traces[i]))
+        total_traces += len(state_list)  # TODO: decide what to do with the root
+        traces_in_sinks += state_list.count('-1')  # Add low-severity sinks (i.e. stateID = -1)
+        traces_in_sinks += len(_sev_sinks)         # Add medium- and high-severity sinks (i.e. stateID != -1)
 
-    #print(len(traces), len(state_traces))
-    print('Traces in sinks: ', num_sink, 'Total traces: ', total, 'Percentage: ',100*(num_sink/float(total)))
-    return (traces, state_traces)    
+        assert (len(sample.split(' ')) + 1 == len(state_traces[i]))
 
-def find_severe_states(traces, m, m2):
-    med_states = set()
-    sev_states = set()
-    sev_sinks = set()
-    for i,sample in enumerate(traces):    
-        r, s, sevsinks = traverse(m, m2, sample, statelist=True)
-        sev_sinks.update(sevsinks)
-        s = s[1:]
+        state_list = state_list[1:]
         sample = sample.split(' ')
-        #print([(x,rev_smallmapping[x[0].split('|')[0]]) for x in zip(sample, s)])
-        med = [int(state) for sym, state in zip(sample, s) if len(str(rev_smallmapping[sym.split('|')[0]])) == 2 ]
-        med_states.update(med)
-        #print(s)
-        sev = [int(state) for sym, state in zip(sample, s) if len(str(rev_smallmapping[sym.split('|')[0]])) == 3 ]
-        #print([(sym) for sym, state in zip(sample, s) if len(str(rev_smallmapping[sym.split('|')[0]])) == 3 ])
-        sev_states.update(sev)
-        #if not set(sev_states).isdisjoint(s):
-        #    print(sample)
-        #    print('--', s)
-    #print(med_states)
-    #print(sev_states)
-    #print('med-sev traces')
-    #for i,sample in enumerate(traces):
-    med_states = med_states.difference(sev_states)  
-        
-    #    r, s = traverse(m, m2, sample, statelist=True)
-    #    s = [int(x) for x in s]
-    #    #print(s)
-    #    if not set(med_states).isdisjoint(s):
-    #        print(sample)
-    #        print('--', s)
-    print('Total medium states', len(med_states))  
-    print('Total severe states', len(sev_states))
-    return(med_states, sev_states, sev_sinks)
+        med_sev = [int(state) for sym, state in zip(sample, state_list) if len(str(rev_smallmapping[sym.split('|')[0]])) == 2]  # TODO: add a method for low-, med- and high-sev
+        med_sev_states.update(med_sev)
+        high_sev = [int(state) for sym, state in zip(sample, state_list) if len(str(rev_smallmapping[sym.split('|')[0]])) == 3]
+        high_sev_states.update(high_sev)
+        sev_sinks.update(_sev_sinks)
+
+    print('Traces in sinks:', traces_in_sinks, 'Total traces:', total_traces, 'Percentage:', 100 * (traces_in_sinks / float(total_traces)))
+    print('Total medium-severity states:', len(med_sev_states))
+    print('Total high-severity states:', len(high_sev_states))
+    print('Total severe sinks:', len(sev_sinks))
+    return state_traces, med_sev_states, high_sev_states, sev_sinks
+
 
 ## collecting sub-behaviors back into the same trace -- condensed_data is the new object to deal with
 def make_condensed_data(subsequences, state_traces, med_states, sev_states):
@@ -1481,43 +1391,41 @@ print('--- Sinks')
 with open(path_to_traces + ".ff.finalsinks.json", 'r') as file:
     filedata = file.read()
 stripped = re.sub('[\s+]', '', filedata)
-extracommas = re.search('(}(,+)\]}$)', stripped)
-if extracommas is not None:
-    c = (extracommas.group(0)).count(',')
-    print(extracommas.group(0), c)
-    filedata = ''.join(filedata.rsplit(',', c))
+extra_commas = re.search('(}(,+)\]}$)', stripped)
+if extra_commas is not None:
+    comma_count = (extra_commas.group(0)).count(',')
+    print(extra_commas.group(0), comma_count)
+    filedata = ''.join(filedata.rsplit(',', comma_count))
     with open(path_to_traces + ".ff.finalsinks.json", 'w') as file:
         file.write(filedata)
-  
-print('--- Main')  
+
+print('--- Main')
 with open(path_to_traces + ".ff.final.json", 'r') as file:
     filedata = file.read()
 stripped = re.sub('[\s+]', '', filedata)
-extracommas = re.search('(}(,+)\]}$)', stripped)
-if extracommas is not None:
-    c = (extracommas.group(0)).count(',')
-    print(extracommas.group(0), c)
-    filedata = ''.join(filedata.rsplit(',', c))
+extra_commas = re.search('(}(,+)\]}$)', stripped)
+if extra_commas is not None:
+    comma_count = (extra_commas.group(0)).count(',')
+    print(extra_commas.group(0), comma_count)
+    filedata = ''.join(filedata.rsplit(',', comma_count))
     with open(path_to_traces + ".ff.final.json", 'w') as file:
         file.write(filedata)
 
 print('------ Loading and traversing SPDFA ---------')
-# Load S-PDFA
-m, data = loadmodel(path_to_traces + ".ff.final.json")
-m2,data2 = loadmodel(path_to_traces+".ff.finalsinks.json")
+main_model = load_model(path_to_traces + ".ff.final.json")
+sinks_model = load_model(path_to_traces + ".ff.finalsinks.json")
 
 print('------- Encoding into state sequences --------')
-# Encoding traces into state sequences  
-(traces, state_traces) = encode_sequences(m,m2)
-(med_states, sev_states, sev_sinks) = find_severe_states(traces, m, m2)    
-condensed_data = make_condensed_data(episode_subsequences, state_traces, med_states, sev_states)
+# Encoding traces into state sequences
+state_sequences, med_sev_states, high_sev_states, severe_sinks = encode_sequences(main_model, sinks_model)
+condensed_data = make_condensed_data(episode_subsequences, state_sequences, med_sev_states, high_sev_states)
 
 print('------- clustering state groups --------')
 state_groups = make_state_groups(condensed_data, path_to_traces)
 (condensed_a_data, condensed_v_data) = make_av_data(condensed_data)
 
 print('------- Making alert-driven AGs--------')
-make_AG(condensed_v_data, condensed_data, state_groups, sev_sinks, path_to_traces, experiment_name)
+make_AG(condensed_v_data, condensed_data, state_groups, severe_sinks, path_to_traces, experiment_name)
 
 if DOCKER:
     print('Deleting extra files')
