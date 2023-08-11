@@ -852,69 +852,57 @@ def encode_sequences(dfa, sinks):
     return state_traces, med_sev_states, high_sev_states, sev_sinks
 
 
-## collecting sub-behaviors back into the same trace -- condensed_data is the new object to deal with
-def make_condensed_data(subsequences, state_traces, med_states, sev_states):
-    levelone = set()
-    levelone_ben = set()
-    condensed_data = dict()
+# Collecting sub-behaviors back into the same trace -- state_sequences is the new object to deal with
+def make_state_sequences(episode_subsequences, state_traces, med_states, sev_states):
+    level_one = set()  # TODO: what to do with these states?
+    state_sequences = dict()
     counter = -1
-    for tid, (attacker, episodes) in enumerate(subsequences.items()):
+    for tid, (attack, episode_subsequence) in enumerate(episode_subsequences.items()):
 
-        if len(episodes) < 3:
+        if len(episode_subsequence) < 3:
             continue
-        #print(' ------------- COUNTER ', counter, '------')
         counter += 1
         
-        if '10.0.254' not in attacker:
+        if '10.0.254' not in attack:  # TODO: this part has to be commented for CCDC dataset
             continue
-        if ('147.75' in attacker or '69.172'  in attacker):
-                continue
-        tr = [int(x) for x in state_traces[counter]]
-        #print(counter)
-        num_servs = [len(set((x[6]))) for x in episodes]
-        max_servs = [_most_frequent(x[6]) for x in episodes]
-        #print(max_servs)
+        if '147.75' in attack or '69.172' in attack:
+            continue
+
+        trace = [int(state) for state in state_traces[counter]]
+        max_services = [_most_frequent(epi[6]) for epi in episode_subsequence]  # TODO: compute mserv once (above)
+
+        if 0 in trace and (not set(trace).isdisjoint(sev_states) or not set(trace).isdisjoint(med_states)):
+            level_one.add(trace[1])
+
+        trace = trace[1:][::-1]  # Reverse the trace from the S-PDFA back
         
-        if 0 in tr and (not set(tr).isdisjoint(sev_states) or not set(tr).isdisjoint(med_states)):
-            levelone.add(tr[tr.index(0)+1])
-       
-        #print([x[2] for x in episodes]) 
-        #print(state_traces[counter])
-        new_state = (state_traces[counter][1:])[::-1]
+        # start_time, end_time, mcat, state_ID, mserv, list of unique signatures, (1st and last timestamp)
+        state_subsequence = [(epi[0], epi[1], epi[2], trace[i], max_services[i], epi[7], epi[8])
+                                for i, epi in enumerate(episode_subsequence)]
         
-        #print(new_state, [x[2] for x in episodes])
-        # also artifically add tiny delay so all events are not exactly at the same time.
-        #print(len(episodes), new_state, max_servs)
-        times = [(x[0], x[1], x[2], int(new_state[i]), max_servs[i], x[7], x[8]) for i,x in enumerate(episodes)] # start time, endtime, episode mas, state ID, most frequent service, list of unique signatures, (1st and last timestamp)
+        parts = attack.split('->')
+        team, attacker = parts[0].split('-')
+        victim, attack_num = parts[1].split('-')
+        attacker_victim = team + '-' + attacker + '->' + victim
+        attacker_victim_inv = team + '-' + victim + '->' + attacker
+        inv = False
+        if '10.0.254' in victim:
+            inv = True
         
-        step1 = attacker.split('->')
-        step1_0 = step1[0].split('-')[0]
-        step1_1 = step1[0].split('-')[1]
-        step2 = step1[-1].split('-')[0]
-        real_attacker = '->'.join([step1_0+'-'+step1_1, step2])
-        real_attacker_inv = '->'.join([step1_0+'-'+step2, step1_1])
-        #print(real_attacker)
-        INV = False
-        if '10.0.254' in step2:
-            INV = True
-        
-        if real_attacker not in condensed_data.keys() and real_attacker_inv not in condensed_data.keys():
-            if INV:
-                condensed_data[real_attacker_inv] = []
+        if attacker_victim not in state_sequences.keys() and attacker_victim_inv not in state_sequences.keys():
+            if inv:
+                state_sequences[attacker_victim_inv] = []
             else:
-                condensed_data[real_attacker] = []
-        if INV:
-            condensed_data[real_attacker_inv].extend(times)
-            condensed_data[real_attacker_inv].sort(key=lambda tup: tup[0])  # sorts in place based on starting times
+                state_sequences[attacker_victim] = []
+        if inv:
+            state_sequences[attacker_victim_inv].extend(state_subsequence)
+            state_sequences[attacker_victim_inv].sort(key=lambda epi: epi[0])  # Sort in place based on starting times
         else:
-            condensed_data[real_attacker].extend(times)
-            condensed_data[real_attacker].sort(key=lambda tup: tup[0])  # sorts in place based on starting times
+            state_sequences[attacker_victim].extend(state_subsequence)
+            state_sequences[attacker_victim].sort(key=lambda epi: epi[0])  # Sort in place based on starting times
         
-    #print(len(condensed_data), counter)
-    #print([c for c in condensed_data.values()][:5])
-      
-    #print('High-severity objective states', levelone, len(levelone))
-    return condensed_data
+    # print('High-severity objective states', level_one, len(level_one))
+    return state_sequences
     
 
 def make_state_groups(condensed_data, datafile):
@@ -1417,15 +1405,15 @@ sinks_model = load_model(path_to_traces + ".ff.finalsinks.json")
 
 print('------- Encoding into state sequences --------')
 # Encoding traces into state sequences
-state_sequences, med_sev_states, high_sev_states, severe_sinks = encode_sequences(main_model, sinks_model)
-condensed_data = make_condensed_data(episode_subsequences, state_sequences, med_sev_states, high_sev_states)
+state_traces, med_sev_states, high_sev_states, severe_sinks = encode_sequences(main_model, sinks_model)
+state_sequences = make_state_sequences(episode_subsequences, state_traces, med_sev_states, high_sev_states)
 
-print('------- clustering state groups --------')
-state_groups = make_state_groups(condensed_data, path_to_traces)
-(condensed_a_data, condensed_v_data) = make_av_data(condensed_data)
+print('------- Clustering state groups --------')
+state_groups = make_state_groups(state_sequences, path_to_traces)
+(condensed_a_data, condensed_v_data) = make_av_data(state_sequences)
 
 print('------- Making alert-driven AGs--------')
-make_AG(condensed_v_data, condensed_data, state_groups, severe_sinks, path_to_traces, experiment_name)
+make_AG(condensed_v_data, state_sequences, state_groups, severe_sinks, path_to_traces, experiment_name)
 
 if DOCKER:
     print('Deleting extra files')
