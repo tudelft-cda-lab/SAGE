@@ -905,168 +905,125 @@ def make_state_sequences(episode_subsequences, state_traces, med_states, sev_sta
     return state_sequences
     
 
-def make_state_groups(condensed_data, datafile):
-    state_groups = {
-    }
+def make_state_groups(state_sequences, data_file):
+    state_groups = dict()
     all_states = set()
     gcols = ['lemonchiffon', 'gold', 'khaki', 'darkkhaki', 'beige', 'goldenrod', 'wheat', 'papayawhip', 'orange', 'oldlace', 'bisque']
-    for att,episodes in condensed_data.items():
-        #print([(x[2],x[3]) for x in episodes])
+    for _, episodes in state_sequences.items():
+        states = [(epi[2], epi[3]) for epi in episodes]
+        all_states.update([epi[3] for epi in episodes])
 
-        state = [(x[2],x[3]) for x in episodes]
-        all_states.update([x[3] for x in episodes])
-        ## Sanity check
-        '''for s in serv:
-            FOUND= False
-            for group,ser in ser_groups.items():
-                if s in ser:
-                    #print(s, '--', group)
-                    FOUND= True
-                    break
-            if not FOUND:
-                print('--- not found', s)'''
-        
-        for i,st in enumerate(state):
-            #print(state[i])
-            macro = micro2macro[micro[st[0]]].split('.')[1]
-            
-            if st[1] == -1 or st[1] == 0: #state[i] == -1 or state[i] == 0:
+        for i, state in enumerate(states):
+            macro = micro2macro[micro[state[0]]].split('.')[1]
+            if state[1] == -1 or state[1] == 0:  # Skip the root node and nodes with ID -1
                 continue
             if macro not in state_groups.keys():
                 state_groups[macro] = set()
-        
-            state_groups[macro].add(st[1])
-            
-    #state_groups['ACTIVE_RECON'] = state_groups['ACTIVE_RECON'].difference(state_groups['PRIVLEDGE_ESC'])  
-    #state_groups['PASSIVE_RECON'] = state_groups['PASSIVE_RECON'].difference(state_groups['PRIVLEDGE_ESC'])  
-          
-    #print([(x) for x in state_groups.values()])      
-    #print((all_states))
-    model = open(datafile+".ff.final.dot", 'r')
-    lines = model.readlines()
-    model.close()
+            state_groups[macro].add(state[1])
+
+    with open(data_file + ".ff.final.dot", 'r') as model_file:
+        model_lines = model_file.readlines()
     written = []
-    outlines = []
-    outlines.append('digraph modifiedDFA {\n')
+    outlines = ['digraph modifiedDFA {\n']
     for gid, (group, states) in enumerate(state_groups.items()):
         print(group)
-        outlines.append('subgraph cluster_'+group+' {\n')
+        outlines.append('subgraph cluster_' + group + ' {\n')
         outlines.append('style=filled;\n')
-        outlines.append('color='+gcols[gid]+';\n')
+        outlines.append('color=' + gcols[gid] + ';\n')
         outlines.append('label = "' + group + '";\n')
-        for i,line in enumerate(lines):
-                pattern = '\D+(\d+)\s\[\slabel="\d.*'
-                SEARCH = re.match(pattern, line)
-                if SEARCH:
-                    
-                    matched = int(SEARCH.group(1))
-                    #print(matched)
-                    if matched in states:
+        for i, line in enumerate(model_lines):
+            node_line = re.match(r'\D+(\d+)\s\[\slabel="\d.*', line)
+            if node_line:
+                node = int(node_line.group(1))
+                if node in states:
+                    c = i
+                    while '];' not in model_lines[c]:
+                        outlines.append(model_lines[c])
+                        written.append(c)
+                        c += 1
+                    outlines.append(model_lines[c])
+                    written.append(c)
+                elif node not in all_states and group == 'ACTIVE_RECON':
+                    if node != 0:
                         c = i
-                        while '];' not in lines[c]:
-                            #print(lines[c])
-                            outlines.append(lines[c])
+                        while '];' not in model_lines[c]:
+                            outlines.append(model_lines[c])
                             written.append(c)
                             c += 1
-                        #print(lines[c])
-                        outlines.append(lines[c])
+                        outlines.append(model_lines[c])
                         written.append(c)
-                    elif matched not in all_states and group == 'ACTIVE_RECON':
-                        if matched != 0:
-                            c = i
-                            while '];' not in lines[c]:
-                                #print(lines[c])
-                                outlines.append(lines[c])
-                                written.append(c)
-                                c += 1
-                            #print(lines[c])
-                            outlines.append(lines[c])
-                            written.append(c)
-                            state_groups['ACTIVE_RECON'].add(matched)
-                        print('ERROR: manually handled', matched, ' in ACTIVE_RECON')
-                # 0 -> 1 [label=
-                '''pattern2 = '\D+(\d+)\s->\s(\d+)\s\[label=.*'
-                SEARCH = re.match(pattern2, line)
-                if SEARCH:
-                    matched = int(SEARCH.group(1))
-                    print(line)
-                    if matched in states:
-                        c = i
-                        while '];' not in lines[c]:
-                            #print(lines[c])
-                            outlines.append(lines[c])
-                            written.append(c)
-                            c += 1
-                        #print(lines[c])
-                        outlines.append(lines[c])
+                        state_groups['ACTIVE_RECON'].add(node)
+                    print('ERROR: manually handled', node, ' in ACTIVE_RECON')  # TODO: include edges or not?
+            '''edge_line = re.match(r'\D+(\d+)\s->\s(\d+)\s\[label=.*', line)  # 0 -> 1 [label=
+            if edge_line:
+                node = int(edge_line.group(1))
+                if node in states:
+                    c = i
+                    while '];' not in model_lines[c]:
+                        outlines.append(model_lines[c])
                         written.append(c)
-                '''
+                        c += 1
+                    outlines.append(model_lines[c])
+                    written.append(c)'''
         outlines.append('}\n')
-        #break
-        
-        
-    for i,line in enumerate(lines):
+
+    for i, line in enumerate(model_lines):
         if i < 2:
             continue
         if i not in written:
             outlines.append(line)
-    #outlines.append('}\n')
 
-    outfile = open('spdfa-clustered-'+datafile+'-dfa.dot', 'w')
-    for line in outlines:
-        outfile.write(line)
-    outfile.close()
+    filename = 'spdfa-clustered-' + data_file + '-dfa'
+    with open(filename + '.dot', 'w') as outfile:
+        for line in outlines:
+            outfile.write(line)
 
-    outfile = 'spdfa-clustered-'+datafile
-    os.system("dot -Tpng "+outfile+"-dfa.dot -o "+outfile+"-dfa.png")
+    os.system("dot -Tpng " + filename + ".dot -o " + filename + ".png")
     return state_groups
 
-def make_av_data(condensed_data):
-## Experiment: attack graph for one victim w.r.t time
-    condensed_v_data= dict()
-    for attacker,episodes in condensed_data.items():
-        team = attacker.split('-')[0]
-        victim_ = attacker.split('->')[1]
-        tv = team+'-'+victim_
-        #print(tv)
-        if tv not in condensed_v_data.keys():
-            condensed_v_data[tv] = []
-        condensed_v_data[tv].extend(episodes)
-        condensed_v_data[tv] = sorted(condensed_v_data[tv], key=lambda item: item[0])
-    condensed_v_data = {k: v for k, v in sorted(condensed_v_data.items(), key=lambda item: len([x[0] for x in item[1]]))}
-    #print([(k,len([x[0] for x in v])) for k,v in condensed_v_data.items()])
-    print('Victims hosts: ', (set([x.split('-')[-1] for x in condensed_v_data.keys()])))
 
-    condensed_a_data= dict()
-    for attacker,episodes in condensed_data.items():
-        team = attacker.split('-')[0]
-        attacker_ = (attacker.split('->')[0]).split('-')[1]
-        tv = team+'-'+attacker_
-        #print(tv)
-        if tv not in condensed_a_data.keys():
-            condensed_a_data[tv] = []
-            
-        condensed_a_data[tv].extend(episodes)
-        condensed_a_data[tv] = sorted(condensed_a_data[tv], key=lambda item: item[0])
-        #print(len(condensed_a_data[tv]))
-    #condensed_a_data = {k: v for k, v in sorted(condensed_a_data.items(), key=lambda item: item[1][0][0])}
-    #print([(k,[x[0] for x in v]) for k,v in condensed_a_data.items()])
-    print('Attacker hosts: ', (set([x.split('-')[1] for x in condensed_a_data.keys()])))
-    return (condensed_a_data, condensed_v_data)
+def group_episodes_per_av(state_sequences):
+    # Experiment: attack graph for one victim w.r.t time
+    victim_episodes = dict()  # Episodes per (team, victim)
+    for attack, episodes in state_sequences.items():
+        team = attack.split('-')[0]
+        victim = attack.split('->')[1]
+        team_victim = team + '-' + victim
+        if team_victim not in victim_episodes.keys():
+            victim_episodes[team_victim] = []
+        victim_episodes[team_victim].extend(episodes)
+        victim_episodes[team_victim] = sorted(victim_episodes[team_victim], key=lambda epi: epi[0])  # By start time
+    # Sort by start time across all
+    victim_episodes = {k: v for k, v in sorted(victim_episodes.items(), key=lambda kv: len([epi[0] for epi in kv[1]]))}
+    print('Victims hosts: ', set([team_victim.split('-')[-1] for team_victim in victim_episodes.keys()]))
 
-## translate technical nodes to human readable
+    attacker_episodes = dict()  # Episodes per (team, attacker)
+    for attack, episodes in state_sequences.items():
+        team = attack.split('-')[0]
+        attacker = (attack.split('->')[0]).split('-')[1]
+        team_attacker = team + '-' + attacker
+        if team_attacker not in attacker_episodes.keys():
+            attacker_episodes[team_attacker] = []
+        attacker_episodes[team_attacker].extend(episodes)
+        attacker_episodes[team_attacker] = sorted(attacker_episodes[team_attacker], key=lambda epi: epi[0])
+    print('Attacker hosts: ', set([team_attacker.split('-')[1] for team_attacker in attacker_episodes.keys()]))
+
+    return attacker_episodes, victim_episodes
+
+
+# Translate technical nodes to human-readable
 def translate(label, root=False):
     new_label = ""
     parts = label.split("|")
     if root:
-        new_label += 'Victim: '+str(root)+'\n'
+        new_label += 'Victim: ' + str(root) + '\n'
 
     if len(parts) >= 1:
         new_label += verbose_micro[parts[0]]
     if len(parts) >= 2:
-        new_label += "\n"+parts[1]
+        new_label += "\n" + parts[1]
     if len(parts) >= 3:
-        new_label += " | ID: "+parts[2]
+        new_label += " | ID: " + parts[2]
 
     return new_label
     
@@ -1339,7 +1296,7 @@ if len(sys.argv) > 5:
         start_hour = float(sys.argv[5])
         end_hour = float(sys.argv[6])
         print('Filtering alerts. Only parsing from %d-th to %d-th hour (relative to the start of the alert capture)' % (start_hour, end_hour))
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError):
         print('Error parsing hour filter range')
         sys.exit()
 
@@ -1369,17 +1326,17 @@ episode_subsequences = break_into_subbehaviors(host_data)
 generate_traces(episode_subsequences, path_to_traces)
 
 
-print('------ Learning S-PDFA ---------')
+print('------ Learning S-PDFA ------')
 flexfringe(path_to_traces, ini=path_to_ini, symbol_count="2", state_count="4")
 
 os.system("dot -Tpng " + path_to_traces + ".ff.final.dot -o " + path_to_traces + ".png")
 
-print('------ !! Special: Fixing syntax error in main model and sink files  ---------')
+print('------ !! Special: Fixing syntax error in main model and sink files ------')
 print('--- Sinks')
 with open(path_to_traces + ".ff.finalsinks.json", 'r') as file:
     filedata = file.read()
-stripped = re.sub('[\s+]', '', filedata)
-extra_commas = re.search('(}(,+)\]}$)', stripped)
+stripped = re.sub(r'[\s+]', '', filedata)
+extra_commas = re.search(r'(}(,+)]}$)', stripped)
 if extra_commas is not None:
     comma_count = (extra_commas.group(0)).count(',')
     print(extra_commas.group(0), comma_count)
@@ -1390,8 +1347,8 @@ if extra_commas is not None:
 print('--- Main')
 with open(path_to_traces + ".ff.final.json", 'r') as file:
     filedata = file.read()
-stripped = re.sub('[\s+]', '', filedata)
-extra_commas = re.search('(}(,+)\]}$)', stripped)
+stripped = re.sub(r'[\s+]', '', filedata)
+extra_commas = re.search(r'(}(,+)]}$)', stripped)
 if extra_commas is not None:
     comma_count = (extra_commas.group(0)).count(',')
     print(extra_commas.group(0), comma_count)
@@ -1399,21 +1356,23 @@ if extra_commas is not None:
     with open(path_to_traces + ".ff.final.json", 'w') as file:
         file.write(filedata)
 
-print('------ Loading and traversing SPDFA ---------')
+print('------ Loading and traversing S-PDFA ------')
 main_model = load_model(path_to_traces + ".ff.final.json")
 sinks_model = load_model(path_to_traces + ".ff.finalsinks.json")
 
-print('------- Encoding into state sequences --------')
+print('------ Encoding into state sequences ------')
 # Encoding traces into state sequences
 state_traces, med_sev_states, high_sev_states, severe_sinks = encode_sequences(main_model, sinks_model)
 state_sequences = make_state_sequences(episode_subsequences, state_traces, med_sev_states, high_sev_states)
 
-print('------- Clustering state groups --------')
+print('------ Clustering state groups ------')
 state_groups = make_state_groups(state_sequences, path_to_traces)
-(condensed_a_data, condensed_v_data) = make_av_data(state_sequences)
 
-print('------- Making alert-driven AGs--------')
-make_AG(condensed_v_data, state_sequences, state_groups, severe_sinks, path_to_traces, experiment_name)
+print('------ Grouping episodes per (team, victim) ------')
+episodes_per_attacker, episodes_per_victim = group_episodes_per_av(state_sequences)
+
+print('------ Making alert-driven AGs ------')
+make_AG(episodes_per_victim, state_sequences, state_groups, severe_sinks, path_to_traces, experiment_name)
 
 if DOCKER:
     print('Deleting extra files')
