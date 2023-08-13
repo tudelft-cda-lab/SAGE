@@ -776,9 +776,11 @@ def load_model(model_file):
     for edge in machine["edges"]:
         dfa[edge["source"]][edge["name"]] = edge["target"]
 
-    # If you want to add some properties of the nodes, uncomment the following lines and add the properties you need
-    # for entry in machine["nodes"]:
-    #    dfa[str(entry['id'])]["isred"] = int(entry['isred'])
+    # Even though the properties might not be needed, the node has to be present in the dictionary (for sinks)
+    for entry in machine["nodes"]:
+        dfa[str(entry['id'])]["isred"] = entry['isred']
+        dfa[str(entry['id'])]["isblue"] = entry['isblue']
+        dfa[str(entry['id'])]["issink"] = entry['issink']
 
     return dfa
 
@@ -801,9 +803,14 @@ def traverse(dfa, sinks, sequence):
         if state == "":
             # Only keep IDs of medium- and high-severity sinks
             if len(str(sev)) >= 2:
-                if state_list[-1] in sinks and sym in sinks[state_list[-1]]:
+                # TODO: a better way is `if state_list[-1] in sinks and sym in sinks[state_list[-1]]:`
+                # However, in this case `-1` will not be created in `sinks` when accessing a non-existent key
+                # This is an issue when state_list[-1] == '-1' (e.g. in CCDC-2018)
+                # Alternatively, change defaultdict to dict
+                try:
                     state = sinks[state_list[-1]][sym]
-                else:
+                    state = '-1' if state == '' else state
+                except IndexError:
                     state = '-1'  # With `printblue = 1` in spdfa-config.ini this should not happen
             else:
                 state = '-1'
@@ -1170,7 +1177,7 @@ def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, di
             ag_name = objective.replace('|', '').replace('_', '').replace('-', '').replace('(', '').replace(')', '')
             lines = ['digraph ' + ag_name + ' {',
                      'rankdir="BT"; \n graph [ nodesep="0.1", ranksep="0.02"] \n node [ fontname=Arial, ' +
-                     'fontsize=24, penwidth=3]; \n edge [ fontname=Arial, fontsize=20, penwidth=5 ];']
+                     'fontsize=24, penwidth=3]; \n edge [ fontname=Arial, fontsize=20,penwidth=5 ];']
             root_node = _translate(objective, root=victim)
             lines.append('"' + root_node + '" [shape=doubleoctagon, style=filled, fillcolor=salmon];')
             lines.append('{ rank = max; "' + root_node + '"}')
