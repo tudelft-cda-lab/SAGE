@@ -16,8 +16,8 @@ import requests
 
 # Import attack stages, mappings and alert signatures
 sys.path.insert(0, './signatures')
-from signatures.attack_stages import MicroAttackStage, MacroAttackStage
-from signatures.mappings import micro, micro_inv, macro, macro_inv, micro2macro, mcols, small_mapping, rev_smallmapping, verbose_micro, ser_groups
+from signatures.attack_stages import MicroAttackStage
+from signatures.mappings import micro, micro_inv, macro_inv, micro2macro, mcols, small_mapping, rev_smallmapping, verbose_micro
 from signatures.alert_signatures import usual_mapping, unknown_mapping, ccdc_combined, attack_stage_mapping
 
 
@@ -25,7 +25,7 @@ IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/ser
 IANA_NUM_RETRIES = 5
 DB_PATH = "./ports.json"
 SAVE = True
-DOCKER = True
+DOCKER = False
 
 
 def _get_attack_stage_mapping(signature):
@@ -101,8 +101,7 @@ def _readfile(fname):
 
 
 # Step 1.1: Parse the input alerts
-def _parse(unparsed_data, alert_labels=[], slim=False):
-    FILTER = False
+def _parse(unparsed_data, filter_alerts=False):
     badIP = '169.254.169.254'
     __cats = set()
     __ips = set()
@@ -136,7 +135,7 @@ def _parse(unparsed_data, alert_labels=[], slim=False):
         cat = raw['alert']['category']
 
         # Filter out the alert that occurs way too often
-        if cat == 'Attempted Information Leak' and FILTER:
+        if cat == 'Attempted Information Leak' and filter_alerts:
             continue
 
         src_ip = raw['src_ip']
@@ -145,14 +144,11 @@ def _parse(unparsed_data, alert_labels=[], slim=False):
         dst_port = None if 'dest_port' not in raw.keys() else raw['dest_port']
 
         # Filter out mistaken alerts / uninteresting alerts
-        if src_ip == badIP or dst_ip == badIP or cat == 'Not Suspicious Traffic':
+        if src_ip == badIP or dst_ip == badIP or cat == 'Not Suspicious Traffic':  # TODO: add `filter_alerts` here?
             continue
 
-        if not slim:
-            mcat = _get_attack_stage_mapping(sig)
-            parsed_data.append((diff_dt, src_ip, src_port, dst_ip, dst_port, sig, cat, host, dt, mcat))
-        else:
-            parsed_data.append((diff_dt, src_ip, src_port, dst_ip, dst_port, sig, cat, host, dt))
+        mcat = _get_attack_stage_mapping(sig)
+        parsed_data.append((diff_dt, src_ip, src_port, dst_ip, dst_port, sig, cat, host, dt, mcat))
 
         __cats.add(cat)
         __ips.add(src_ip)
@@ -173,26 +169,7 @@ def _parse(unparsed_data, alert_labels=[], slim=False):
             hosts[h] = 0 if len(hosts.values())==0 else max(hosts.values())+1'''
 
     print('Reading # alerts: ', len(parsed_data))
-
-    if slim:
-        print(len(parsed_data), len(alert_labels))
-        j = 0
-        for i, al in enumerate(alert_labels):
-            spl = al.split(',')
-            source = spl[0]
-            dest = spl[1]
-            mcat = int(spl[-1][:-1])
-            cat = spl[2]
-
-            if source == badIP or dest == badIP or cat == 'Not Suspicious Traffic':
-                continue
-            if spl[2] == 'Attempted Information Leak' and FILTER:
-                continue
-
-            if source == parsed_data[j][1] and dest == parsed_data[j][3]:
-                parsed_data[j] += (mcat,)
-            j += 1
-    parsed_data = sorted(parsed_data, key=lambda x: x[8])  # Sort alerts into ascending order
+    parsed_data = sorted(parsed_data, key=lambda al: al[8])  # Sort alerts into ascending order
     return parsed_data
 
 
@@ -293,20 +270,20 @@ def load_data(path_to_alerts, filtering_window):
 
 
 # Plotting for each team, how many categories are consumed
-def plot_histogram(_team_alerts, _team_labels):
-    # Choice of: Suricata category usage or Micro attack stage usage?
-    SURICATA_SUMMARY = False
-    suricata_categories = {'A Network Trojan was detected': 0, 'Generic Protocol Command Decode': 1, 'Attempted Denial of Service': 2,
-                           'Attempted User Privilege Gain': 3, 'Misc activity': 4, 'Attempted Administrator Privilege Gain': 5,
-                           'access to a potentially vulnerable web application': 6, 'Information Leak': 7, 'Web Application Attack': 8,
-                           'Successful Administrator Privilege Gain': 9, 'Potential Corporate Privacy Violation': 10,
-                           'Detection of a Network Scan': 11, 'Not Suspicious Traffic': 12, 'Potentially Bad Traffic': 13,
-                           'Attempted Information Leak': 14}
+def plot_histogram(_team_alerts, _team_labels, suricata_summary=False):
+    # Choice of: Suricata category usage or Micro attack stage usage? (has to be updated when used)
+    suricata_categories = {'A Network Trojan was detected': 0, 'Generic Protocol Command Decode': 1,
+                           'Attempted Denial of Service': 2, 'Attempted User Privilege Gain': 3,
+                           'Misc activity': 4, 'Attempted Administrator Privilege Gain': 5,
+                           'access to a potentially vulnerable web application': 6, 'Information Leak': 7,
+                           'Web Application Attack': 8, 'Successful Administrator Privilege Gain': 9,
+                           'Potential Corporate Privacy Violation': 10, 'Detection of a Network Scan': 11,
+                           'Not Suspicious Traffic': 12, 'Potentially Bad Traffic': 13, 'Attempted Information Leak': 14}
 
     micro_attack_stages_codes = [x for x, _ in micro.items()]
     micro_attack_stages = [y for _, y in micro.items()]
 
-    if SURICATA_SUMMARY:
+    if suricata_summary:
         num_categories = len(suricata_categories)
         percentages = [[0] * len(suricata_categories) for _ in range(len(_team_alerts))]
     else:
@@ -317,10 +294,7 @@ def plot_histogram(_team_alerts, _team_labels):
 
     for tid, team in enumerate(_team_alerts):
         for alert in team:
-            # if alert[9] == 999:
-            #    continue
-            if SURICATA_SUMMARY:
-                # if suricata_cats[alert[6]] != 14:
+            if suricata_summary:
                 percentages[tid][suricata_categories[alert[6]]] += 1
             else:
                 percentages[tid][micro_attack_stages_codes.index(alert[9])] += 1
@@ -343,7 +317,7 @@ def plot_histogram(_team_alerts, _team_labels):
         # TODO: Decide whether to put it like this or normalize over columns
     plt.ylabel('Percentage of occurrence')
     plt.title('Frequency of alert category')
-    if SURICATA_SUMMARY:
+    if suricata_summary:
         plt.xticks(indices, ('c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'c10', 'c11', 'c12', 'c13', 'c14'))
     else:
         plt.xticks(indices, [x.split('.')[1] for x in micro_attack_stages], rotation='vertical')
@@ -356,8 +330,8 @@ def plot_histogram(_team_alerts, _team_labels):
     # plt.show()
 
 
+# Reorganise alerts for each attacker per team
 def _group_alerts_per_team(_team_alerts):
-    """Reorganise alerts for each attacker per team"""
     team_data = dict()
     for tid, team in enumerate(team_alerts):
         host_alerts = dict()  # (attacker, victim) -> alerts
@@ -423,7 +397,7 @@ def _plot_episodes(frequencies, episodes, mcat):
 
 # Goal: (1) To first form a collective attack profile of a team
 # and then (2) To compare attack profiles of teams
-def _get_episodes(alert_seq, mcat, plot):
+def _get_episodes(alert_seq, mcat, plot=False):
     # x-axis represents the time, y-axis represents the frequencies of alerts within a window
     dx = 0.1
     frequencies = [len(x) for x in alert_seq]
@@ -564,9 +538,7 @@ def _plot_alert_volume_per_episode(tid, attacker_victim, host_episodes, mcats):
 
 
 # Step 2: Create alert sequence and get episodes
-def aggregate_into_episodes(_team_alerts, step=150):
-    PRINT = False
-
+def aggregate_into_episodes(_team_alerts, step=150, plot_alert_volumes=False):
     team_data = _group_alerts_per_team(_team_alerts)
     _team_episodes = []
     team_times = []
@@ -616,7 +588,7 @@ def aggregate_into_episodes(_team_alerts, step=150):
             host_episodes.sort(key=lambda tup: tup[0])
             team_host_episodes[attacker_victim] = host_episodes
 
-            if PRINT:
+            if plot_alert_volumes:
                 _plot_alert_volume_per_episode(tid, attacker_victim, host_episodes, mcats)
 
         _team_episodes.append(team_host_episodes)
@@ -653,10 +625,9 @@ def host_episode_sequences(_team_episodes):
 
 # Step 4.1: Split episode sequences for an attacker-victim pair into episode subsequences.
 # Each episode subsequence represents an attack attempt.
-def break_into_subbehaviors(_host_data):
+def break_into_subbehaviors(_host_data, full_seq=False):
     _subsequences = dict()
     cut_length = 4
-    FULL_SEQ = False
 
     print('----- Sub-sequences -----')
     for i, (attacker, victim_episodes) in enumerate(_host_data.items()):
@@ -668,7 +639,7 @@ def break_into_subbehaviors(_host_data):
             victim = episodes[0][-1]
             attacker_victim = attacker + '->' + victim
             pieces = math.floor(len(episodes) / cut_length)
-            if FULL_SEQ:
+            if full_seq:
                 _subsequences[attacker_victim] = episodes
                 continue
             if pieces < 1:
@@ -710,7 +681,7 @@ def generate_traces(subsequences, datafile):
     num_traces = 0
     unique_mcat_mserv = set()  # FlexFringe treats the (mcat,mserv) pairs as symbols of the alphabet
 
-    episode_traces = []
+    flexfringe_traces = []
     for i, episodes in enumerate(subsequences.values()):
         if len(episodes) < 3:
             continue
@@ -725,14 +696,14 @@ def generate_traces(subsequences, datafile):
         unique_mcat_mserv.update(mcat_mserv_pairs)
         mcat_mserv_pairs.reverse()  # Reverse traces to accentuate high-severity episodes (to create an S-PDFA)
         trace = '1' + " " + str(len(mcats)) + ' ' + ' '.join(mcat_mserv_pairs) + '\n'
-        episode_traces.append(trace)
+        flexfringe_traces.append(trace)
 
-    f = open(datafile, 'w')
-    f.write(str(num_traces) + ' ' + str(len(unique_mcat_mserv)) + '\n')
-    for trace in episode_traces:
-        f.write(trace)
-    f.close()
-    print('\n# episode traces:', len(episode_traces))
+    with open(datafile, 'w') as f:
+        f.write(str(num_traces) + ' ' + str(len(unique_mcat_mserv)) + '\n')
+        for trace in flexfringe_traces:
+            f.write(trace)
+    print('\n# episode traces:', len(flexfringe_traces))
+    return flexfringe_traces
 
 
 # Step 5: Learn the S-PDFA model (2 sept 2020)
@@ -823,20 +794,12 @@ def traverse(dfa, sinks, sequence):
 
 
 # Step 6.2: Encode traces (include state IDs to mcat|mserv)
-def encode_sequences(dfa, sinks):
-    traces = []
-    with open(path_to_traces) as tf:
-        lines = tf.readlines()[1:]
-
-    for line in lines:  # TODO: reuse the traces created in generate_traces method
-        parts = line.strip('\n').split(' ')
-        trace = ' '.join(parts[2:])
-        traces.append(trace)
-
+def encode_sequences(dfa, sinks, flexfringe_traces):
     traces_in_sinks, total_traces = 0, 0
     state_traces = dict()
     med_sev_states, high_sev_states, sev_sinks = set(), set(), set()
-    for i, sample in enumerate(traces):
+    for i, sample in enumerate(flexfringe_traces):
+        sample = ' '.join(sample.strip('\n').split(' ')[2:])  # Remove the first number and len(mcats)
         state_list, _sev_sinks = traverse(dfa, sinks, sample)
         state_traces[i] = state_list
 
@@ -848,7 +811,7 @@ def encode_sequences(dfa, sinks):
 
         state_list = state_list[1:]
         sample = sample.split(' ')
-        med_sev = [int(state) for sym, state in zip(sample, state_list) if len(str(rev_smallmapping[sym.split('|')[0]])) == 2]  # TODO: add a method for low-, med- and high-sev
+        med_sev = [int(state) for sym, state in zip(sample, state_list) if len(str(rev_smallmapping[sym.split('|')[0]])) == 2]
         med_sev_states.update(med_sev)
         high_sev = [int(state) for sym, state in zip(sample, state_list) if len(str(rev_smallmapping[sym.split('|')[0]])) == 3]
         high_sev_states.update(high_sev)
@@ -878,7 +841,7 @@ def make_state_sequences(episode_subsequences, state_traces, med_states, sev_sta
             continue
 
         trace = [int(state) for state in state_traces[counter]]
-        max_services = [_most_frequent(epi[6]) for epi in episode_subsequence]  # TODO: compute mserv once (above)
+        max_services = [_most_frequent(epi[6]) for epi in episode_subsequence]
 
         if 0 in trace and (not set(trace).isdisjoint(sev_states) or not set(trace).isdisjoint(med_states)):
             level_one.add(trace[1])
@@ -917,7 +880,8 @@ def make_state_sequences(episode_subsequences, state_traces, med_states, sev_sta
 def make_state_groups(state_sequences, data_file):
     state_groups = dict()
     all_states = set()
-    gcols = ['lemonchiffon', 'gold', 'khaki', 'darkkhaki', 'beige', 'goldenrod', 'wheat', 'papayawhip', 'orange', 'oldlace', 'bisque']
+    gcols = ['lemonchiffon', 'gold', 'khaki', 'darkkhaki', 'beige', 'goldenrod',
+             'wheat', 'papayawhip', 'orange', 'oldlace', 'bisque']
     for _, episodes in state_sequences.items():
         states = [(epi[2], epi[3]) for epi in episodes]
         all_states.update([epi[3] for epi in episodes])
@@ -941,7 +905,7 @@ def make_state_groups(state_sequences, data_file):
         outlines.append('color=' + gcols[gid] + ';\n')
         outlines.append('label = "' + group + '";\n')
         for i, line in enumerate(model_lines):
-            node_line = re.match(r'\D+(\d+)\s\[\slabel="\d.*', line)
+            node_line = re.match('\\D+(\\d+)\\s\\[\\slabel="\\d.*', line)
             if node_line:
                 node = int(node_line.group(1))
                 if node in states:
@@ -963,7 +927,7 @@ def make_state_groups(state_sequences, data_file):
                         written.append(c)
                         state_groups['ACTIVE_RECON'].add(node)
                     print('ERROR: manually handled', node, ' in ACTIVE_RECON')  # TODO: include edges or not?
-            '''edge_line = re.match(r'\D+(\d+)\s->\s(\d+)\s\[label=.*', line)  # 0 -> 1 [label=
+            '''edge_line = re.match('\\D+(\\d+)\\s->\\s(\\d+)\\s\\[label=.*', line)  # 0 -> 1 [label=
             if edge_line:
                 node = int(edge_line.group(1))
                 if node in states:
@@ -1311,7 +1275,7 @@ host_data = host_episode_sequences(team_episodes)
 
 print('------ Breaking into sub-sequences and generating traces ------')
 episode_subsequences = break_into_subbehaviors(host_data)
-generate_traces(episode_subsequences, path_to_traces)
+episode_traces = generate_traces(episode_subsequences, path_to_traces)
 
 
 print('------ Learning S-PDFA ------')
@@ -1349,7 +1313,7 @@ main_model = load_model(path_to_traces + ".ff.final.json")
 sinks_model = load_model(path_to_traces + ".ff.finalsinks.json")
 
 print('------ Encoding traces into state sequences ------')
-state_traces, med_sev_states, high_sev_states, severe_sinks = encode_sequences(main_model, sinks_model)
+state_traces, med_sev_states, high_sev_states, severe_sinks = encode_sequences(main_model, sinks_model, episode_traces)
 state_sequences = make_state_sequences(episode_subsequences, state_traces, med_sev_states, high_sev_states)
 
 # print('------ Clustering state groups ------')
