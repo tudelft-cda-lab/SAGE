@@ -754,6 +754,7 @@ def flexfringe(*args, **kwargs):
     print(result.returncode, result.stdout, result.stderr)
 
 
+# Step 6.1: Load the resulting S-PDFA model
 def load_model(model_file):
     """Wrapper to load resulting model json file
 
@@ -814,6 +815,7 @@ def traverse(dfa, sinks, sequence):
     return state_list, sev_sinks
 
 
+# Step 6.2: Encode traces (include state IDs to mcat|mserv)
 def encode_sequences(dfa, sinks):
     traces = []
     with open(path_to_traces) as tf:
@@ -852,7 +854,7 @@ def encode_sequences(dfa, sinks):
     return state_traces, med_sev_states, high_sev_states, sev_sinks
 
 
-# Collecting sub-behaviors back into the same trace -- state_sequences is the new object to deal with
+# Step 6.3: Create state sequences (collecting sub-behaviors back into the same trace, augmented with state IDs)
 def make_state_sequences(episode_subsequences, state_traces, med_states, sev_states):
     level_one = set()  # TODO: what to do with these states?
     state_sequences = dict()
@@ -982,6 +984,7 @@ def make_state_groups(state_sequences, data_file):
     return state_groups
 
 
+# Step 6.4: Group episodes (state sequences) per (team, victim) pair
 def group_episodes_per_av(state_sequences):
     # Experiment: attack graph for one victim w.r.t time
     victim_episodes = dict()  # Episodes per (team, victim)
@@ -1012,7 +1015,7 @@ def group_episodes_per_av(state_sequences):
 
 
 # Translate technical nodes to human-readable
-def translate(label, root=False):
+def _translate(label, root=False):
     new_label = ""
     parts = label.split("|")
     if root:
@@ -1075,7 +1078,7 @@ def _get_attack_attempts(state_sequences, victim, objective, in_main_model):
             vertices.append(_make_vertex_info(epi, in_main_model))
 
         # If the objective is never reached, don't process further
-        if not sum([True if objective in x[0] else False for x in vertices]):
+        if not sum([True if objective.split("|")[:2] == v[0].split("|")[:2] else False for v in vertices]):
             continue
 
         # If it's an episode sequence targeting the requested victim and obtaining the requested objective
@@ -1091,7 +1094,7 @@ def _get_attack_attempts(state_sequences, victim, objective, in_main_model):
                 sub_attempt = []
                 observed_obj.add(vertex[0])
                 continue
-        team_attacker = att.split('->')[0]  # team+attacker
+        team_attacker = att.split('->')[0]  # Team + attacker
         if team_attacker not in team_attack_attempts.keys():
             team_attack_attempts[team_attacker] = []
         team_attack_attempts[team_attacker].extend(attempts)
@@ -1113,7 +1116,7 @@ def _create_edge_line(vid, vname1, vname2, ts1, ts2, color, attacker):
     from_last = ts1[1].strftime("%d/%m/%y, %H:%M:%S")
     to_first = ts2[0].strftime("%d/%m/%y, %H:%M:%S")
     gap = round((ts2[0] - ts1[1]).total_seconds())
-    edge_name = '"{}" -> "{}"'.format(translate(vname1), translate(vname2))
+    edge_name = '"{}" -> "{}"'.format(_translate(vname1), _translate(vname2))
     if vid == 0:  # First transition, add attacker IP
         label = '<<font color="{}"> start_next: {}<br/>gap: {}sec<br/>end_prev: {}</font><br/><font color="{}"><b>Attacker: {}</b></font>>'
         label = label.format(color, to_first, gap, from_last, color, attacker)
@@ -1122,6 +1125,7 @@ def _create_edge_line(vid, vname1, vname2, ts1, ts2, color, attacker):
         label = 'start_next: {}\ngap: {}sec\nend_prev: {}'.format(to_first, gap, from_last)
         edge_line = '{} [ label="{}"][ fontcolor="{}" color={}]'.format(edge_name, label, color, color)
     return edge_line
+
 
 def _print_simplicity(ag_name, lines):
     vertices, edges = 0, 0
@@ -1133,15 +1137,13 @@ def _print_simplicity(ag_name, lines):
     print('{}: # vert: {}, # edges: {}, simplicity: {}'.format(ag_name, vertices, edges, vertices / float(edges)))
 
 
-# print('# vert', vertices, '# edges: ', edges,  'simplicity', vertices/float(edges))
-# Per-objective attack graph for dot: 14 Nov (final attack graph)
-def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, exp_name):
+# Step 7: Create AGs per victim per objective (14 Nov)
+def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, dir_name):
     tcols = {'t0': 'maroon', 't1': 'orange', 't2': 'darkgreen', 't3': 'blue', 't4': 'magenta',
              't5': 'purple', 't6': 'brown', 't7': 'tomato', 't8': 'turquoise', 't9': 'skyblue'}
 
     if SAVE:
         try:
-            dir_name = exp_name + 'AGs'
             os.mkdir(dir_name)
         except (FileExistsError, FileNotFoundError):
             print("Can't create directory here")
@@ -1155,41 +1157,40 @@ def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, ex
     objectives = _get_objective_nodes(state_sequences)
 
     for victim in total_victims:
-        print('\n!!! Rendering AGs for Victim', victim, '\n',  sep=' ', end=' ', flush=True)
+        print('!!! Rendering AGs for Victim', victim)
         for objective in objectives:
-            print('\t!!!! Objective', objective, '\n',  sep=' ', end=' ', flush=True)
-
             # Get the variants of current objective and attempts per team
             team_attack_attempts, observed_obj = _get_attack_attempts(state_sequences, victim, objective, in_main_model)
 
-            # If no team obtains this objective or targets this victim, don't generate its AG.
-            if sum([len(x) for x in team_attack_attempts.values()]) == 0:
+            # If no team has obtained this objective or has targeted this victim, don't generate its AG
+            if sum([len(attempt) for attempt in team_attack_attempts.values()]) == 0:
                 continue
 
+            print('\t!!!! Objective', objective)
             ag_name = objective.replace('|', '').replace('_', '').replace('-', '').replace('(', '').replace(')', '')
             lines = ['digraph ' + ag_name + ' {',
                      'rankdir="BT"; \n graph [ nodesep="0.1", ranksep="0.02"] \n node [ fontname=Arial, ' +
                      'fontsize=24, penwidth=3]; \n edge [ fontname=Arial, fontsize=20, penwidth=5 ];']
-            root_node = translate(objective, root=victim)
+            root_node = _translate(objective, root=victim)
             lines.append('"' + root_node + '" [shape=doubleoctagon, style=filled, fillcolor=salmon];')
             lines.append('{ rank = max; "' + root_node + '"}')
 
             # For each variant of objective, add a link to the root node, and determine if it's sink
             for obj_variant in list(observed_obj):
-                lines.append('"' + translate(obj_variant) + '" -> "' + root_node + '"')
+                lines.append('"' + _translate(obj_variant) + '" -> "' + root_node + '"')
                 if _is_severe_sink(obj_variant, sev_sinks):
-                    lines.append('"' + translate(obj_variant) + '" [style="filled,dotted", fillcolor= salmon]')
+                    lines.append('"' + _translate(obj_variant) + '" [style="filled,dotted", fillcolor= salmon]')
                 else:
-                    lines.append('"' + translate(obj_variant) + '" [style=filled, fillcolor= salmon]')
+                    lines.append('"' + _translate(obj_variant) + '" [style=filled, fillcolor= salmon]')
             
             # All obj variants have the same rank
-            lines.append('{ rank=same; "' + '" "'.join([translate(obj) for obj in observed_obj]) + '"}')
+            lines.append('{ rank=same; "' + '" "'.join([_translate(obj) for obj in observed_obj]) + '"}')
 
             node_signatures = dict()
             already_addressed = set()
             for team_attacker, attempts in team_attack_attempts.items():  # For each attacker that obtains the objective
                 color = tcols[team_attacker.split('-')[0]]  # Team color
-                _print_unique_attempts(team_attacker, attempts)
+                # _print_unique_attempts(team_attacker, attempts)
 
                 for attempt in attempts:
                     # Record signatures
@@ -1203,24 +1204,24 @@ def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, ex
                         vname = action[0]
                         if vid == 0:  # If first action
                             if 'Sink' in vname:  # If sink, make dotted TODO: this check is always False
-                                lines.append('"' + translate(vname) + '" [style="dotted,filled", fillcolor= yellow]')
+                                lines.append('"' + _translate(vname) + '" [style="dotted,filled", fillcolor= yellow]')
                             else:
                                 if _is_severe_sink(vname, sev_sinks):  # If med- or high-sev sink, make dotted
-                                    lines.append('"' + translate(vname) + '" [style="dotted,filled", fillcolor= yellow]')
+                                    lines.append('"' + _translate(vname) + '" [style="dotted,filled", fillcolor= yellow]')
                                     already_addressed.add(vname.split('|')[2])
                                 else:  # Else, normal starting node
-                                    lines.append('"' + translate(vname) + '" [style=filled, fillcolor= yellow]')
+                                    lines.append('"' + _translate(vname) + '" [style=filled, fillcolor= yellow]')
                         else:  # For other actions
                             if 'Sink' in vname:  # TODO: this check is always false
                                 # Take all AG lines so far, and if it was ever defined before, redefine it to be dotted
                                 already_dotted = False
                                 for line in lines:
-                                    if (translate(vname) in line) and ('dotted' in line) and ('->' not in line):
+                                    if (_translate(vname) in line) and ('dotted' in line) and ('->' not in line):
                                         already_dotted = True
                                         break
                                 if already_dotted:
                                     continue
-                                partial = '"' + translate(vname) + '" [style="dotted'  # Redefine here
+                                partial = '"' + _translate(vname) + '" [style="dotted'  # Redefine here
                                 if not sum([True if partial in line else False for line in lines]):
                                     lines.append(partial + '"]')
 
@@ -1232,35 +1233,31 @@ def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, ex
 
             # Go over all vertices again and define their shapes + make high-sev sink states dotted
             for vname, signatures in node_signatures.items():
-                mas = vname.split('|')[0]
-                mas = macro_inv[micro2macro['MicroAttackStage.'+mas]]
-                shape = shapes[mas]
+                mcat = vname.split('|')[0]
+                mcat = macro_inv[micro2macro['MicroAttackStage.' + mcat]]
+                shape = shapes[mcat]
                 # If it's oval, we don't do anything because it is not a high-sev sink
                 if shape == shapes[0] or vname.split('|')[2] in already_addressed:
-                    lines.append('"'+translate(vname)+'" [shape='+shape+']')
+                    lines.append('"' + _translate(vname) + '" [shape=' + shape + ']')
                 else:
                     if _is_severe_sink(vname, sev_sinks):
-                        lines.append('"'+translate(vname)+'" [style="dotted", shape='+shape+']')
+                        lines.append('"' + _translate(vname) + '" [style="dotted", shape=' + shape + ']')
                     else:
-                        lines.append('"'+translate(vname)+'" [shape='+shape+']')
-                # add tooltip
-                lines.append('"'+translate(vname)+'"'+' [tooltip="' + "\n".join(signatures) +'"]')
+                        lines.append('"' + _translate(vname) + '" [shape=' + shape + ']')
+                # Add a tooltip with signatures
+                lines.append('"' + _translate(vname) + '"' + ' [tooltip="' + "\n".join(signatures) + '"]')
             lines.append('}')
 
-            _print_simplicity(ag_name, lines)
+            # _print_simplicity(ag_name, lines)
             if SAVE:
-                out_f_name = datafile+'-attack-graph-for-victim-'+victim+'-'+ag_name
-                f = open(dir_name+'/' + out_f_name + '.dot', 'w')
-                for line in lines:
-                    f.write(line)
-                    f.write('\n')
-                f.close()
-                
-                os.system("dot -Tpng "+dir_name+'/'+out_f_name+".dot -o "+dir_name+'/'+out_f_name+".png")
-                os.system("dot -Tsvg "+dir_name+'/'+out_f_name+".dot -o "+dir_name+'/'+out_f_name+".svg")
-                if DOCKER:
-                    os.system("rm "+dir_name+'/'+out_f_name+".dot")
-            print('#', sep=' ', end=' ', flush=True)
+                out_filename = datafile + '-attack-graph-for-victim-' + victim + '-' + ag_name
+                out_filepath = dir_name + '/' + out_filename
+                with open(out_filepath + '.dot', 'w') as outfile:
+                    for line in lines:
+                        outfile.write(line + '\n')
+
+                os.system("dot -Tpng " + out_filepath + ".dot -o " + out_filepath + ".png")
+                os.system("dot -Tsvg " + out_filepath + ".dot -o " + out_filepath + ".svg")
 
 
 # ----- MAIN ------
@@ -1290,6 +1287,7 @@ start_times = []
 path_to_ini = "FlexFringe/ini/spdfa-config.ini"
 
 path_to_traces = experiment_name + '.txt'
+ag_directory = experiment_name + 'AGs'
 
 print('------ Downloading the IANA port-service mapping ------')
 port_services = load_iana_mapping()
@@ -1347,14 +1345,14 @@ print('------ Encoding traces into state sequences ------')
 state_traces, med_sev_states, high_sev_states, severe_sinks = encode_sequences(main_model, sinks_model)
 state_sequences = make_state_sequences(episode_subsequences, state_traces, med_sev_states, high_sev_states)
 
-print('------ Clustering state groups ------')
+# print('------ Clustering state groups ------')
 # state_groups = make_state_groups(state_sequences, path_to_traces)
 
 print('------ Grouping episodes per (team, victim) ------')
 episodes_per_attacker, episodes_per_victim = group_episodes_per_av(state_sequences)
 
 print('------ Making alert-driven AGs ------')
-make_attack_graphs(episodes_per_victim, state_sequences, severe_sinks, path_to_traces, experiment_name)
+make_attack_graphs(episodes_per_victim, state_sequences, severe_sinks, path_to_traces, ag_directory)
 
 if DOCKER:
     print('Deleting extra files')
@@ -1367,6 +1365,7 @@ if DOCKER:
     os.system("rm " + path_to_traces + ".ff.initsinks.dot")
     os.system("rm " + path_to_traces + ".ff.initsinks.json")
     os.system("rm " + "spdfa-clustered-" + path_to_traces + "-dfa.dot")
+    os.system("rm " + ag_directory + "/*.dot")
 
 print('\n------- FIN -------')
 # ----- END MAIN ------
