@@ -1049,6 +1049,91 @@ def _is_severe_sink(vname, sev_sinks):
     return False
 
 
+def _make_vertex_info(episode, in_main_model):
+    start_time = round(episode[0] / 1.0)
+    end_time = round(episode[1] / 1.0)
+    cat = micro[episode[2]].split('.')[1]
+    signs = episode[5]
+    timestamps = episode[6]
+    if episode[3] in in_main_model:  # TODO: this check is useless, since it is always True
+        state_id = '' if len(str(episode[2])) == 1 else '|' + str(episode[3])
+    else:
+        state_id = '|Sink'
+    vert_name = cat + '|' + episode[4] + state_id
+    vert_info = (vert_name, start_time, end_time, signs, timestamps)
+    return vert_info
+
+
+def _get_attack_attempts(state_sequences, victim, objective, in_main_model):
+    team_attack_attempts = dict()
+    observed_obj = set()  # Variants of current objective
+    for att, episodes in state_sequences.items():  # Iterate over (a,v): [episode, episode, episode]
+        if victim != att.split("->")[1]:  # If it's not the right victim, then don't process further
+            continue
+        vertices = []
+        for epi in episodes:
+            vertices.append(_make_vertex_info(epi, in_main_model))
+
+        # If the objective is never reached, don't process further
+        if not sum([True if objective in x[0] else False for x in vertices]):
+            continue
+
+        # If it's an episode sequence targeting the requested victim and obtaining the requested objective
+        attempts = []
+        sub_attempt = []
+        for vertex in vertices:  # Cut each attempt until the requested objective
+            sub_attempt.append(vertex)  # Add the vertex in path
+            if objective.split("|")[:2] == vertex[0].split("|")[:2]:  # If it's the objective
+                if len(sub_attempt) <= 1:  # If only a single node, reject
+                    sub_attempt = []
+                    continue
+                attempts.append(sub_attempt)
+                sub_attempt = []
+                observed_obj.add(vertex[0])
+                continue
+        team_attacker = att.split('->')[0]  # team+attacker
+        if team_attacker not in team_attack_attempts.keys():
+            team_attack_attempts[team_attacker] = []
+        team_attack_attempts[team_attacker].extend(attempts)
+        # team_attack_attempts[team_attacker] = sorted(team_attack_attempts[team_attacker], key=lambda item: item[1])
+
+    return team_attack_attempts, observed_obj
+
+
+def _print_unique_attempts(team_attacker, attempts):
+    paths = [''.join([action[0] for action in attempt]) for attempt in attempts]
+    unique_paths = len(set(paths))  # Count exactly unique attempts
+    longest_path = max([len(attempt) for attempt in attempts], default=0)
+    shortest_path = min([len(attempt) for attempt in attempts], default=0)
+    print('Attacker {}, total paths: {}, unique paths: {}, longest path: {}, shortest path: {}'
+          .format(team_attacker, len(attempts), unique_paths, longest_path, shortest_path))
+
+
+def _create_edge_line(vid, vname1, vname2, ts1, ts2, color, attacker):
+    from_last = ts1[1].strftime("%d/%m/%y, %H:%M:%S")
+    to_first = ts2[0].strftime("%d/%m/%y, %H:%M:%S")
+    gap = round((ts2[0] - ts1[1]).total_seconds())
+    edge_name = '"{}" -> "{}"'.format(translate(vname1), translate(vname2))
+    if vid == 0:  # First transition, add attacker IP
+        label = '<<font color="{}"> start_next: {}<br/>gap: {}sec<br/>end_prev: {}</font><br/><font color="{}"><b>Attacker: {}</b></font>>'
+        label = label.format(color, to_first, gap, from_last, color, attacker)
+        edge_line = '{} [ color={}] [label={}]'.format(edge_name, color, label)
+    else:
+        label = 'start_next: {}\ngap: {}sec\nend_prev: {}'.format(to_first, gap, from_last)
+        edge_line = '{} [ label="{}"][ fontcolor="{}" color={}]'.format(edge_name, label, color, color)
+    return edge_line
+
+def _print_simplicity(ag_name, lines):
+    vertices, edges = 0, 0
+    for line in lines:  # Count vertices and edges
+        if '->' in line:
+            edges += 1
+        elif 'shape=' in line:
+            vertices += 1
+    print('{}: # vert: {}, # edges: {}, simplicity: {}'.format(ag_name, vertices, edges, vertices / float(edges)))
+
+
+# print('# vert', vertices, '# edges: ', edges,  'simplicity', vertices/float(edges))
 # Per-objective attack graph for dot: 14 Nov (final attack graph)
 def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, exp_name):
     tcols = {'t0': 'maroon', 't1': 'orange', 't2': 'darkgreen', 't3': 'blue', 't4': 'magenta',
@@ -1074,164 +1159,100 @@ def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, ex
         for objective in objectives:
             print('\t!!!! Objective', objective, '\n',  sep=' ', end=' ', flush=True)
 
-            team_level = dict()
-            observed_obj = set()  # variants of current objective
-            nodes = {}
-            vertices, edges = 0, 0
-            for att, episodes in state_sequences.items():  # iterate over (a,v): [episode, episode, episode]
-                if victim != att.split("->")[1]:  # if it's not the right victim, then don't process further
-                    continue
-                vname_time = []
-                for epi in episodes:
-                    start_time = round(epi[0]/1.0)
-                    end_time = round(epi[1]/1.0)
-                    cat = micro[epi[2]].split('.')[1]
-                    signs = epi[5]
-                    timestamps = epi[6]
-                    if epi[3] in in_main_model:  # TODO: this check is useless, since it is always True
-                        state_id = '' if len(str(epi[2])) == 1 else '|' + str(epi[3])
-                    else:
-                        state_id = '|Sink'
-                    vert_name = cat + '|' + epi[4] + state_id
-                    
-                    vname_time.append((vert_name, start_time, end_time, signs, timestamps))
-                    
-                if not sum([True if objective in x[0] else False for x in vname_time]): # if the objective is never reached, don't process further
-                    continue
-                    
-                # if it's an episode sequence targetting the requested victim and obtaining the requested objective,
-                attempts = []
-                sub_attempt = []
-                for (vname, start_time, end_time, signs, ts) in vname_time: # cut each attempt until the requested objective
-                    sub_attempt.append((vname, start_time, end_time, signs, ts)) # add the vertex in path
-                    if objective.split("|")[:2] == vname.split("|")[:2]: # if it's the objective
-                        if len(sub_attempt) <= 1: ## If only a single node, reject
-                            sub_attempt = []
-                            continue
-                        attempts.append(sub_attempt)
-                        sub_attempt = []
-                        observed_obj.add(vname)
-                        continue
-                team_attacker = att.split('->')[0] # team+attacker
-                if team_attacker not in team_level.keys():
-                    team_level[team_attacker] = []
-                    
-                team_level[team_attacker].extend(attempts)
-                #team_level[team_attacker] = sorted(team_level[team_attacker], key=lambda item: item[1])
-            # print(observed_obj)
+            # Get the variants of current objective and attempts per team
+            team_attack_attempts, observed_obj = _get_attack_attempts(state_sequences, victim, objective, in_main_model)
 
-            if sum([len(x) for x in team_level.values()]) == 0: # if no team obtains this objective or targets this victim, don't generate its AG.
+            # If no team obtains this objective or targets this victim, don't generate its AG.
+            if sum([len(x) for x in team_attack_attempts.values()]) == 0:
                 continue
 
-            AGname = objective.replace('|', '').replace('_','').replace('-','').replace('(','').replace(')', '')
-            lines = []
-            lines.append((0,'digraph '+ AGname + ' {'))
-            lines.append((0,'rankdir="BT"; \n graph [ nodesep="0.1", ranksep="0.02"] \n node [ fontname=Arial, fontsize=24,penwidth=3]; \n edge [ fontname=Arial, fontsize=20,penwidth=5 ];'))
+            ag_name = objective.replace('|', '').replace('_', '').replace('-', '').replace('(', '').replace(')', '')
+            lines = ['digraph ' + ag_name + ' {',
+                     'rankdir="BT"; \n graph [ nodesep="0.1", ranksep="0.02"] \n node [ fontname=Arial, ' +
+                     'fontsize=24, penwidth=3]; \n edge [ fontname=Arial, fontsize=20, penwidth=5 ];']
             root_node = translate(objective, root=victim)
-            lines.append((0, '"'+root_node+'" [shape=doubleoctagon, style=filled, fillcolor=salmon];'))
-            lines.append((0, '{ rank = max; "'+root_node+'"}'))
-            
-            for obj_variant in list(observed_obj): # for each variant of objective, add a link to the root node, and determine if it's sink
-                lines.append((0,'"'+translate(obj_variant)+'" -> "'+root_node+'"'))
-                
+            lines.append('"' + root_node + '" [shape=doubleoctagon, style=filled, fillcolor=salmon];')
+            lines.append('{ rank = max; "' + root_node + '"}')
+
+            # For each variant of objective, add a link to the root node, and determine if it's sink
+            for obj_variant in list(observed_obj):
+                lines.append('"' + translate(obj_variant) + '" -> "' + root_node + '"')
                 if _is_severe_sink(obj_variant, sev_sinks):
-                    lines.append((0, '"'+translate(obj_variant)+'" [style="filled,dotted", fillcolor=salmon]'))
+                    lines.append('"' + translate(obj_variant) + '" [style="filled,dotted", fillcolor= salmon]')
                 else:
-                    lines.append((0, '"'+translate(obj_variant)+'" [style=filled, fillcolor=salmon]'))
+                    lines.append('"' + translate(obj_variant) + '" [style=filled, fillcolor= salmon]')
             
-            samerank = '{ rank=same; "' + '" "'.join([translate(x) for x in observed_obj]) # all obj variants have the same rank
-            samerank += '"}'
-            lines.append((0, samerank))
+            # All obj variants have the same rank
+            lines.append('{ rank=same; "' + '" "'.join([translate(obj) for obj in observed_obj]) + '"}')
 
-
+            node_signatures = dict()
             already_addressed = set()
-            for attackerID,attempts in team_level.items(): # for every attacker that obtains this objective
-                color = tcols[attackerID.split('-')[0]] # team color
-                # ones = [''.join([action[0] for action in attempt]) for attempt in attempts]
-                # unique = len(set(ones)) # count exactly unique attempts
-                # print('team', attackerID, 'total paths', len(attempts), 'unique paths', unique, 'longest path:', max([len(x) for x in attempts]), \
-                #     'shortest path:', min([len(x) for x in attempts]))
-                
-                # path_info[attack][attackerID].append((len(attempts), unique, max([len(x) for x in attempts]), min([len(x) for x in attempts])))
-                
-                for attempt in attempts:  # iterate over each attempt
-                    # record all nodes
-                    for action in attempt:
-                        if action[0] not in nodes.keys():
-                            nodes[action[0]] = set()
-                        nodes[action[0]].update(action[3])
-                    # nodes
-                    for vid, (vname, start_time, end_time, signs, _) in enumerate(attempt):  # iterate over each action in an attempt
-                        if vid == 0:  # if first action
-                            if 'Sink' in vname:  # if sink, make dotted TODO: this check is always False
-                                lines.append((0, '"' + translate(vname) + '" [style="dotted,filled", fillcolor=yellow]'))
-                            else:
-                                if _is_severe_sink(vname, sev_sinks):
-                                    lines.append((0, '"' + translate(vname) + '" [style="dotted,filled", fillcolor=yellow]'))
-                                    already_addressed.add(vname.split('|')[2])
-                                else:  # else, normal starting node
-                                    lines.append((0, '"' + translate(vname) + '" [style=filled, fillcolor= yellow]'))
-                        else:  # for other actions
-                            if 'Sink' in vname:  # TODO: this check is always false
-                                line = [x[1] for x in lines]  # take all AG graph lines so far, and see if it was ever defined before, re-define it to be dotted
-                                quit = False
-                                for l in line:
-                                    if (translate(vname) in l) and ('dotted' in l) and ('->' not in l):  # if already defined as dotted, move on
-                                        quit = True
-                                        break
-                                if quit:
-                                    continue
-                                partial = '"' + translate(vname) + '" [style="dotted'  # redefine here
-                                if not sum([True if partial in x else False for x in line]):
-                                    lines.append((0, partial + '"]'))
+            for team_attacker, attempts in team_attack_attempts.items():  # For each attacker that obtains the objective
+                color = tcols[team_attacker.split('-')[0]]  # Team color
+                _print_unique_attempts(team_attacker, attempts)
 
-                    # transitions
-                    bigram = zip(attempt, attempt[1:])  # make bigrams (sliding window of 2)
-                    for vid, ((vname1, time1, etime1, signs1, ts1), (vname2, _, _, signs2, ts2)) in enumerate(bigram):
-                        _from_last = ts1[1].strftime("%d/%m/%y, %H:%M:%S")
-                        _to_first = ts2[0].strftime("%d/%m/%y, %H:%M:%S")
-                        gap = round((ts2[0] - ts1[1]).total_seconds())
-                        if vid == 0:  # first transition, add attacker IP
-                            lines.append((time1, '"' + translate(vname1) + '"' + ' -> ' + '"' + translate(vname2) +
-                                          '" [ color=' + color + '] ' + '[label=<<font color="' + color + '"> start_next: ' + _to_first + '<br/>gap: ' +
-                                          str(gap) + 'sec<br/>end_prev: ' + _from_last + '</font><br/><font color="' + color + '"><b>Attacker: ' +
-                                          attackerID.split('-')[1] + '</b></font>>]'
-                                          ))
-                        else:
-                            lines.append((time1, '"' + translate(vname1) + '"' + ' -> ' + '"' + translate(vname2) +
-                                          '"' + ' [ label="start_next: ' + _to_first + '\ngap: ' +
-                                          str(gap) + 'sec\nend_prev: ' + _from_last + '"]' + '[ fontcolor="' + color + '" color=' + color + ']'
-                                          ))
+                for attempt in attempts:
+                    # Record signatures
+                    for action in attempt:  # action = (vert_name, start_time, end_time, signs, timestamps)
+                        if action[0] not in node_signatures.keys():
+                            node_signatures[action[0]] = set()
+                        node_signatures[action[0]].update(action[3])
+
+                    # Create nodes for the AG
+                    for vid, action in enumerate(attempt):  # Iterate over each action in an attempt
+                        vname = action[0]
+                        if vid == 0:  # If first action
+                            if 'Sink' in vname:  # If sink, make dotted TODO: this check is always False
+                                lines.append('"' + translate(vname) + '" [style="dotted,filled", fillcolor= yellow]')
+                            else:
+                                if _is_severe_sink(vname, sev_sinks):  # If med- or high-sev sink, make dotted
+                                    lines.append('"' + translate(vname) + '" [style="dotted,filled", fillcolor= yellow]')
+                                    already_addressed.add(vname.split('|')[2])
+                                else:  # Else, normal starting node
+                                    lines.append('"' + translate(vname) + '" [style=filled, fillcolor= yellow]')
+                        else:  # For other actions
+                            if 'Sink' in vname:  # TODO: this check is always false
+                                # Take all AG lines so far, and if it was ever defined before, redefine it to be dotted
+                                already_dotted = False
+                                for line in lines:
+                                    if (translate(vname) in line) and ('dotted' in line) and ('->' not in line):
+                                        already_dotted = True
+                                        break
+                                if already_dotted:
+                                    continue
+                                partial = '"' + translate(vname) + '" [style="dotted'  # Redefine here
+                                if not sum([True if partial in line else False for line in lines]):
+                                    lines.append(partial + '"]')
+
+                    # Create edges (transitions) for the AG
+                    bigram = zip(attempt, attempt[1:])  # Make bigrams (sliding window of 2)
+                    for vid, ((vname1, _, _, _, ts1), (vname2, _, _, _, ts2)) in enumerate(bigram):
+                        edge_line = _create_edge_line(vid, vname1, vname2, ts1, ts2, color, team_attacker.split('-')[1])
+                        lines.append(edge_line)
 
             # Go over all vertices again and define their shapes + make high-sev sink states dotted
-            for vname, signatures in nodes.items():
+            for vname, signatures in node_signatures.items():
                 mas = vname.split('|')[0]
                 mas = macro_inv[micro2macro['MicroAttackStage.'+mas]]
                 shape = shapes[mas]
                 # If it's oval, we don't do anything because it is not a high-sev sink
                 if shape == shapes[0] or vname.split('|')[2] in already_addressed:
-                    lines.append((0, '"'+translate(vname)+'" [shape='+shape+']'))
+                    lines.append('"'+translate(vname)+'" [shape='+shape+']')
                 else:
                     if _is_severe_sink(vname, sev_sinks):
-                        lines.append((0, '"'+translate(vname)+'" [style="dotted", shape='+shape+']'))
+                        lines.append('"'+translate(vname)+'" [style="dotted", shape='+shape+']')
                     else:
-                        lines.append((0, '"'+translate(vname)+'" [shape='+shape+']'))
+                        lines.append('"'+translate(vname)+'" [shape='+shape+']')
                 # add tooltip
-                lines.append((1, '"'+translate(vname)+'"'+' [tooltip="'+ "\n".join(signatures) +'"]'))
-            lines.append((1000, '}'))
-            
-            for l in lines:  # count vertices and edges
-                if '->' in l[1]:
-                    edges += 1
-                elif 'shape=' in l[1]:
-                    vertices += 1
+                lines.append('"'+translate(vname)+'"'+' [tooltip="' + "\n".join(signatures) +'"]')
+            lines.append('}')
 
-            # print('# vert', vertices, '# edges: ', edges,  'simplicity', vertices/float(edges))
+            _print_simplicity(ag_name, lines)
             if SAVE:
-                out_f_name = datafile+'-attack-graph-for-victim-'+victim+'-'+AGname
+                out_f_name = datafile+'-attack-graph-for-victim-'+victim+'-'+ag_name
                 f = open(dir_name+'/' + out_f_name + '.dot', 'w')
-                for l in lines:
-                    f.write(l[1])
+                for line in lines:
+                    f.write(line)
                     f.write('\n')
                 f.close()
                 
