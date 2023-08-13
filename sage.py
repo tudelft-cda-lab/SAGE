@@ -25,7 +25,7 @@ IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/ser
 IANA_NUM_RETRIES = 5
 DB_PATH = "./ports.json"
 SAVE = True
-DOCKER = False
+DOCKER = True
 
 
 def _get_attack_stage_mapping(signature):
