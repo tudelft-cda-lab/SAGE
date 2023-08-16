@@ -23,7 +23,6 @@ from signatures.alert_signatures import usual_mapping, unknown_mapping, ccdc_com
 
 IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
 IANA_NUM_RETRIES = 5
-DB_PATH = "./ports.json"
 SAVE = True
 DOCKER = True
 
@@ -103,9 +102,6 @@ def _readfile(fname):
 # Step 1.1: Parse the input alerts
 def _parse(unparsed_data, filter_alerts=False):
     badIP = '169.254.169.254'
-    __cats = set()
-    __ips = set()
-    __hosts = set()
     parsed_data = []
 
     prev = -1
@@ -149,24 +145,6 @@ def _parse(unparsed_data, filter_alerts=False):
 
         mcat = _get_attack_stage_mapping(sig)
         parsed_data.append((diff_dt, src_ip, src_port, dst_ip, dst_port, sig, cat, host, dt, mcat))
-
-        __cats.add(cat)
-        __ips.add(src_ip)
-        __ips.add(dst_ip)
-        __hosts.add(host)
-
-    '''_cats = [(id,c) for (id,c) in enumerate(__cats)]
-    for (i,c) in _cats:
-        if c not in cats.keys():
-            cats[c] = 0 if len(cats.values())==0 else max(cats.values())+1
-    _ips = [(id,ip) for (id,ip) in enumerate(__ips)]
-    for (i,ip) in _ips:
-        if ip not in ips.keys():
-            ips[ip] = 0 if len(ips.values())==0 else max(ips.values())+1
-    _hosts = [(id,h) for (id,h) in enumerate(__hosts)]
-    for (i,h) in _hosts:
-        if h not in hosts.keys():
-            hosts[h] = 0 if len(hosts.values())==0 else max(hosts.values())+1'''
 
     print('Reading # alerts: ', len(parsed_data))
     parsed_data = sorted(parsed_data, key=lambda al: al[8])  # Sort alerts into ascending order
@@ -381,7 +359,7 @@ def _plot_episodes(frequencies, episodes, mcat):
     plt.figure()
     plt.title(mcat)
     plt.xlabel('Time ->')
-    plt.ylabel('Frequency')
+    plt.ylabel('Slope')
     plt.plot(frequencies, 'gray')
     for ep in episodes:
         xax_start = [ep[0]] * cap
@@ -496,7 +474,8 @@ def _create_episode(alert_seq_epi, mcat, tid):
     end_time = (last_ts - start_times[tid]).total_seconds()
     period = end_time - start_time
 
-    episode = (start_time, end_time, mcat, len(events), alert_volume, period, services, unique_signatures, (first_ts, last_ts))
+    # EPISODE DEF: (startTime, endTime, mcat, len(rawevents), volume(alerts), epiPeriod, epiServices, list of unique signatures, (1st timestamp, last timestamp)
+    episode = (start_time, end_time, mcat, events, alert_volume, period, services, unique_signatures, (first_ts, last_ts))
     return episode
 
 
@@ -555,7 +534,7 @@ def aggregate_into_episodes(_team_alerts, step=150, plot_alert_volumes=False):
                 continue
 
             # Alert format: (dst_ip, mcat, ts, dst_port, signature)
-            # print(attacker_victim, len([(x[1]) for x in alerts])) # TODO: what about IPs that are not attacker related?
+            # print(attacker_victim, len([(x[1]) for x in alerts])) # TODO: what about IPs not related to attacker?
             first_elapsed_time = round((alerts[0][2] - start_times[tid]).total_seconds(), 2)
 
             _team_times['->'.join(attacker_victim)] = first_elapsed_time
@@ -649,7 +628,7 @@ def break_into_subbehaviors(_host_data, full_seq=False):
             # Cut episode sequence when a low-severity episode follows a high-severity episode
             count = 0
             mcats = [epi[2] for epi in episodes]
-            cuts = [i for i in range(len(episodes) - 1) if (len(str(mcats[i])) > len(str(mcats[i + 1])))]  # (ep[i] > 100 and ep[i+1] < 10)]
+            cuts = [i for i in range(len(episodes) - 1) if (len(str(mcats[i])) > len(str(mcats[i + 1])))]
 
             rest = (0, len(episodes) - 1)
             for j in range(len(cuts)):
@@ -679,11 +658,11 @@ def generate_traces(subsequences, datafile):
     print('---- end ----- ')
 
     num_traces = 0
-    unique_mcat_mserv = set()  # FlexFringe treats the (mcat,mserv) pairs as symbols of the alphabet
+    unique_symbols = set()  # FlexFringe treats the (mcat,mserv) pairs as symbols of the alphabet
 
     flexfringe_traces = []
     for i, episodes in enumerate(subsequences.values()):
-        if len(episodes) < 3:
+        if len(episodes) < 3:  # Discard subsequences of length < 3 (can be commented out, also in make_state_sequences)
             continue
         num_traces += 1
         mcats = [x[2] for x in episodes]
@@ -691,15 +670,15 @@ def generate_traces(subsequences, datafile):
         max_services = [_most_frequent(x[6]) for x in episodes]
         stime = [x[0] for x in episodes]
 
-        #multi = [str(c) + ":" + str(n) + "," + str(s) for (c, s, n) in zip(mcats, max_services, num_services)] # multivariate case
-        mcat_mserv_pairs = [small_mapping[mcat] + "|" + mserv for mcat, mserv in zip(mcats, max_services)]
-        unique_mcat_mserv.update(mcat_mserv_pairs)
-        mcat_mserv_pairs.reverse()  # Reverse traces to accentuate high-severity episodes (to create an S-PDFA)
-        trace = '1' + " " + str(len(mcats)) + ' ' + ' '.join(mcat_mserv_pairs) + '\n'
+        # symbols = [str(c) + ":" + str(n) + "," + str(s) for (c, s, n) in zip(mcats, max_services, num_services)] # multivariate case
+        symbols = [small_mapping[mcat] + "|" + mserv for mcat, mserv in zip(mcats, max_services)]
+        unique_symbols.update(symbols)
+        symbols.reverse()  # Reverse traces to accentuate high-severity episodes (to create an S-PDFA)
+        trace = '1' + " " + str(len(mcats)) + ' ' + ' '.join(symbols) + '\n'
         flexfringe_traces.append(trace)
 
     with open(datafile, 'w') as f:
-        f.write(str(num_traces) + ' ' + str(len(unique_mcat_mserv)) + '\n')
+        f.write(str(num_traces) + ' ' + str(len(unique_symbols)) + '\n')
         for trace in flexfringe_traces:
             f.write(trace)
     print('\n# episode traces:', len(flexfringe_traces))
@@ -804,8 +783,7 @@ def encode_sequences(dfa, sinks, flexfringe_traces):
         state_traces[i] = state_list
 
         total_traces += len(state_list)  # TODO: decide what to do with the root
-        traces_in_sinks += state_list.count('-1')  # Add low-severity sinks (i.e. stateID = -1)
-        traces_in_sinks += len(_sev_sinks)         # Add medium- and high-severity sinks (i.e. stateID != -1)
+        traces_in_sinks += state_list.count('-1')
 
         assert (len(sample.split(' ')) + 1 == len(state_traces[i]))
 
@@ -826,7 +804,6 @@ def encode_sequences(dfa, sinks, flexfringe_traces):
 
 # Step 6.3: Create state sequences (collecting sub-behaviors back into the same trace, augmented with state IDs)
 def make_state_sequences(episode_subsequences, state_traces, med_states, sev_states):
-    level_one = set()  # TODO: what to do with these states?
     state_sequences = dict()
     counter = -1
     for tid, (attack, episode_subsequence) in enumerate(episode_subsequences.items()):
@@ -842,9 +819,6 @@ def make_state_sequences(episode_subsequences, state_traces, med_states, sev_sta
 
         trace = [int(state) for state in state_traces[counter]]
         max_services = [_most_frequent(epi[6]) for epi in episode_subsequence]
-
-        if 0 in trace and (not set(trace).isdisjoint(sev_states) or not set(trace).isdisjoint(med_states)):
-            level_one.add(trace[1])
 
         trace = trace[1:][::-1]  # Reverse the trace from the S-PDFA back
         
@@ -873,7 +847,6 @@ def make_state_sequences(episode_subsequences, state_traces, med_states, sev_sta
             state_sequences[attacker_victim].extend(state_subsequence)
             state_sequences[attacker_victim].sort(key=lambda epi: epi[0])  # Sort in place based on starting times
         
-    # print('High-severity objective states', level_one, len(level_one))
     return state_sequences
     
 
@@ -1130,14 +1103,16 @@ def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, di
     for victim in total_victims:
         print('!!! Rendering AGs for Victim', victim)
         for objective in objectives:
+            print('\t!!!! Objective', objective, end='')
             # Get the variants of current objective and attempts per team
             team_attack_attempts, observed_obj = _get_attack_attempts(state_sequences, victim, objective, in_main_model)
 
             # If no team has obtained this objective or has targeted this victim, don't generate its AG
             if sum([len(attempt) for attempt in team_attack_attempts.values()]) == 0:
+                print()
                 continue
+            print(' - Created')
 
-            print('\t!!!! Objective', objective)
             ag_name = objective.replace('|', '').replace('_', '').replace('-', '').replace('(', '').replace(')', '')
             lines = ['digraph ' + ag_name + ' {',
                      'rankdir="BT"; \n graph [ nodesep="0.1", ranksep="0.02"] \n node [ fontname=Arial, ' +
@@ -1265,7 +1240,7 @@ port_services = load_iana_mapping()
 
 print('------ Reading alerts ------')
 (team_alerts, team_labels) = load_data(path_to_json_files, alert_filtering_window)
-# plot_histogram(team_alerts, team_labels)
+plot_histogram(team_alerts, team_labels)
 
 print('------ Converting to episodes ------')
 team_episodes, _ = aggregate_into_episodes(team_alerts, step=alert_aggr_window)
@@ -1335,7 +1310,7 @@ if DOCKER:
     os.system("rm " + path_to_traces + ".ff.init.json")
     os.system("rm " + path_to_traces + ".ff.initsinks.dot")
     os.system("rm " + path_to_traces + ".ff.initsinks.json")
-    os.system("rm " + "spdfa-clustered-" + path_to_traces + "-dfa.dot")
+    # os.system("rm " + "spdfa-clustered-" + path_to_traces + "-dfa.dot")  # Comment out if this file is created
     os.system("rm " + ag_directory + "/*.dot")
 
 print('\n------- FIN -------')
