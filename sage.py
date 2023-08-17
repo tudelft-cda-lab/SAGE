@@ -15,7 +15,6 @@ import numpy as np
 import requests
 
 # Import attack stages, mappings and alert signatures
-sys.path.insert(0, './signatures')
 from signatures.attack_stages import MicroAttackStage
 from signatures.mappings import micro, micro_inv, macro_inv, micro2macro, mcols, small_mapping, rev_smallmapping, verbose_micro
 from signatures.alert_signatures import usual_mapping, unknown_mapping, ccdc_combined, attack_stage_mapping
@@ -101,7 +100,7 @@ def _readfile(fname):
 
 # Step 1.1: Parse the input alerts
 def _parse(unparsed_data, filter_alerts=False):
-    badIP = '169.254.169.254'
+    bad_ip = '169.254.169.254'
     parsed_data = []
 
     prev = -1
@@ -140,7 +139,7 @@ def _parse(unparsed_data, filter_alerts=False):
         dst_port = None if 'dest_port' not in raw.keys() else raw['dest_port']
 
         # Filter out mistaken alerts / uninteresting alerts
-        if src_ip == badIP or dst_ip == badIP or cat == 'Not Suspicious Traffic':  # TODO: add `filter_alerts` here?
+        if src_ip == bad_ip or dst_ip == bad_ip or cat == 'Not Suspicious Traffic':  # TODO: check bad ips for CPTC/CCDC; what happens if we remove "Not Suspicious Traffic"?
             continue
 
         mcat = _get_attack_stage_mapping(sig)
@@ -229,7 +228,7 @@ def load_data(path_to_alerts, filtering_window):
         print(name)
         _team_labels.append(name)
 
-        parsed_alerts = _parse(_readfile(f), [])
+        parsed_alerts = _parse(_readfile(f))
         parsed_alerts = _remove_duplicates(parsed_alerts, gap=filtering_window)
 
         # EXP: Limit alerts by timing is better than limiting volume because each team is on a different scale.
@@ -318,16 +317,18 @@ def _group_alerts_per_team(_team_alerts):
             # Alert format: (diff_dt, src_ip, src_port, dst_ip, dst_port, sig, cat, host, ts, mcat)
             src_ip, dst_ip, signature, ts, mcat = alert[1], alert[3], alert[5], alert[8], alert[9]
             dst_port = alert[4] if alert[4] is not None else 65000
-            # Simply respect the source,dst format! (Correction: source is always source and dest always dest!)
 
             # Say 'unknown' if the port cannot be resolved
             dst_port = 'unknown' if (dst_port not in port_services.keys() or port_services[dst_port] == 'unknown') else port_services[dst_port]['name']
 
+            # TODO: add the check for 10.0.254 in src_ip or in dst_ip - if not, then discard
+            # TODO: If present in src_ip, then add (src_ip, dst_ip). If in dst_ip, then add (dst_ip, src_ip)
+            # TODO: for the future, we might want to address internal paths
             if (src_ip, dst_ip) not in host_alerts.keys() and (dst_ip, src_ip) not in host_alerts.keys():
                 host_alerts[(src_ip, dst_ip)] = []
 
-            if (src_ip, dst_ip) in host_alerts.keys():
-                host_alerts[(src_ip, dst_ip)].append((dst_ip, mcat, ts, dst_port, signature)) # TODO: remove the redundant host names
+            if (src_ip, dst_ip) in host_alerts.keys():  # TODO: remove the redundant host names
+                host_alerts[(src_ip, dst_ip)].append((dst_ip, mcat, ts, dst_port, signature))
             else:
                 host_alerts[(dst_ip, src_ip)].append((src_ip, mcat, ts, dst_port, signature))
 
@@ -348,8 +349,8 @@ def _get_ups_and_downs(frequencies, slopes):
     negative = [item for item in negative if item not in common]
     positive = [item for item in positive if item not in common]
 
-    negative = [x for x in negative if (frequencies[x[0]] <= 0 or x[0] == len(frequencies) - 1)]
-    positive = [x for x in positive if (frequencies[x[0]] <= 0 or x[0] == 0)]
+    negative = [x for x in negative if (frequencies[x[0]] == 0 or x[0] == len(frequencies) - 1)]
+    positive = [x for x in positive if (frequencies[x[0]] == 0 or x[0] == 0)]
     return positive, negative, common
 
 
@@ -458,15 +459,15 @@ def _get_episodes(alert_seq, mcat, plot=False):
     return episodes
 
 
-def _create_episode(alert_seq_epi, mcat, tid):
+def _create_episode(hyperalert_seq_epi, mcat, tid):
     # Flatten relevant data from the windows of the corresponding alert sequence
-    services = [alert[3] for window in alert_seq_epi for alert in window]
-    unique_signatures = list(set([alert[4] for window in alert_seq_epi for alert in window]))
-    events = [len(window) for window in alert_seq_epi]
+    services = [alert[3] for window in hyperalert_seq_epi for alert in window]
+    unique_signatures = list(set([alert[4] for window in hyperalert_seq_epi for alert in window]))
+    events = [len(window) for window in hyperalert_seq_epi]
     alert_volume = round(sum(events) / float(len(events)), 1)
 
     # Make exact start/end times based on alert timestamps
-    timestamps = [alert[2] for window in alert_seq_epi for alert in window]
+    timestamps = [alert[2] for window in hyperalert_seq_epi for alert in window]
     first_ts, last_ts = min(timestamps), max(timestamps)
 
     # Make the start/end times the actual elapsed times
@@ -474,7 +475,7 @@ def _create_episode(alert_seq_epi, mcat, tid):
     end_time = (last_ts - start_times[tid]).total_seconds()
     period = end_time - start_time
 
-    # EPISODE DEF: (startTime, endTime, mcat, len(rawevents), volume(alerts), epiPeriod, epiServices, list of unique signatures, (1st timestamp, last timestamp)
+    # EPISODE DEF: (startTime, endTime, mcat, raw_events, volume(alerts), epiPeriod, epiServices, list of unique signatures, (1st timestamp, last timestamp)
     episode = (start_time, end_time, mcat, events, alert_volume, period, services, unique_signatures, (first_ts, last_ts))
     return episode
 
@@ -549,16 +550,16 @@ def aggregate_into_episodes(_team_alerts, step=150, plot_alert_volumes=False):
             host_episodes = []
             for mcat in mcats:
                 # 2.5-minute (150s) fixed step (window). Can be reduced or increased depending on required granularity
-                alert_seq = []
+                hyperalert_seq = []
                 for i in range(int(first_elapsed_time), int(relative_elapsed_time[-1]), step):
                     window = [a for dt, a in zip(relative_elapsed_time, alerts) if (i <= dt < (i + step)) and a[1] == mcat]
-                    alert_seq.append(window)  # Alerts per 'step' seconds (window)
+                    hyperalert_seq.append(window)  # Alerts per 'step' seconds (window)
 
-                raw_episodes = _get_episodes(alert_seq, micro[mcat], plot=False)
+                raw_episodes = _get_episodes(hyperalert_seq, micro[mcat], plot=False)
                 if len(raw_episodes) > 0:
                     for epi in raw_episodes:
-                        alert_seq_epi = alert_seq[epi[0]:epi[1]+1]
-                        episode = _create_episode(alert_seq_epi, mcat, tid)
+                        hyperalert_seq_epi = hyperalert_seq[epi[0]:epi[1]+1]
+                        episode = _create_episode(hyperalert_seq_epi, mcat, tid)
                         host_episodes.append(episode)
 
             if len(host_episodes) == 0:
@@ -621,11 +622,16 @@ def break_into_subbehaviors(_host_data, full_seq=False):
             if full_seq:
                 _subsequences[attacker_victim] = episodes
                 continue
-            if pieces < 1:
+            if pieces < 1:  # TODO: double-check what is happening here
                 _subsequences[attacker_victim + '-0'] = episodes
                 continue
 
-            # Cut episode sequence when a low-severity episode follows a high-severity episode
+            # This part of the code only needs to cut the sequences at appropriate places -- no discarding is needed.
+            # The discarding already happens later in make_attack_graphs.
+            # So here, the viable cuts are: [med, low], [high, low], and [high, med].
+            # For the latter two cases, we will see the first subsequence in the AGs related to the objective = high.
+            # For the first case, unless AGs are also made for medium severity objectives,
+            #   they will not be appearing anywhere (and we call them partial paths).
             count = 0
             mcats = [epi[2] for epi in episodes]
             cuts = [i for i in range(len(episodes) - 1) if (len(str(mcats[i])) > len(str(mcats[i + 1])))]
@@ -652,11 +658,6 @@ def break_into_subbehaviors(_host_data, full_seq=False):
 
 # Step 4.2: Generate traces for FlexFringe (27 Aug 2020)
 def generate_traces(subsequences, datafile):
-    all_services = [[_most_frequent(epi[6]) for epi in subseq] for subseq in subsequences.values()]
-    print('----- All unique services -----')
-    print(set([service for services_subseq in all_services for service in services_subseq]))
-    print('---- end ----- ')
-
     num_traces = 0
     unique_symbols = set()  # FlexFringe treats the (mcat,mserv) pairs as symbols of the alphabet
 
@@ -668,9 +669,8 @@ def generate_traces(subsequences, datafile):
         mcats = [x[2] for x in episodes]
         num_services = [len(set((x[6]))) for x in episodes]
         max_services = [_most_frequent(x[6]) for x in episodes]
-        stime = [x[0] for x in episodes]
 
-        # symbols = [str(c) + ":" + str(n) + "," + str(s) for (c, s, n) in zip(mcats, max_services, num_services)] # multivariate case
+        # symbols = [str(mcat) + ":" + str(num_serv) + "," + str(mserv) for (mcat, num_serv, mserv) in zip(mcats, num_services, max_services)]  # Multivariate case (TODO: has to be fixed if used)
         symbols = [small_mapping[mcat] + "|" + mserv for mcat, mserv in zip(mcats, max_services)]
         unique_symbols.update(symbols)
         symbols.reverse()  # Reverse traces to accentuate high-severity episodes (to create an S-PDFA)
@@ -747,7 +747,7 @@ def traverse(dfa, sinks, sequence):
     state = "0"
     state_list = ["0"]
     for event in sequence.split(" "):
-        sym = event.split(":")[0]  # TODO: remove in case multi is removed in `generate_traces` method
+        sym = event.split(":")[0]  # This is needed for the multivariate case in `generate_traces` function
         sev = rev_smallmapping[sym.split('|')[0]]
         state = dfa[state][sym]
         if state == "":
@@ -780,14 +780,14 @@ def encode_sequences(dfa, sinks, flexfringe_traces):
     for i, sample in enumerate(flexfringe_traces):
         sample = ' '.join(sample.strip('\n').split(' ')[2:])  # Remove the first number and len(mcats)
         state_list, _sev_sinks = traverse(dfa, sinks, sample)
+        state_list = state_list[1:]  # Remove the root node (with state ID 0)
         state_traces[i] = state_list
 
-        total_traces += len(state_list)  # TODO: decide what to do with the root
+        total_traces += len(state_list)
         traces_in_sinks += state_list.count('-1')
 
-        assert (len(sample.split(' ')) + 1 == len(state_traces[i]))
+        assert (len(sample.split(' ')) == len(state_traces[i]))
 
-        state_list = state_list[1:]
         sample = sample.split(' ')
         med_sev = [int(state) for sym, state in zip(sample, state_list) if len(str(rev_smallmapping[sym.split('|')[0]])) == 2]
         med_sev_states.update(med_sev)
@@ -803,16 +803,16 @@ def encode_sequences(dfa, sinks, flexfringe_traces):
 
 
 # Step 6.3: Create state sequences (collecting sub-behaviors back into the same trace, augmented with state IDs)
-def make_state_sequences(episode_subsequences, state_traces, med_states, sev_states):
+def make_state_sequences(episode_subsequences, state_traces):
     state_sequences = dict()
     counter = -1
     for tid, (attack, episode_subsequence) in enumerate(episode_subsequences.items()):
 
-        if len(episode_subsequence) < 3:
+        if len(episode_subsequence) < 3:  # Discard subsequences of length < 3 (as in generate_traces)
             continue
         counter += 1
         
-        if '10.0.254' not in attack:  # TODO: this part has to be commented for CCDC dataset
+        if '10.0.254' not in attack:  # TODO: move all these checks to the `_group_alerts_per_team` function
             continue
         if '147.75' in attack or '69.172' in attack:
             continue
@@ -820,7 +820,7 @@ def make_state_sequences(episode_subsequences, state_traces, med_states, sev_sta
         trace = [int(state) for state in state_traces[counter]]
         max_services = [_most_frequent(epi[6]) for epi in episode_subsequence]
 
-        trace = trace[1:][::-1]  # Reverse the trace from the S-PDFA back
+        trace = trace[::-1]  # Reverse the trace from the S-PDFA back
         
         # start_time, end_time, mcat, state_ID, mserv, list of unique signatures, (1st and last timestamp)
         state_subsequence = [(epi[0], epi[1], epi[2], trace[i], max_services[i], epi[7], epi[8])
@@ -1074,9 +1074,9 @@ def _create_edge_line(vid, vname1, vname2, ts1, ts2, color, attacker):
 def _print_simplicity(ag_name, lines):
     vertices, edges = 0, 0
     for line in lines:  # Count vertices and edges
-        if '->' in line:
+        if '->' in line[1]:
             edges += 1
-        elif 'shape=' in line:
+        elif 'shape=' in line[1]:
             vertices += 1
     print('{}: # vert: {}, # edges: {}, simplicity: {}'.format(ag_name, vertices, edges, vertices / float(edges)))
 
@@ -1103,34 +1103,33 @@ def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, di
     for victim in total_victims:
         print('!!! Rendering AGs for Victim', victim)
         for objective in objectives:
-            print('\t!!!! Objective', objective, end='')
+            print('\t!!!! Objective', objective)
             # Get the variants of current objective and attempts per team
             team_attack_attempts, observed_obj = _get_attack_attempts(state_sequences, victim, objective, in_main_model)
 
             # If no team has obtained this objective or has targeted this victim, don't generate its AG
             if sum([len(attempt) for attempt in team_attack_attempts.values()]) == 0:
-                print()
                 continue
-            print(' - Created')
+            print('\t     Created')
 
             ag_name = objective.replace('|', '').replace('_', '').replace('-', '').replace('(', '').replace(')', '')
-            lines = ['digraph ' + ag_name + ' {',
-                     'rankdir="BT"; \n graph [ nodesep="0.1", ranksep="0.02"] \n node [ fontname=Arial, ' +
-                     'fontsize=24, penwidth=3]; \n edge [ fontname=Arial, fontsize=20,penwidth=5 ];']
+            lines = [(0, 'digraph ' + ag_name + ' {'),
+                     (0, 'rankdir="BT"; \n graph [ nodesep="0.1", ranksep="0.02"] \n node [ fontname=Arial, ' +
+                     'fontsize=24, penwidth=3]; \n edge [ fontname=Arial, fontsize=20,penwidth=5 ];')]
             root_node = _translate(objective, root=victim)
-            lines.append('"' + root_node + '" [shape=doubleoctagon, style=filled, fillcolor=salmon];')
-            lines.append('{ rank = max; "' + root_node + '"}')
+            lines.append((0, '"' + root_node + '" [shape=doubleoctagon, style=filled, fillcolor=salmon];'))
+            lines.append((0, '{ rank = max; "' + root_node + '"}'))
 
             # For each variant of objective, add a link to the root node, and determine if it's sink
             for obj_variant in list(observed_obj):
-                lines.append('"' + _translate(obj_variant) + '" -> "' + root_node + '"')
+                lines.append((0, '"' + _translate(obj_variant) + '" -> "' + root_node + '"'))
                 if _is_severe_sink(obj_variant, sev_sinks):
-                    lines.append('"' + _translate(obj_variant) + '" [style="filled,dotted", fillcolor= salmon]')
+                    lines.append((0, '"' + _translate(obj_variant) + '" [style="filled,dotted", fillcolor= salmon]'))
                 else:
-                    lines.append('"' + _translate(obj_variant) + '" [style=filled, fillcolor= salmon]')
+                    lines.append((0, '"' + _translate(obj_variant) + '" [style=filled, fillcolor= salmon]'))
             
             # All obj variants have the same rank
-            lines.append('{ rank=same; "' + '" "'.join([_translate(obj) for obj in observed_obj]) + '"}')
+            lines.append((0, '{ rank=same; "' + '" "'.join([_translate(obj) for obj in observed_obj]) + '"}'))
 
             node_signatures = dict()
             already_addressed = set()
@@ -1150,32 +1149,32 @@ def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, di
                         vname = action[0]
                         if vid == 0:  # If first action
                             if 'Sink' in vname:  # If sink, make dotted TODO: this check is always False
-                                lines.append('"' + _translate(vname) + '" [style="dotted,filled", fillcolor= yellow]')
+                                lines.append((0, '"' + _translate(vname) + '" [style="dotted,filled", fillcolor= yellow]'))
                             else:
                                 if _is_severe_sink(vname, sev_sinks):  # If med- or high-sev sink, make dotted
-                                    lines.append('"' + _translate(vname) + '" [style="dotted,filled", fillcolor= yellow]')
+                                    lines.append((0, '"' + _translate(vname) + '" [style="dotted,filled", fillcolor= yellow]'))
                                     already_addressed.add(vname.split('|')[2])
                                 else:  # Else, normal starting node
-                                    lines.append('"' + _translate(vname) + '" [style=filled, fillcolor= yellow]')
+                                    lines.append((0, '"' + _translate(vname) + '" [style=filled, fillcolor= yellow]'))
                         else:  # For other actions
                             if 'Sink' in vname:  # TODO: this check is always false
                                 # Take all AG lines so far, and if it was ever defined before, redefine it to be dotted
                                 already_dotted = False
                                 for line in lines:
-                                    if (_translate(vname) in line) and ('dotted' in line) and ('->' not in line):
+                                    if (_translate(vname) in line[1]) and ('dotted' in line[1]) and ('->' not in line[1]):
                                         already_dotted = True
                                         break
                                 if already_dotted:
                                     continue
                                 partial = '"' + _translate(vname) + '" [style="dotted'  # Redefine here
-                                if not sum([True if partial in line else False for line in lines]):
-                                    lines.append(partial + '"]')
+                                if not sum([True if partial in line[1] else False for line in lines]):
+                                    lines.append((0, partial + '"]'))
 
                     # Create edges (transitions) for the AG
                     bigram = zip(attempt, attempt[1:])  # Make bigrams (sliding window of 2)
-                    for vid, ((vname1, _, _, _, ts1), (vname2, _, _, _, ts2)) in enumerate(bigram):
+                    for vid, ((vname1, time1, _, _, ts1), (vname2, _, _, _, ts2)) in enumerate(bigram):
                         edge_line = _create_edge_line(vid, vname1, vname2, ts1, ts2, color, team_attacker.split('-')[1])
-                        lines.append(edge_line)
+                        lines.append((time1, edge_line))
 
             # Go over all vertices again and define their shapes + make high-sev sink states dotted
             for vname, signatures in node_signatures.items():
@@ -1184,15 +1183,15 @@ def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, di
                 shape = shapes[mcat]
                 # If it's oval, we don't do anything because it is not a high-sev sink
                 if shape == shapes[0] or vname.split('|')[2] in already_addressed:
-                    lines.append('"' + _translate(vname) + '" [shape=' + shape + ']')
+                    lines.append((0, '"' + _translate(vname) + '" [shape=' + shape + ']'))
                 else:
                     if _is_severe_sink(vname, sev_sinks):
-                        lines.append('"' + _translate(vname) + '" [style="dotted", shape=' + shape + ']')
+                        lines.append((0, '"' + _translate(vname) + '" [style="dotted", shape=' + shape + ']'))
                     else:
-                        lines.append('"' + _translate(vname) + '" [shape=' + shape + ']')
+                        lines.append((0, '"' + _translate(vname) + '" [shape=' + shape + ']'))
                 # Add a tooltip with signatures
-                lines.append('"' + _translate(vname) + '"' + ' [tooltip="' + "\n".join(signatures) + '"]')
-            lines.append('}')
+                lines.append((1, '"' + _translate(vname) + '"' + ' [tooltip="' + "\n".join(signatures) + '"]'))
+            lines.append((1000, '}'))
 
             # _print_simplicity(ag_name, lines)
             if SAVE:
@@ -1200,7 +1199,7 @@ def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, di
                 out_filepath = dir_name + '/' + out_filename
                 with open(out_filepath + '.dot', 'w') as outfile:
                     for line in lines:
-                        outfile.write(line + '\n')
+                        outfile.write(str(line[1]) + '\n')
 
                 os.system("dot -Tpng " + out_filepath + ".dot -o " + out_filepath + ".png")
                 os.system("dot -Tsvg " + out_filepath + ".dot -o " + out_filepath + ".svg")
@@ -1289,7 +1288,7 @@ sinks_model = load_model(path_to_traces + ".ff.finalsinks.json")
 
 print('------ Encoding traces into state sequences ------')
 state_traces, med_sev_states, high_sev_states, severe_sinks = encode_sequences(main_model, sinks_model, episode_traces)
-state_sequences = make_state_sequences(episode_subsequences, state_traces, med_sev_states, high_sev_states)
+state_sequences = make_state_sequences(episode_subsequences, state_traces)
 
 # print('------ Clustering state groups ------')
 # state_groups = make_state_groups(state_sequences, path_to_traces)
