@@ -1,4 +1,4 @@
-from attack_stages import MicroAttackStage, MacroAttackStage
+from signatures.attack_stages import MicroAttackStage
 
 # Convert each alert into Moskal category: Manual mapping
 ccdc_combined = {
