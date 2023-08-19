@@ -1,3 +1,4 @@
+import argparse
 import csv
 import datetime
 import glob
@@ -1206,24 +1207,24 @@ def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, di
 
 
 # ----- MAIN ------
+# Usage: sage.py {path/to/json/files} {experiment_name} {alert_filtering_window (def=1.0)} {alert_aggr_window (def=150)} {(start_hour,end_hour)[Optional]}
+parser = argparse.ArgumentParser(description='SAGE: Intrusion Alert-Driven Attack Graph Extractor.')
+parser.add_argument('path_to_json_files', type=str, help='Directory containing intrusion alerts in json format. sample-input.json provides an example of the accepted file format')
+parser.add_argument('experiment_name', type=str, help='Custom name for all artefacts')
+parser.add_argument('-t', type=float, required=False, default=1.0, help='Time window in which duplicate alerts are discarded (default: 1.0 sec)')
+parser.add_argument('-w', type=int, required=False, default=150, help='Aggregate alerts occuring in this window as one episode (default: 150 sec)')
+parser.add_argument('--filter', type=int, nargs=2, required=False, default=[0, 100], help='Filtering alerts. Only parsing from and to the specified hours, relative to the start of the alert capture (default: (0, 100))')
+parser.add_argument('--dataset', required=False, type=str, choices=['cptc', 'other'], default='other', help='The name of the dataset with the alerts (default: other)')
+parser.add_argument('--no-clean', action='store_false', help='Do not delete the dot files after the program ends')
+args = parser.parse_args()
 
-if len(sys.argv) < 5:
-    print('Usage: sage.py {path/to/json/files} {experiment_name} {alert_filtering_window (def=1.0)} {alert_aggr_window (def=150)} {(start_hour,end_hour)[Optional]}')
-    sys.exit()
-
-path_to_json_files = sys.argv[1]
-experiment_name = sys.argv[2]
-alert_filtering_window = float(sys.argv[3])
-alert_aggr_window = int(sys.argv[4])
-start_hour, end_hour = 0, 100
-if len(sys.argv) > 5:
-    try:
-        start_hour = float(sys.argv[5])
-        end_hour = float(sys.argv[6])
-        print('Filtering alerts. Only parsing from %d-th to %d-th hour (relative to the start of the alert capture)' % (start_hour, end_hour))
-    except (ValueError, TypeError):
-        print('Error parsing hour filter range')
-        sys.exit()
+path_to_json_files = args.path_to_json_files
+experiment_name = args.experiment_name
+alert_filtering_window = args.t
+alert_aggr_window = args.w
+start_hour, end_hour = args.filter
+dataset_name = args.dataset
+DOCKER = args.no_clean  # Alternatively, this can be renamed to CLEAN (instead of DOCKER) to make it more clear
 
 # We cheat a bit: In case user filters to only see alerts from (s,e) range,
 #   we record the first alert just to get the real time-elapsed since first alert
