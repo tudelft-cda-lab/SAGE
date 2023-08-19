@@ -2,21 +2,18 @@ import csv
 import datetime
 import glob
 import json
-import math
 import os
 import re
-import subprocess
 import sys
-from collections import defaultdict, OrderedDict
-from itertools import accumulate
 
-import matplotlib.pyplot as plt
-import numpy as np
 import requests
 
-# Import attack stages, mappings and alert signatures
+from ag_generation import make_attack_graphs
+from episode_sequence_generation import aggregate_into_episodes, host_episode_sequences, break_into_subbehaviors
+from model_learning import generate_traces, flexfringe, load_model, encode_sequences, make_state_sequences, group_episodes_per_av
+from plotting import plot_alert_filtering, plot_histogram, plot_state_groups
 from signatures.attack_stages import MicroAttackStage
-from signatures.mappings import micro, micro_inv, macro_inv, micro2macro, mcols, small_mapping, rev_smallmapping, verbose_micro
+from signatures.mappings import micro_inv
 from signatures.alert_signatures import usual_mapping, unknown_mapping, ccdc_combined, attack_stage_mapping
 
 
@@ -42,18 +39,7 @@ def _get_attack_stage_mapping(signature):
     return micro_inv[str(result)]
 
  
-def _most_frequent(serv):
-    max_frequency = 0
-    most_frequent_service = None
-    for s in serv:
-        frequency = serv.count(s)
-        if frequency > max_frequency:
-            most_frequent_service = s
-            max_frequency = frequency
-    return most_frequent_service
-
-
-# Step 0: Download the IANA port-service mapping"""
+# Step 0: Download the IANA port-service mapping
 def load_iana_mapping():
     # Perform the first request and in case of a failure retry the specified number of times
     for attempt in range(IANA_NUM_RETRIES + 1):
@@ -139,7 +125,7 @@ def _parse(unparsed_data, filter_alerts=False):
         dst_port = None if 'dest_port' not in raw.keys() else raw['dest_port']
 
         # Filter out mistaken alerts / uninteresting alerts
-        if src_ip == bad_ip or dst_ip == bad_ip or cat == 'Not Suspicious Traffic':  # TODO: check bad ips for CPTC/CCDC; what happens if we remove "Not Suspicious Traffic"?
+        if src_ip == bad_ip or dst_ip == bad_ip or cat == 'Not Suspicious Traffic':
             continue
 
         mcat = _get_attack_stage_mapping(sig)
@@ -150,57 +136,10 @@ def _parse(unparsed_data, filter_alerts=False):
     return parsed_data
 
 
-def _plot_alert_filtering(unfiltered_alerts, filtered_alerts):
-    original, remaining = dict(), dict()
-    original_mcat = [x[9] for x in unfiltered_alerts]
-    for i in original_mcat:
-        original[i] = original.get(i, 0) + 1
-
-    remaining_mcat = [x[9] for x in filtered_alerts]
-    for i in remaining_mcat:
-        remaining[i] = remaining.get(i, 0) + 1
-    if MicroAttackStage.NON_MALICIOUS.value in original:
-        remaining[MicroAttackStage.NON_MALICIOUS.value] = 0  # mcat that has been filtered (non-malicious)
-
-    # Use ordered dictionaries to make sure that the labels (categories) are aligned
-    b1 = OrderedDict(sorted(original.items()))
-    b2 = OrderedDict(sorted(remaining.items()))
-
-    plt.figure(figsize=(20, 20))
-    plt.gcf().subplots_adjust(bottom=0.2)  # To fit the x-labels
-
-    # Set width and height of bar
-    bar_width = 0.4
-    bars1 = [x for x in b1.values()]
-    bars2 = [x for x in b2.values()]
-
-    # Set position of bar on x-axis
-    r1 = np.arange(len(bars1))
-    r2 = [x + bar_width for x in r1]
-
-    # Make the plot
-    plt.bar(r1, bars1, color='skyblue', width=bar_width, edgecolor='white', label='Raw')
-    plt.bar(r2, bars2, color='salmon', width=bar_width, edgecolor='white', label='Cleaned')
-
-    labels = [micro[x].split('.')[1] for x in b1.keys()]
-
-    # Add xticks in the middle of the group bars
-    plt.ylabel('Frequency', fontweight='bold', fontsize='20')
-    plt.xlabel('Alert categories', fontweight='bold', fontsize='20')
-    plt.xticks([(x + bar_width / 2) for x in r1], labels, fontsize='10', rotation='vertical')
-    plt.yticks(fontsize='20')
-    plt.title('High-frequency Alert Filtering', fontweight='bold', fontsize='20')
-
-    # Create legend & show graphic
-    plt.legend(prop={'size': 20})
-    plt.show()
-    return
-
-
 # Step 1.2: Remove duplicate alerts (defined by the alert_filtering_window parameter)
 def _remove_duplicates(unfiltered_alerts, plot=False, gap=1.0):
     filtered_alerts = [unfiltered_alerts[x] for x in range(1, len(unfiltered_alerts))
-                       if unfiltered_alerts[x][9] != MicroAttackStage.NON_MALICIOUS.value  # Filter out non-malicious alerts
+                       if unfiltered_alerts[x][9] != MicroAttackStage.NON_MALICIOUS.value  # Skip non-malicious alerts
                        and not (unfiltered_alerts[x][0] <= gap  # Diff from previous alert is less than gap sec
                                 and unfiltered_alerts[x][1] == unfiltered_alerts[x - 1][1]  # Same srcIP
                                 and unfiltered_alerts[x][3] == unfiltered_alerts[x - 1][3]  # Same destIP
@@ -208,16 +147,17 @@ def _remove_duplicates(unfiltered_alerts, plot=False, gap=1.0):
                                 and unfiltered_alerts[x][2] == unfiltered_alerts[x - 1][2]  # Same srcPort
                                 and unfiltered_alerts[x][4] == unfiltered_alerts[x - 1][4])]  # Same destPort
     if plot:
-        _plot_alert_filtering(unfiltered_alerts, filtered_alerts)
+        plot_alert_filtering(unfiltered_alerts, filtered_alerts)
 
     print('Filtered # alerts (remaining):', len(filtered_alerts))
     return filtered_alerts
 
 
 # Step 1: Read the input alerts
-def load_data(path_to_alerts, filtering_window):
+def load_data(path_to_alerts, filtering_window, start_hour, end_hour):
     _team_alerts = []
     _team_labels = []
+    _team_start_times = []  # Record the first alert just to get the real elapsed time (if the user filters (s,e) range)
     files = glob.glob(path_to_alerts + "/*.json")
     print('About to read json files...')
     if len(files) < 1:
@@ -237,80 +177,19 @@ def load_data(path_to_alerts, filtering_window):
         start_time_limit = 3600 * start_hour   # Which hour to start from?
 
         first_ts = parsed_alerts[0][8]
-        start_times.append(first_ts)
+        _team_start_times.append(first_ts)
 
         filtered_alerts = [x for x in parsed_alerts if (((x[8] - first_ts).total_seconds() <= end_time_limit)
                                                         and ((x[8] - first_ts).total_seconds() >= start_time_limit))]
         _team_alerts.append(filtered_alerts)
 
-    return _team_alerts, _team_labels
-
-
-# Plotting for each team, how many categories are consumed
-def plot_histogram(_team_alerts, _team_labels, suricata_summary=False):
-    # Choice of: Suricata category usage or Micro attack stage usage? (has to be updated when used)
-    suricata_categories = {'A Network Trojan was detected': 0, 'Generic Protocol Command Decode': 1,
-                           'Attempted Denial of Service': 2, 'Attempted User Privilege Gain': 3,
-                           'Misc activity': 4, 'Attempted Administrator Privilege Gain': 5,
-                           'access to a potentially vulnerable web application': 6, 'Information Leak': 7,
-                           'Web Application Attack': 8, 'Successful Administrator Privilege Gain': 9,
-                           'Potential Corporate Privacy Violation': 10, 'Detection of a Network Scan': 11,
-                           'Not Suspicious Traffic': 12, 'Potentially Bad Traffic': 13, 'Attempted Information Leak': 14}
-
-    micro_attack_stages_codes = [x for x, _ in micro.items()]
-    micro_attack_stages = [y for _, y in micro.items()]
-
-    if suricata_summary:
-        num_categories = len(suricata_categories)
-        percentages = [[0] * len(suricata_categories) for _ in range(len(_team_alerts))]
-    else:
-        num_categories = len(micro_attack_stages)
-        percentages = [[0] * len(micro_attack_stages) for _ in range(len(_team_alerts))]
-    indices = np.arange(num_categories)    # The x locations for the groups
-    bar_width = 0.75       # The width of the bars: can also be len(x) sequence
-
-    for tid, team in enumerate(_team_alerts):
-        for alert in team:
-            if suricata_summary:
-                percentages[tid][suricata_categories[alert[6]]] += 1
-            else:
-                percentages[tid][micro_attack_stages_codes.index(alert[9])] += 1
-        for i, acat in enumerate(percentages[tid]):
-            percentages[tid][i] = acat / len(team)
-    plots = []
-    for tid, team in enumerate(_team_alerts):
-        if tid == 0:
-            plot = plt.bar(indices, percentages[tid], bar_width)
-        elif tid == 1:
-            plot = plt.bar(indices, percentages[tid], bar_width, bottom=percentages[tid - 1])
-        else:
-            index = [x for x in range(tid)]
-            bottom = np.add(percentages[0], percentages[1])
-            for i in index[2:]:
-                bottom = np.add(bottom, percentages[i]).tolist()
-            plot = plt.bar(indices, percentages[tid], bar_width, bottom=bottom)
-        plots.append(plot)
-
-        # TODO: Decide whether to put it like this or normalize over columns
-    plt.ylabel('Percentage of occurrence')
-    plt.title('Frequency of alert category')
-    if suricata_summary:
-        plt.xticks(indices, ('c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'c10', 'c11', 'c12', 'c13', 'c14'))
-    else:
-        plt.xticks(indices, [x.split('.')[1] for x in micro_attack_stages], rotation='vertical')
-    plt.tick_params(axis='x', which='major', labelsize=8)
-    plt.tick_params(axis='x', which='minor', labelsize=8)
-    # plt.yticks(np.arange(0, 13000, 1000))
-    plt.legend([plot[0] for plot in plots], _team_labels)
-    plt.tight_layout()
-    plt.savefig('data_histogram-' + experiment_name + '.png')
-    # plt.show()
+    return _team_alerts, _team_labels, _team_start_times
 
 
 # Reorganise alerts for each attacker per team
-def _group_alerts_per_team(_team_alerts):
-    team_data = dict()
-    for tid, team in enumerate(team_alerts):
+def group_alerts_per_team(alerts, port_mapping):
+    _team_data = dict()
+    for tid, team in enumerate(alerts):
         host_alerts = dict()  # (attacker, victim) -> alerts
 
         for alert in team:
@@ -319,7 +198,10 @@ def _group_alerts_per_team(_team_alerts):
             dst_port = alert[4] if alert[4] is not None else 65000
 
             # Say 'unknown' if the port cannot be resolved
-            dst_port = 'unknown' if (dst_port not in port_services.keys() or port_services[dst_port] == 'unknown') else port_services[dst_port]['name']
+            if dst_port not in port_mapping.keys() or port_mapping[dst_port] == 'unknown':
+                dst_port = 'unknown'
+            else:
+                dst_port = port_mapping[dst_port]['name']
 
             # TODO: add the check for 10.0.254 in src_ip or in dst_ip - if not, then discard
             # TODO: If present in src_ip, then add (src_ip, dst_ip). If in dst_ip, then add (dst_ip, src_ip)
@@ -332,878 +214,8 @@ def _group_alerts_per_team(_team_alerts):
             else:
                 host_alerts[(dst_ip, src_ip)].append((src_ip, mcat, ts, dst_port, signature))
 
-        team_data[tid] = host_alerts.items()
-    return team_data
-
-
-def _get_ups_and_downs(frequencies, slopes):
-    positive = [(0, slopes[0])]  # (index, slope)
-    positive.extend([(i, slopes[i]) for i in range(1, len(slopes)) if (slopes[i - 1] <= 0 and slopes[i] > 0)])
-    negative = [(i + 1, slopes[i + 1]) for i in range(0, len(slopes) - 1) if (slopes[i] < 0 and slopes[i + 1] >= 0)]
-    if slopes[-1] < 0:  # Special case for last ramp down that's not fully gone down
-        negative.append((len(slopes), slopes[-1]))
-    elif slopes[-1] > 0:  # Special case for last ramp up without any ramp down
-        negative.append((len(slopes), slopes[-1]))
-
-    common = set(negative).intersection(positive)
-    negative = [item for item in negative if item not in common]
-    positive = [item for item in positive if item not in common]
-
-    negative = [x for x in negative if (frequencies[x[0]] == 0 or x[0] == len(frequencies) - 1)]
-    positive = [x for x in positive if (frequencies[x[0]] == 0 or x[0] == 0)]
-    return positive, negative, common
-
-
-def _plot_episodes(frequencies, episodes, mcat):
-    cap = max(frequencies) + 1
-
-    plt.figure()
-    plt.title(mcat)
-    plt.xlabel('Time ->')
-    plt.ylabel('Slope')
-    plt.plot(frequencies, 'gray')
-    for ep in episodes:
-        xax_start = [ep[0]] * cap
-        xax_end = [ep[1]] * cap
-        yax = list(range(cap))
-
-        plt.plot(xax_start, yax, 'g', linestyle=(0, (5, 10)))
-        plt.plot(xax_end, yax, 'r', linestyle=(0, (5, 10)))
-
-    plt.show()
-    return
-
-
-# Goal: (1) To first form a collective attack profile of a team
-# and then (2) To compare attack profiles of teams
-def _get_episodes(alert_seq, mcat, plot=False):
-    # x-axis represents the time, y-axis represents the frequencies of alerts within a window
-    dx = 0.1
-    frequencies = [len(x) for x in alert_seq]
-
-    # TODO: move these test cases into a separate test file
-    # test case 1: normal sequence
-    #y = [11, 0, 0, 2, 5, 2, 2, 2, 4, 2, 0, 0, 8, 6, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 13, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 9, 2]
-    # test case 2: start is not detected
-    #y = [ 0, 2, 145, 0, 0, 1, 101, 45, 0, 1, 18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
-    # test case 2.5: start not detected (unfinished)
-    #y = [39, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 28, 0, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 0, 0, 1, 1, 2, 1, 2, 2, 1, 1, 1, 2, 0, 1, 2, 0, 2, 1, 1, 1, 2, 1, 1, 0, 1, 1, 1, 1]
-    # test case 3: last peak not detected (unfinished)
-    #y = [36, 0, 0, 0, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 17, 0, 0, 0, 0, 0, 0, 33, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 6, 5, 6, 1, 2, 2]
-    # test case 4: last peak undetected (finished)
-    #y = [1, 0, 0, 1, 3, 0, 1, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 2, 21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    # test case 5: end peak is not detected
-    #y = [1, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 2, 0]
-    # test case 6: end peak uncompleted again not detected:
-    #y = [8, 4, 0, 0, 0, 4, 0, 0, 5, 0, 0, 1, 10, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 2]
-    # test case 7: single peak not detected (conjoined)
-    #y = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 207, 0, 53, 24, 0, 0, 0, 0, 0, 0, 0]
-    # test case 8: another single peak not detected
-    #y = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    # test case 9: single peak at the very end
-    #y = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 294]
-    # test case 10: ramp up at end
-    #y = [0, 0, 0, 0, 190, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 300, 38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 271, 272]
-    #print(y)
-    #y = [1, 0, 64, 2]
-    #y = [2, 0, 0, 0, 0, 0, 0, 2, 3, 0, 0, 0, 0, 2, 3]
-    #y = [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
-
-    if sum(frequencies) == 0:
-        return []
-    if len(frequencies) == 1:  # Artificially augmenting list for a single action to be picked up
-        frequencies = [frequencies[0], 0]
-
-    slopes = np.diff(frequencies) / dx  # Taking derivative of frequencies
-    positive, negative, common = _get_ups_and_downs(frequencies, slopes)
-
-    if len(negative) < 1 or len(positive) < 1:
-        return []
-
-    # Get episodes (down between ups)
-    episodes = []  # Tuple (start_index, end_index)
-    for i in range(len(positive) - 1):
-        ep1 = positive[i][0]
-        ep2 = positive[i + 1][0]
-        ends = []
-        for j in range(len(negative)):
-            if ep1 <= negative[j][0] < ep2:
-                ends.append(negative[j])
-
-        if len(ends) > 0:
-            episode = (ep1, max([x[0] for x in ends]))
-            episodes.append(episode)
-
-    # Handle edge cases
-    if len(positive) == 1 and len(negative) == 1:
-        episode = (positive[0][0], negative[0][0])
-        episodes.append(episode)
-
-    if len(episodes) > 0 and negative[-1][0] != episodes[-1][1]:
-        episode = (positive[-1][0], negative[-1][0])
-        episodes.append(episode)
-
-    if len(episodes) > 0 and positive[-1][0] != episodes[-1][0]:
-        elim = [x[0] for x in common]
-        if len(elim) > 0 and max(elim) > positive[-1][0]:
-            episode = (positive[-1][0], max(elim))
-            episodes.append(episode)
-
-    if len(episodes) == 0 and len(positive) == 2 and len(negative) == 1:
-        episode = (positive[1][0], negative[0][0])
-        episodes.append(episode)
-
-    if plot:
-        _plot_episodes(frequencies, episodes, mcat)
-
-    return episodes
-
-
-def _create_episode(hyperalert_seq_epi, mcat, tid):
-    # Flatten relevant data from the windows of the corresponding alert sequence
-    services = [alert[3] for window in hyperalert_seq_epi for alert in window]
-    unique_signatures = list(set([alert[4] for window in hyperalert_seq_epi for alert in window]))
-    events = [len(window) for window in hyperalert_seq_epi]
-    alert_volume = round(sum(events) / float(len(events)), 1)
-
-    # Make exact start/end times based on alert timestamps
-    timestamps = [alert[2] for window in hyperalert_seq_epi for alert in window]
-    first_ts, last_ts = min(timestamps), max(timestamps)
-
-    # Make the start/end times the actual elapsed times
-    start_time = (first_ts - start_times[tid]).total_seconds()
-    end_time = (last_ts - start_times[tid]).total_seconds()
-    period = end_time - start_time
-
-    # EPISODE DEF: (startTime, endTime, mcat, raw_events, volume(alerts), epiPeriod, epiServices, list of unique signatures, (1st timestamp, last timestamp)
-    episode = (start_time, end_time, mcat, events, alert_volume, period, services, unique_signatures, (first_ts, last_ts))
-    return episode
-
-
-def _legend_without_duplicate_labels(ax, fontsize=10, loc='upper right'):
-    handles, labels = ax.get_legend_handles_labels()
-    unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
-    unique = sorted(unique, key=lambda x: x[1])
-    ax.legend(*zip(*unique), loc=loc, fontsize=fontsize)
-
-
-def _plot_alert_volume_per_episode(tid, attacker_victim, host_episodes, mcats):
-    plt.figure(figsize=(10, 10))
-    ax = plt.gca()
-    plt.title('Micro attack episodes | Team: ' + str(tid) + ' | Host: ' + '->'.join(attacker_victim))
-    plt.xlabel('Time Window (sec)')
-    plt.ylabel('Micro attack stages')
-    # NOTE: Line thicknesses are on per-host basis
-    tmax = max([epi[4] for epi in host_episodes])
-    tmin = min([epi[4] for epi in host_episodes])
-    for idx, ep in enumerate(host_episodes):
-        xax = list(np.arange(ep[0], ep[1] + 1))
-        yax = [mcats.index(ep[2])] * len(xax)
-        thickness = ep[4]
-        lsize = ((thickness - tmin) / (tmax - tmin)) * (5 - 0.5) + 0.5 if (tmax - tmin) != 0.0 else 0.5
-        # lsize = np.log(thickness) + 1 TODO: Either take log or normalize between [0.5 5]
-        msize = (lsize * 2) + 1
-        ax.plot(xax, yax, color=mcols[macro_inv[micro2macro[micro[ep[2]]]]], linewidth=lsize)
-        ax.plot(ep[0], mcats.index(ep[2]), color=mcols[macro_inv[micro2macro[micro[ep[2]]]]], marker='.', linewidth=0,
-                markersize=msize, label=micro2macro[micro[ep[2]]])
-        ax.plot(ep[1], mcats.index(ep[2]), color=mcols[macro_inv[micro2macro[micro[ep[2]]]]], marker='.', linewidth=0,
-                markersize=msize)
-        plt.yticks(range(len(mcats)), [x.split('.')[1] for x in micro.values()], rotation=0)
-    _legend_without_duplicate_labels(ax)
-    plt.grid(True, alpha=0.4)
-
-    # plt.tight_layout()
-    # plt.savefig('Pres-Micro-attack-episodes-Team'+str(tid) +'-Connection'+ attacker[0]+'--'+attacker[1]+'.png')
-    plt.show()
-
-
-# Step 2: Create alert sequence and get episodes
-def aggregate_into_episodes(_team_alerts, step=150, plot_alert_volumes=False):
-    team_data = _group_alerts_per_team(_team_alerts)
-    _team_episodes = []
-    team_times = []
-
-    print('---------------- TEAMS -------------------------')
-
-    mcats = list(micro.keys())
-    for tid, team in team_data.items():
-        print(tid, sep=' ', end=' ', flush=True)
-        team_host_episodes = dict()
-        _team_times = dict()
-        for attacker_victim, alerts in team:
-            if len(alerts) <= 1:
-                continue
-
-            # Alert format: (dst_ip, mcat, ts, dst_port, signature)
-            # print(attacker_victim, len([(x[1]) for x in alerts])) # TODO: what about IPs not related to attacker?
-            first_elapsed_time = round((alerts[0][2] - start_times[tid]).total_seconds(), 2)
-
-            _team_times['->'.join(attacker_victim)] = first_elapsed_time
-
-            ts = [x[2] for x in alerts]
-            diff_ts = [0.0]
-            for i in range(1, len(ts)):
-                diff_ts.append(round((ts[i] - ts[i - 1]).total_seconds(), 2))
-            elapsed_time = list(accumulate(diff_ts))
-            relative_elapsed_time = [round(x + first_elapsed_time, 2) for x in elapsed_time]
-
-            host_episodes = []
-            for mcat in mcats:
-                # 2.5-minute (150s) fixed step (window). Can be reduced or increased depending on required granularity
-                hyperalert_seq = []
-                for i in range(int(first_elapsed_time), int(relative_elapsed_time[-1]), step):
-                    window = [a for dt, a in zip(relative_elapsed_time, alerts) if (i <= dt < (i + step)) and a[1] == mcat]
-                    hyperalert_seq.append(window)  # Alerts per 'step' seconds (window)
-
-                raw_episodes = _get_episodes(hyperalert_seq, micro[mcat], plot=False)
-                if len(raw_episodes) > 0:
-                    for epi in raw_episodes:
-                        hyperalert_seq_epi = hyperalert_seq[epi[0]:epi[1]+1]
-                        episode = _create_episode(hyperalert_seq_epi, mcat, tid)
-                        host_episodes.append(episode)
-
-            if len(host_episodes) == 0:
-                continue
-
-            host_episodes.sort(key=lambda tup: tup[0])
-            team_host_episodes[attacker_victim] = host_episodes
-
-            if plot_alert_volumes:
-                _plot_alert_volume_per_episode(tid, attacker_victim, host_episodes, mcats)
-
-        _team_episodes.append(team_host_episodes)
-        team_times.append(_team_times)
-    return _team_episodes, team_times
-
-
-# Step 3: Create episode sequences
-# Host = [connections] instead of team level representation
-def host_episode_sequences(_team_episodes):
-    _host_data = {}
-    print('# teams:', len(_team_episodes))
-    print('----- TEAMS -----')
-    for tid, team in enumerate(_team_episodes):
-        print(tid, sep=' ', end=' ', flush=True)
-        for (attacker, victim), episodes in team.items():
-            if len(episodes) < 2:
-                continue
-            # if ('10.0.0' in attacker or '10.0.1' in attacker):
-            #        continue
-
-            att = 't' + str(tid) + '-' + attacker
-            if att not in _host_data.keys():
-                _host_data[att] = []
-
-            extended_episode = [epi + (victim,) for epi in episodes]
-
-            _host_data[att].append(extended_episode)
-            _host_data[att].sort(key=lambda tup: tup[0][0])
-
-    print('\n# episode sequences:', len(_host_data))
-    return _host_data
-
-
-# Step 4.1: Split episode sequences for an attacker-victim pair into episode subsequences.
-# Each episode subsequence represents an attack attempt.
-def break_into_subbehaviors(_host_data, full_seq=False):
-    _subsequences = dict()
-    cut_length = 4
-
-    print('----- Sub-sequences -----')
-    for i, (attacker, victim_episodes) in enumerate(_host_data.items()):
-        print((i + 1), sep=' ', end=' ', flush=True)
-        for episodes in victim_episodes:
-            if len(episodes) < 2:
-                continue
-
-            victim = episodes[0][-1]
-            attacker_victim = attacker + '->' + victim
-            pieces = math.floor(len(episodes) / cut_length)
-            if full_seq:
-                _subsequences[attacker_victim] = episodes
-                continue
-            if pieces < 1:  # TODO: double-check what is happening here
-                _subsequences[attacker_victim + '-0'] = episodes
-                continue
-
-            # This part of the code only needs to cut the sequences at appropriate places -- no discarding is needed.
-            # The discarding already happens later in make_attack_graphs.
-            # So here, the viable cuts are: [med, low], [high, low], and [high, med].
-            # For the latter two cases, we will see the first subsequence in the AGs related to the objective = high.
-            # For the first case, unless AGs are also made for medium severity objectives,
-            #   they will not be appearing anywhere (and we call them partial paths).
-            count = 0
-            mcats = [epi[2] for epi in episodes]
-            cuts = [i for i in range(len(episodes) - 1) if (len(str(mcats[i])) > len(str(mcats[i + 1])))]
-
-            rest = (0, len(episodes) - 1)
-            for j in range(len(cuts)):
-                start = 0 if j == 0 else cuts[j - 1] + 1
-                end = cuts[j]
-                rest = (end + 1, len(episodes) - 1)
-                subsequence = episodes[start:end+1]
-                if len(subsequence) < 2:
-                    continue
-                _subsequences[attacker_victim + '-' + str(count)] = subsequence
-                count += 1
-            subsequence = episodes[rest[0]:rest[1]+1]
-            if len(subsequence) < 2:
-                # print('discarding symbol ', [x[2] for x in al]) # TODO This one is not cool1
-                continue
-            _subsequences[attacker_victim + '-' + str(count)] = subsequence
-
-    print('\n# sub-sequences:', len(_subsequences))
-    return _subsequences
-
-
-# Step 4.2: Generate traces for FlexFringe (27 Aug 2020)
-def generate_traces(subsequences, datafile):
-    num_traces = 0
-    unique_symbols = set()  # FlexFringe treats the (mcat,mserv) pairs as symbols of the alphabet
-
-    flexfringe_traces = []
-    for i, episodes in enumerate(subsequences.values()):
-        if len(episodes) < 3:  # Discard subsequences of length < 3 (can be commented out, also in make_state_sequences)
-            continue
-        num_traces += 1
-        mcats = [x[2] for x in episodes]
-        num_services = [len(set((x[6]))) for x in episodes]
-        max_services = [_most_frequent(x[6]) for x in episodes]
-
-        # symbols = [str(mcat) + ":" + str(num_serv) + "," + str(mserv) for (mcat, num_serv, mserv) in zip(mcats, num_services, max_services)]  # Multivariate case (TODO: has to be fixed if used)
-        symbols = [small_mapping[mcat] + "|" + mserv for mcat, mserv in zip(mcats, max_services)]
-        unique_symbols.update(symbols)
-        symbols.reverse()  # Reverse traces to accentuate high-severity episodes (to create an S-PDFA)
-        trace = '1' + " " + str(len(mcats)) + ' ' + ' '.join(symbols) + '\n'
-        flexfringe_traces.append(trace)
-
-    with open(datafile, 'w') as f:
-        f.write(str(num_traces) + ' ' + str(len(unique_symbols)) + '\n')
-        for trace in flexfringe_traces:
-            f.write(trace)
-    print('\n# episode traces:', len(flexfringe_traces))
-    return flexfringe_traces
-
-
-# Step 5: Learn the S-PDFA model (2 sept 2020)
-def flexfringe(*args, **kwargs):
-    """Wrapper to call the flexfringe binary
-
-    Keyword arguments:
-    position 0 -- input file with trace samples
-    kwargs -- list of key=value arguments to pass as command line arguments
-    """
-
-    command = []
-    if len(kwargs) == 1:
-        command = ["--help"]
-    for key in kwargs:
-        command += ["--" + key + "=" + kwargs[key]]
-
-    result = subprocess.run(["FlexFringe/flexfringe"] + command + [args[0]], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-    print(result.returncode, result.stdout, result.stderr)
-
-
-# Step 6.1: Load the resulting S-PDFA model
-def load_model(model_file):
-    """Wrapper to load resulting model json file
-
-    Keyword arguments:
-    model_file -- path to the json model file
-    """
-
-    # Because users can provide unescaped new lines breaking json conventions
-    #   in the labels, we are removing them from the label fields
-    with open(model_file) as fh:
-        model_data = fh.read()
-        model_data = re.sub(r'\"label\" : \"([^\n|]*)\n([^\n]*)\"', r'"label" : "\1 \2"', model_data)
-
-    model_data = model_data.replace('\n', '').replace(',,', ',')
-    model_data = re.sub(',+', ',', model_data)
-    machine = json.loads(model_data)
-
-    dfa = defaultdict(lambda: defaultdict(str))
-    for edge in machine["edges"]:
-        dfa[edge["source"]][edge["name"]] = edge["target"]
-
-    # Even though the properties might not be needed, the node has to be present in the dictionary (for sinks)
-    for entry in machine["nodes"]:
-        dfa[str(entry['id'])]["isred"] = entry['isred']
-        dfa[str(entry['id'])]["isblue"] = entry['isblue']
-        dfa[str(entry['id'])]["issink"] = entry['issink']
-
-    return dfa
-
-
-def traverse(dfa, sinks, sequence):
-    """Wrapper to traverse a given model with a string to create a state subsequence.
-
-    Keyword arguments:
-    dfa -- loaded main model
-    sinks -- loaded sinks model
-    sequence -- space-separated string to accept/reject in dfa
-    """
-    sev_sinks = set()
-    state = "0"
-    state_list = ["0"]
-    for event in sequence.split(" "):
-        sym = event.split(":")[0]  # This is needed for the multivariate case in `generate_traces` function
-        sev = rev_smallmapping[sym.split('|')[0]]
-        state = dfa[state][sym]
-        if state == "":
-            # Only keep IDs of medium- and high-severity sinks
-            if len(str(sev)) >= 2:
-                # TODO: a better way is `if state_list[-1] in sinks and sym in sinks[state_list[-1]]:`
-                # However, in this case `-1` will not be created in `sinks` when accessing a non-existent key
-                # This is an issue when state_list[-1] == '-1' (e.g. in CCDC-2018)
-                # Alternatively, change defaultdict to dict
-                try:
-                    state = sinks[state_list[-1]][sym]
-                    state = '-1' if state == '' else state
-                except IndexError:
-                    state = '-1'  # With `printblue = 1` in spdfa-config.ini this should not happen
-            else:
-                state = '-1'
-
-        state_list.append(state)
-        if state in sinks and len(str(sev)) >= 2:
-            sev_sinks.add(state)
-
-    return state_list, sev_sinks
-
-
-# Step 6.2: Encode traces (include state IDs to mcat|mserv)
-def encode_sequences(dfa, sinks, flexfringe_traces):
-    traces_in_sinks, total_traces = 0, 0
-    state_traces = dict()
-    med_sev_states, high_sev_states, sev_sinks = set(), set(), set()
-    for i, sample in enumerate(flexfringe_traces):
-        sample = ' '.join(sample.strip('\n').split(' ')[2:])  # Remove the first number and len(mcats)
-        state_list, _sev_sinks = traverse(dfa, sinks, sample)
-        state_list = state_list[1:]  # Remove the root node (with state ID 0)
-        state_traces[i] = state_list
-
-        total_traces += len(state_list)
-        traces_in_sinks += state_list.count('-1')
-
-        assert (len(sample.split(' ')) == len(state_traces[i]))
-
-        sample = sample.split(' ')
-        med_sev = [int(state) for sym, state in zip(sample, state_list) if len(str(rev_smallmapping[sym.split('|')[0]])) == 2]
-        med_sev_states.update(med_sev)
-        high_sev = [int(state) for sym, state in zip(sample, state_list) if len(str(rev_smallmapping[sym.split('|')[0]])) == 3]
-        high_sev_states.update(high_sev)
-        sev_sinks.update(_sev_sinks)
-
-    print('Traces in sinks:', traces_in_sinks, 'Total traces:', total_traces, 'Percentage:', 100 * (traces_in_sinks / float(total_traces)))
-    print('Total medium-severity states:', len(med_sev_states))
-    print('Total high-severity states:', len(high_sev_states))
-    print('Total severe sinks:', len(sev_sinks))
-    return state_traces, med_sev_states, high_sev_states, sev_sinks
-
-
-# Step 6.3: Create state sequences (collecting sub-behaviors back into the same trace, augmented with state IDs)
-def make_state_sequences(episode_subsequences, state_traces):
-    state_sequences = dict()
-    counter = -1
-    for tid, (attack, episode_subsequence) in enumerate(episode_subsequences.items()):
-
-        if len(episode_subsequence) < 3:  # Discard subsequences of length < 3 (as in generate_traces)
-            continue
-        counter += 1
-        
-        if '10.0.254' not in attack:  # TODO: move all these checks to the `_group_alerts_per_team` function
-            continue
-        if '147.75' in attack or '69.172' in attack:
-            continue
-
-        trace = [int(state) for state in state_traces[counter]]
-        max_services = [_most_frequent(epi[6]) for epi in episode_subsequence]
-
-        trace = trace[::-1]  # Reverse the trace from the S-PDFA back
-        
-        # start_time, end_time, mcat, state_ID, mserv, list of unique signatures, (1st and last timestamp)
-        state_subsequence = [(epi[0], epi[1], epi[2], trace[i], max_services[i], epi[7], epi[8])
-                                for i, epi in enumerate(episode_subsequence)]
-        
-        parts = attack.split('->')
-        team, attacker = parts[0].split('-')
-        victim, attack_num = parts[1].split('-')
-        attacker_victim = team + '-' + attacker + '->' + victim
-        attacker_victim_inv = team + '-' + victim + '->' + attacker
-        inv = False
-        if '10.0.254' in victim:
-            inv = True
-        
-        if attacker_victim not in state_sequences.keys() and attacker_victim_inv not in state_sequences.keys():
-            if inv:
-                state_sequences[attacker_victim_inv] = []
-            else:
-                state_sequences[attacker_victim] = []
-        if inv:
-            state_sequences[attacker_victim_inv].extend(state_subsequence)
-            state_sequences[attacker_victim_inv].sort(key=lambda epi: epi[0])  # Sort in place based on starting times
-        else:
-            state_sequences[attacker_victim].extend(state_subsequence)
-            state_sequences[attacker_victim].sort(key=lambda epi: epi[0])  # Sort in place based on starting times
-        
-    return state_sequences
-    
-
-def make_state_groups(state_sequences, data_file):
-    state_groups = dict()
-    all_states = set()
-    gcols = ['lemonchiffon', 'gold', 'khaki', 'darkkhaki', 'beige', 'goldenrod',
-             'wheat', 'papayawhip', 'orange', 'oldlace', 'bisque']
-    for _, episodes in state_sequences.items():
-        states = [(epi[2], epi[3]) for epi in episodes]
-        all_states.update([epi[3] for epi in episodes])
-
-        for i, state in enumerate(states):
-            macro = micro2macro[micro[state[0]]].split('.')[1]
-            if state[1] == -1 or state[1] == 0:  # Skip the root node and nodes with ID -1
-                continue
-            if macro not in state_groups.keys():
-                state_groups[macro] = set()
-            state_groups[macro].add(state[1])
-
-    with open(data_file + ".ff.final.dot", 'r') as model_file:
-        model_lines = model_file.readlines()
-    written = []
-    outlines = ['digraph modifiedDFA {\n']
-    for gid, (group, states) in enumerate(state_groups.items()):
-        print(group)
-        outlines.append('subgraph cluster_' + group + ' {\n')
-        outlines.append('style=filled;\n')
-        outlines.append('color=' + gcols[gid] + ';\n')
-        outlines.append('label = "' + group + '";\n')
-        for i, line in enumerate(model_lines):
-            node_line = re.match('\\D+(\\d+)\\s\\[\\slabel="\\d.*', line)
-            if node_line:
-                node = int(node_line.group(1))
-                if node in states:
-                    c = i
-                    while '];' not in model_lines[c]:
-                        outlines.append(model_lines[c])
-                        written.append(c)
-                        c += 1
-                    outlines.append(model_lines[c])
-                    written.append(c)
-                elif node not in all_states and group == 'ACTIVE_RECON':
-                    if node != 0:
-                        c = i
-                        while '];' not in model_lines[c]:
-                            outlines.append(model_lines[c])
-                            written.append(c)
-                            c += 1
-                        outlines.append(model_lines[c])
-                        written.append(c)
-                        state_groups['ACTIVE_RECON'].add(node)
-                    print('ERROR: manually handled', node, ' in ACTIVE_RECON')  # TODO: include edges or not?
-            '''edge_line = re.match('\\D+(\\d+)\\s->\\s(\\d+)\\s\\[label=.*', line)  # 0 -> 1 [label=
-            if edge_line:
-                node = int(edge_line.group(1))
-                if node in states:
-                    c = i
-                    while '];' not in model_lines[c]:
-                        outlines.append(model_lines[c])
-                        written.append(c)
-                        c += 1
-                    outlines.append(model_lines[c])
-                    written.append(c)'''
-        outlines.append('}\n')
-
-    for i, line in enumerate(model_lines):
-        if i < 2:
-            continue
-        if i not in written:
-            outlines.append(line)
-
-    filename = 'spdfa-clustered-' + data_file + '-dfa'
-    with open(filename + '.dot', 'w') as outfile:
-        for line in outlines:
-            outfile.write(line)
-
-    os.system("dot -Tpng " + filename + ".dot -o " + filename + ".png")
-    return state_groups
-
-
-# Step 6.4: Group episodes (state sequences) per (team, victim) pair
-def group_episodes_per_av(state_sequences):
-    # Experiment: attack graph for one victim w.r.t time
-    victim_episodes = dict()  # Episodes per (team, victim)
-    for attack, episodes in state_sequences.items():
-        team = attack.split('-')[0]
-        victim = attack.split('->')[1]
-        team_victim = team + '-' + victim
-        if team_victim not in victim_episodes.keys():
-            victim_episodes[team_victim] = []
-        victim_episodes[team_victim].extend(episodes)
-        victim_episodes[team_victim] = sorted(victim_episodes[team_victim], key=lambda epi: epi[0])  # By start time
-    # Sort by start time across all
-    victim_episodes = {k: v for k, v in sorted(victim_episodes.items(), key=lambda kv: len([epi[0] for epi in kv[1]]))}
-    print('Victims hosts: ', set([team_victim.split('-')[-1] for team_victim in victim_episodes.keys()]))
-
-    attacker_episodes = dict()  # Episodes per (team, attacker)
-    for attack, episodes in state_sequences.items():
-        team = attack.split('-')[0]
-        attacker = (attack.split('->')[0]).split('-')[1]
-        team_attacker = team + '-' + attacker
-        if team_attacker not in attacker_episodes.keys():
-            attacker_episodes[team_attacker] = []
-        attacker_episodes[team_attacker].extend(episodes)
-        attacker_episodes[team_attacker] = sorted(attacker_episodes[team_attacker], key=lambda epi: epi[0])
-    print('Attacker hosts: ', set([team_attacker.split('-')[1] for team_attacker in attacker_episodes.keys()]))
-
-    return attacker_episodes, victim_episodes
-
-
-# Translate technical nodes to human-readable
-def _translate(label, root=False):
-    new_label = ""
-    parts = label.split("|")
-    if root:
-        new_label += 'Victim: ' + str(root) + '\n'
-
-    if len(parts) >= 1:
-        new_label += verbose_micro[parts[0]]
-    if len(parts) >= 2:
-        new_label += "\n" + parts[1]
-    if len(parts) >= 3:
-        new_label += " | ID: " + parts[2]
-
-    return new_label
-
-
-def _get_objective_nodes(state_sequences, obj_only=False):
-    objectives = set()
-    for episodes in state_sequences.values():  # Iterate over all episodes and collect the objective nodes
-        for epi in episodes:
-            if len(str(epi[2])) == 3:  # If high-severity, then include it
-                mcat = micro[epi[2]].split('.')[1]
-                if obj_only:                         # Experiment: only mcat or mcat + mserv?
-                    vert_name = mcat
-                else:
-                    vert_name = mcat + '|' + epi[4]
-                objectives.add(vert_name)
-    return list(objectives)
-
-
-def _is_severe_sink(vname, sev_sinks):
-    for sink in sev_sinks:
-        if vname.split("|")[-1] == sink:
-            return True
-    return False
-
-
-def _make_vertex_info(episode, in_main_model):
-    start_time = round(episode[0] / 1.0)
-    end_time = round(episode[1] / 1.0)
-    cat = micro[episode[2]].split('.')[1]
-    signs = episode[5]
-    timestamps = episode[6]
-    if episode[3] in in_main_model:  # TODO: this check is useless, since it is always True
-        state_id = '' if len(str(episode[2])) == 1 else '|' + str(episode[3])
-    else:
-        state_id = '|Sink'
-    vert_name = cat + '|' + episode[4] + state_id
-    vert_info = (vert_name, start_time, end_time, signs, timestamps)
-    return vert_info
-
-
-def _get_attack_attempts(state_sequences, victim, objective, in_main_model):
-    team_attack_attempts = dict()
-    observed_obj = set()  # Variants of current objective
-    for att, episodes in state_sequences.items():  # Iterate over (a,v): [episode, episode, episode]
-        if victim != att.split("->")[1]:  # If it's not the right victim, then don't process further
-            continue
-        vertices = []
-        for epi in episodes:
-            vertices.append(_make_vertex_info(epi, in_main_model))
-
-        # If the objective is never reached, don't process further
-        if not sum([True if objective.split("|")[:2] == v[0].split("|")[:2] else False for v in vertices]):
-            continue
-
-        # If it's an episode sequence targeting the requested victim and obtaining the requested objective
-        attempts = []
-        sub_attempt = []
-        for vertex in vertices:  # Cut each attempt until the requested objective
-            sub_attempt.append(vertex)  # Add the vertex in path
-            if objective.split("|")[:2] == vertex[0].split("|")[:2]:  # If it's the objective
-                if len(sub_attempt) <= 1:  # If only a single node, reject
-                    sub_attempt = []
-                    continue
-                attempts.append(sub_attempt)
-                sub_attempt = []
-                observed_obj.add(vertex[0])
-                continue
-        team_attacker = att.split('->')[0]  # Team + attacker
-        if team_attacker not in team_attack_attempts.keys():
-            team_attack_attempts[team_attacker] = []
-        team_attack_attempts[team_attacker].extend(attempts)
-        # team_attack_attempts[team_attacker] = sorted(team_attack_attempts[team_attacker], key=lambda item: item[1])
-
-    return team_attack_attempts, observed_obj
-
-
-def _print_unique_attempts(team_attacker, attempts):
-    paths = [''.join([action[0] for action in attempt]) for attempt in attempts]
-    unique_paths = len(set(paths))  # Count exactly unique attempts
-    longest_path = max([len(attempt) for attempt in attempts], default=0)
-    shortest_path = min([len(attempt) for attempt in attempts], default=0)
-    print('Attacker {}, total paths: {}, unique paths: {}, longest path: {}, shortest path: {}'
-          .format(team_attacker, len(attempts), unique_paths, longest_path, shortest_path))
-
-
-def _create_edge_line(vid, vname1, vname2, ts1, ts2, color, attacker):
-    from_last = ts1[1].strftime("%d/%m/%y, %H:%M:%S")
-    to_first = ts2[0].strftime("%d/%m/%y, %H:%M:%S")
-    gap = round((ts2[0] - ts1[1]).total_seconds())
-    edge_name = '"{}" -> "{}"'.format(_translate(vname1), _translate(vname2))
-    if vid == 0:  # First transition, add attacker IP
-        label = '<<font color="{}"> start_next: {}<br/>gap: {}sec<br/>end_prev: {}</font><br/><font color="{}"><b>Attacker: {}</b></font>>'
-        label = label.format(color, to_first, gap, from_last, color, attacker)
-        edge_line = '{} [ color={}] [label={}]'.format(edge_name, color, label)
-    else:
-        label = 'start_next: {}\ngap: {}sec\nend_prev: {}'.format(to_first, gap, from_last)
-        edge_line = '{} [ label="{}"][ fontcolor="{}" color={}]'.format(edge_name, label, color, color)
-    return edge_line
-
-
-def _print_simplicity(ag_name, lines):
-    vertices, edges = 0, 0
-    for line in lines:  # Count vertices and edges
-        if '->' in line[1]:
-            edges += 1
-        elif 'shape=' in line[1]:
-            vertices += 1
-    print('{}: # vert: {}, # edges: {}, simplicity: {}'.format(ag_name, vertices, edges, vertices / float(edges)))
-
-
-# Step 7: Create AGs per victim per objective (14 Nov)
-def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, dir_name):
-    tcols = {'t0': 'maroon', 't1': 'orange', 't2': 'darkgreen', 't3': 'blue', 't4': 'magenta',
-             't5': 'purple', 't6': 'brown', 't7': 'tomato', 't8': 'turquoise', 't9': 'skyblue'}
-
-    if SAVE:
-        try:
-            os.mkdir(dir_name)
-        except (FileExistsError, FileNotFoundError):
-            print("Can't create directory here")
-        else:
-            print("Successfully created directory for AGs")
-
-    shapes = ['oval', 'oval', 'oval', 'box', 'box', 'box', 'box', 'hexagon', 'hexagon', 'hexagon', 'hexagon', 'hexagon']
-    in_main_model = [episode[3] for sequence in state_sequences.values() for episode in sequence]
-    total_victims = set([team_victim.split('-')[1] for team_victim in victim_episodes.keys()])  # Collect all victim IPs
-    
-    objectives = _get_objective_nodes(state_sequences)
-
-    for victim in total_victims:
-        print('!!! Rendering AGs for Victim', victim)
-        for objective in objectives:
-            print('\t!!!! Objective', objective)
-            # Get the variants of current objective and attempts per team
-            team_attack_attempts, observed_obj = _get_attack_attempts(state_sequences, victim, objective, in_main_model)
-
-            # If no team has obtained this objective or has targeted this victim, don't generate its AG
-            if sum([len(attempt) for attempt in team_attack_attempts.values()]) == 0:
-                continue
-            print('\t     Created')
-
-            ag_name = objective.replace('|', '').replace('_', '').replace('-', '').replace('(', '').replace(')', '')
-            lines = [(0, 'digraph ' + ag_name + ' {'),
-                     (0, 'rankdir="BT"; \n graph [ nodesep="0.1", ranksep="0.02"] \n node [ fontname=Arial, ' +
-                     'fontsize=24, penwidth=3]; \n edge [ fontname=Arial, fontsize=20,penwidth=5 ];')]
-            root_node = _translate(objective, root=victim)
-            lines.append((0, '"' + root_node + '" [shape=doubleoctagon, style=filled, fillcolor=salmon];'))
-            lines.append((0, '{ rank = max; "' + root_node + '"}'))
-
-            # For each variant of objective, add a link to the root node, and determine if it's sink
-            for obj_variant in list(observed_obj):
-                lines.append((0, '"' + _translate(obj_variant) + '" -> "' + root_node + '"'))
-                if _is_severe_sink(obj_variant, sev_sinks):
-                    lines.append((0, '"' + _translate(obj_variant) + '" [style="filled,dotted", fillcolor= salmon]'))
-                else:
-                    lines.append((0, '"' + _translate(obj_variant) + '" [style=filled, fillcolor= salmon]'))
-            
-            # All obj variants have the same rank
-            lines.append((0, '{ rank=same; "' + '" "'.join([_translate(obj) for obj in observed_obj]) + '"}'))
-
-            node_signatures = dict()
-            already_addressed = set()
-            for team_attacker, attempts in team_attack_attempts.items():  # For each attacker that obtains the objective
-                color = tcols[team_attacker.split('-')[0]]  # Team color
-                # _print_unique_attempts(team_attacker, attempts)
-
-                for attempt in attempts:
-                    # Record signatures
-                    for action in attempt:  # action = (vert_name, start_time, end_time, signs, timestamps)
-                        if action[0] not in node_signatures.keys():
-                            node_signatures[action[0]] = set()
-                        node_signatures[action[0]].update(action[3])
-
-                    # Create nodes for the AG
-                    for vid, action in enumerate(attempt):  # Iterate over each action in an attempt
-                        vname = action[0]
-                        if vid == 0:  # If first action
-                            if 'Sink' in vname:  # If sink, make dotted TODO: this check is always False
-                                lines.append((0, '"' + _translate(vname) + '" [style="dotted,filled", fillcolor= yellow]'))
-                            else:
-                                if _is_severe_sink(vname, sev_sinks):  # If med- or high-sev sink, make dotted
-                                    lines.append((0, '"' + _translate(vname) + '" [style="dotted,filled", fillcolor= yellow]'))
-                                    already_addressed.add(vname.split('|')[2])
-                                else:  # Else, normal starting node
-                                    lines.append((0, '"' + _translate(vname) + '" [style=filled, fillcolor= yellow]'))
-                        else:  # For other actions
-                            if 'Sink' in vname:  # TODO: this check is always false
-                                # Take all AG lines so far, and if it was ever defined before, redefine it to be dotted
-                                already_dotted = False
-                                for line in lines:
-                                    if (_translate(vname) in line[1]) and ('dotted' in line[1]) and ('->' not in line[1]):
-                                        already_dotted = True
-                                        break
-                                if already_dotted:
-                                    continue
-                                partial = '"' + _translate(vname) + '" [style="dotted'  # Redefine here
-                                if not sum([True if partial in line[1] else False for line in lines]):
-                                    lines.append((0, partial + '"]'))
-
-                    # Create edges (transitions) for the AG
-                    bigram = zip(attempt, attempt[1:])  # Make bigrams (sliding window of 2)
-                    for vid, ((vname1, time1, _, _, ts1), (vname2, _, _, _, ts2)) in enumerate(bigram):
-                        edge_line = _create_edge_line(vid, vname1, vname2, ts1, ts2, color, team_attacker.split('-')[1])
-                        lines.append((time1, edge_line))
-
-            # Go over all vertices again and define their shapes + make high-sev sink states dotted
-            for vname, signatures in node_signatures.items():
-                mcat = vname.split('|')[0]
-                mcat = macro_inv[micro2macro['MicroAttackStage.' + mcat]]
-                shape = shapes[mcat]
-                # If it's oval, we don't do anything because it is not a high-sev sink
-                if shape == shapes[0] or vname.split('|')[2] in already_addressed:
-                    lines.append((0, '"' + _translate(vname) + '" [shape=' + shape + ']'))
-                else:
-                    if _is_severe_sink(vname, sev_sinks):
-                        lines.append((0, '"' + _translate(vname) + '" [style="dotted", shape=' + shape + ']'))
-                    else:
-                        lines.append((0, '"' + _translate(vname) + '" [shape=' + shape + ']'))
-                # Add a tooltip with signatures
-                lines.append((1, '"' + _translate(vname) + '"' + ' [tooltip="' + "\n".join(signatures) + '"]'))
-            lines.append((1000, '}'))
-
-            # _print_simplicity(ag_name, lines)
-            if SAVE:
-                out_filename = datafile + '-attack-graph-for-victim-' + victim + '-' + ag_name
-                out_filepath = dir_name + '/' + out_filename
-                with open(out_filepath + '.dot', 'w') as outfile:
-                    for line in lines:
-                        outfile.write(str(line[1]) + '\n')
-
-                os.system("dot -Tpng " + out_filepath + ".dot -o " + out_filepath + ".png")
-                os.system("dot -Tsvg " + out_filepath + ".dot -o " + out_filepath + ".svg")
-
+        _team_data[tid] = host_alerts.items()
+    return _team_data
 
 # ----- MAIN ------
 
@@ -1225,10 +237,6 @@ if len(sys.argv) > 5:
         print('Error parsing hour filter range')
         sys.exit()
 
-# We cheat a bit: In case user filters to only see alerts from (s,e) range,
-#   we record the first alert just to get the real time-elapsed since first alert
-start_times = []
-
 path_to_ini = "FlexFringe/ini/spdfa-config.ini"
 
 path_to_traces = experiment_name + '.txt'
@@ -1238,11 +246,12 @@ print('------ Downloading the IANA port-service mapping ------')
 port_services = load_iana_mapping()
 
 print('------ Reading alerts ------')
-(team_alerts, team_labels) = load_data(path_to_json_files, alert_filtering_window)
-plot_histogram(team_alerts, team_labels)
+team_alerts, team_labels, team_start_times = load_data(path_to_json_files, alert_filtering_window, start_hour, end_hour)
+plot_histogram(team_alerts, team_labels, experiment_name)
+team_data = group_alerts_per_team(team_alerts, port_services)
 
 print('------ Converting to episodes ------')
-team_episodes, _ = aggregate_into_episodes(team_alerts, step=alert_aggr_window)
+team_episodes, _ = aggregate_into_episodes(team_data, team_start_times, step=alert_aggr_window)
 
 print('\n------ Converting to episode sequences ------')
 host_data = host_episode_sequences(team_episodes)
@@ -1291,13 +300,13 @@ state_traces, med_sev_states, high_sev_states, severe_sinks = encode_sequences(m
 state_sequences = make_state_sequences(episode_subsequences, state_traces)
 
 # print('------ Clustering state groups ------')
-# state_groups = make_state_groups(state_sequences, path_to_traces)
+# state_groups = plot_state_groups(state_sequences, path_to_traces)
 
 print('------ Grouping episodes per (team, victim) ------')
-episodes_per_attacker, episodes_per_victim = group_episodes_per_av(state_sequences)
+episodes_per_victim, _ = group_episodes_per_av(state_sequences)
 
 print('------ Making alert-driven AGs ------')
-make_attack_graphs(episodes_per_victim, state_sequences, severe_sinks, path_to_traces, ag_directory)
+make_attack_graphs(episodes_per_victim, state_sequences, severe_sinks, path_to_traces, ag_directory, SAVE)
 
 if DOCKER:
     print('Deleting extra files')
