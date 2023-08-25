@@ -1,3 +1,4 @@
+import argparse
 import csv
 import datetime
 import glob
@@ -19,8 +20,7 @@ from signatures.alert_signatures import usual_mapping, unknown_mapping, ccdc_com
 
 IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
 IANA_NUM_RETRIES = 5
-SAVE = True
-DOCKER = True
+SAVE_AG = True
 
 
 def _get_attack_stage_mapping(signature):
@@ -154,7 +154,7 @@ def _remove_duplicates(unfiltered_alerts, plot=False, gap=1.0):
 
 
 # Step 1: Read the input alerts
-def load_data(path_to_alerts, filtering_window, start_hour, end_hour):
+def load_data(path_to_alerts, filtering_window, start, end):
     _team_alerts = []
     _team_labels = []
     _team_start_times = []  # Record the first alert just to get the real elapsed time (if the user filters (s,e) range)
@@ -173,8 +173,8 @@ def load_data(path_to_alerts, filtering_window, start_hour, end_hour):
 
         # EXP: Limit alerts by timing is better than limiting volume because each team is on a different scale.
         # 50% alerts for one team end at a diff time than for others
-        end_time_limit = 3600 * end_hour       # Which hour to end at?
-        start_time_limit = 3600 * start_hour   # Which hour to start from?
+        end_time_limit = 3600 * end       # Which hour to end at?
+        start_time_limit = 3600 * start   # Which hour to start from?
 
         first_ts = parsed_alerts[0][8]
         _team_start_times.append(first_ts)
@@ -217,25 +217,25 @@ def group_alerts_per_team(alerts, port_mapping):
         _team_data[tid] = host_alerts.items()
     return _team_data
 
+
 # ----- MAIN ------
+parser = argparse.ArgumentParser(description='SAGE: Intrusion Alert-Driven Attack Graph Extractor.')
+parser.add_argument('path_to_json_files', type=str, help='Directory containing intrusion alerts in json format. sample-input.json provides an example of the accepted file format')
+parser.add_argument('experiment_name', type=str, help='Custom name for all artefacts')
+parser.add_argument('-t', type=float, required=False, default=1.0, help='Time window in which duplicate alerts are discarded (default: 1.0 sec)')
+parser.add_argument('-w', type=int, required=False, default=150, help='Aggregate alerts occuring in this window as one episode (default: 150 sec)')
+parser.add_argument('--timerange', type=int, nargs=2, required=False, default=[0, 100], metavar=('STARTRANGE', 'ENDRANGE'), help='Filtering alerts. Only parsing from and to the specified hours, relative to the start of the alert capture (default: (0, 100))')
+parser.add_argument('--dataset', required=False, type=str, choices=['cptc', 'other'], default='other', help='The name of the dataset with the alerts (default: other)')
+parser.add_argument('--keep-files', action='store_true', help='Do not delete the dot files after the program ends')
+args = parser.parse_args()
 
-if len(sys.argv) < 5:
-    print('Usage: sage.py {path/to/json/files} {experiment_name} {alert_filtering_window (def=1.0)} {alert_aggr_window (def=150)} {(start_hour,end_hour)[Optional]}')
-    sys.exit()
-
-path_to_json_files = sys.argv[1]
-experiment_name = sys.argv[2]
-alert_filtering_window = float(sys.argv[3])
-alert_aggr_window = int(sys.argv[4])
-start_hour, end_hour = 0, 100
-if len(sys.argv) > 5:
-    try:
-        start_hour = float(sys.argv[5])
-        end_hour = float(sys.argv[6])
-        print('Filtering alerts. Only parsing from %d-th to %d-th hour (relative to the start of the alert capture)' % (start_hour, end_hour))
-    except (ValueError, TypeError):
-        print('Error parsing hour filter range')
-        sys.exit()
+path_to_json_files = args.path_to_json_files
+experiment_name = args.experiment_name
+alert_filtering_window = args.t
+alert_aggr_window = args.w
+start_hour, end_hour = args.timerange
+dataset_name = args.dataset
+delete_files = not args.keep_files
 
 path_to_ini = "FlexFringe/ini/spdfa-config.ini"
 
@@ -303,9 +303,9 @@ state_sequences = make_state_sequences(episode_subsequences, state_traces)
 # state_groups = plot_state_groups(state_sequences, path_to_traces)
 
 print('------ Making alert-driven AGs ------')
-make_attack_graphs(state_sequences, severe_sinks, path_to_traces, ag_directory, SAVE)
+make_attack_graphs(state_sequences, severe_sinks, path_to_traces, ag_directory, SAVE_AG)
 
-if DOCKER:
+if delete_files:
     print('Deleting extra files')
     os.system("rm " + path_to_traces + ".ff.final.dot")
     os.system("rm " + path_to_traces + ".ff.final.json")
