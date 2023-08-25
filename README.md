@@ -8,9 +8,10 @@ Repository to accompany our publications
 ## Requires 
 - Flexfringe (https://github.com/tudelft-cda-lab/FlexFringe)
 - Python packages
-  - Graphviz
-  - Seaborn
-  - Requests
+  - `graphviz`
+  - `requests`
+  - `numpy`
+  - `matplotlib`
   - [Optional] Fastai (1.0.58)
   - [Optional] Spacy 2.3.5
 
@@ -18,25 +19,43 @@ Repository to accompany our publications
 
 
 ## Usage
-`python sage.py {path/to/json/files} {experiment-name} {alert-filtering-window} {alert-aggr-window} {(start_hour,end_hour)}`
+`python sage.py path_to_json_files experiment_name [-h] [-t T] [-w W] [--timerange TIMERANGE TIMERANGE] [--dataset {cptc,other}] [--keep-files]`
 
-- `{path/to/json/files}`: folder containing intrusion alerts in json format. `sample-input.json` provides an example of accepted file format. 
-> Ideal setting: One json file for each attacker/team. Filename considered as attacker/team label. 
-- `{experiment_name}`: custom name for all artefacts
-> Figures, trace files, model files, attack graphs are saved with this prefix for easy identification. 
-- `{alert_filtering_window}`: time window in which duplicate alerts are discarded (default: 1.0 sec)
-- `{alert_aggr_window}`: aggregate alerts occuring in this window as one episode (default: 150 sec)
-- [Optional] `{(start_hour,end_hour)}`: Time range (in hours). A floating-point tuple limiting the alerts that are parsed and involved in the final attack graphs. 
+Required positional arguments:
+
+* `path_to_json_files`: Directory containing intrusion alerts in json format. `sample-input.json` provides an example of the accepted file format.
+> Ideal setting: One json file for each attacker/team. Filename considered as attacker/team label.
+* `experiment_name`: Custom name for all artefacts.
+> Figures, trace files, model files, attack graphs are saved with this prefix for easy identification.
+
+Options:
+
+* `-h`, `--help`: Show the help message and exit.
+* `-t`: Time window in which duplicate alerts are discarded (default: 1.0 sec).
+* `-w`: Aggregate alerts occuring in this window as one episode (default: 150 sec).
+* `--timerange`: A floating-point tuple limiting the alerts that are parsed and involved in the final attack graphs (default: (0, 100)).
 > If not provided, the default values of (0,100) are used, meaning alerts from 0-th to 100-th hour (relative to the start of the alert capture) are parsed.
+* `--dataset`: The name of the dataset with the alerts (default: other, available options: cptc, other).
+> Since the IP addresses of the attackers are known for the CPTC dataset, irrelevant alerts are filtered out.
+* `--keep-files`: Do not delete the dot files after the program ends.
+> By default, the generated dot files with the attack graphs are deleted. They might, however, be useful for analytics or testing.
+
+Examples:
+
+* Run SAGE with the default parameters on the CPTC-2017 dataset: `python sage.py alerts/cptc-2017/ exp-2017 --dataset cptc`
+* Run SAGE with the time window of 2.0 seconds and the alert aggregation window of 200 seconds on the CPTC-2018 dataset: `python sage.py alerts/cptc-2018/ exp-2018 -t 2.0 -w 200 --dataset cptc`
+* Run SAGE on the CCDC dataset and do not delete the dot files (you can omit `--option other`): `python sage.py alerts/ccdc/ exp-ccdc --dataset other --keep-files`
+
+Tip: in case you often use the same non-default values, you can create an alias (e.g `alias sage="python sage.py -t 1.5 --dataset cptc --keep-files"` and then run `sage alerts/cptc-2017/ exp-2017`)
 
 ## First time use
 
 - In `sage.py`, set paths to `flexfringe/` executable, and `path_to_ini` variable.
 - A sample alert file is provided with the name `sample-input.json` (T5 alerts from CPTC-2018) to test SAGE. Use the following command: 
 
-`python sage.py alerts/ firstExp 1.0 150`
+`python sage.py alerts/ firstExp`
 
-where `alerts/` contains `sample-input.json`.
+where `alerts/` contains `sample-input.json`. For other options, see Usage section above.
 
 **If you use SAGE in a scientific work, consider citing the following papers:**
 
