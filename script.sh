@@ -6,8 +6,11 @@ IFS=$'\n'; params=($content); unset IFS;
 EXPNAME=${params[0]#*=}
 FILTER=${params[1]#*=}
 AGGR=${params[2]#*=}
+START_HOUR=${params[3]#*=}
+END_HOUR=${params[4]#*=}
+DATASET=${params[5]#*=}
 
-python3 sage.py input/ $EXPNAME $FILTER $AGGR
+python3 sage.py input/ $EXPNAME -t $FILTER -w $AGGR --timerange $START_HOUR $END_HOUR --dataset $DATASET
 
 
 outnames=$(ls . | grep $EXPNAME)
