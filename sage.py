@@ -224,7 +224,7 @@ parser.add_argument('path_to_json_files', type=str, help='Directory containing i
 parser.add_argument('experiment_name', type=str, help='Custom name for all artefacts')
 parser.add_argument('-t', type=float, required=False, default=1.0, help='Time window in which duplicate alerts are discarded (default: 1.0 sec)')
 parser.add_argument('-w', type=int, required=False, default=150, help='Aggregate alerts occuring in this window as one episode (default: 150 sec)')
-parser.add_argument('--timerange', type=int, nargs=2, required=False, default=[0, 100], help='Filtering alerts. Only parsing from and to the specified hours, relative to the start of the alert capture (default: (0, 100))')
+parser.add_argument('--timerange', type=int, nargs=2, required=False, default=[0, 100], metavar=('STARTRANGE', 'ENDRANGE'), help='Filtering alerts. Only parsing from and to the specified hours, relative to the start of the alert capture (default: (0, 100))')
 parser.add_argument('--dataset', required=False, type=str, choices=['cptc', 'other'], default='other', help='The name of the dataset with the alerts (default: other)')
 parser.add_argument('--keep-files', action='store_true', help='Do not delete the dot files after the program ends')
 args = parser.parse_args()

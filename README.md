@@ -12,14 +12,12 @@ Repository to accompany our publications
   - `requests`
   - `numpy`
   - `matplotlib`
-  - [Optional] Fastai (1.0.58)
-  - [Optional] Spacy 2.3.5
 
 **Or you can switch to the `docker` branch for a docker container.**
 
 
 ## Usage
-`python sage.py path_to_json_files experiment_name [-h] [-t T] [-w W] [--timerange TIMERANGE TIMERANGE] [--dataset {cptc,other}] [--keep-files]`
+`python sage.py path_to_json_files experiment_name [-h] [-t T] [-w W] [--timerange STARTRANGE ENDRANGE] [--dataset {cptc,other}] [--keep-files]`
 
 Required positional arguments:
 
