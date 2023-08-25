@@ -33,7 +33,7 @@ RUN cd /root \
 
 RUN cd /root \
     && git clone https://github.com/tudelft-cda-lab/SAGE.git \
-    && cd SAGE && cp -R sage.py signatures/ ../ && cp spdfa-config.ini ../FlexFringe/ini/
+    && cd SAGE && cp -R *.py signatures/ ../ && cp spdfa-config.ini ../FlexFringe/ini/
 
 
 
