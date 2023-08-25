@@ -44,7 +44,7 @@ Examples:
 
 * Run SAGE with the default parameters on the CPTC-2017 dataset: `python sage.py alerts/cptc-2017/ exp-2017 --dataset cptc`
 * Run SAGE with the time window of 2.0 seconds and the alert aggregation window of 200 seconds on the CPTC-2018 dataset: `python sage.py alerts/cptc-2018/ exp-2018 -t 2.0 -w 200 --dataset cptc`
-* Run SAGE on the CCDC dataset and do not delete the dot files (you can omit `--option other`): `python sage.py alerts/ccdc/ exp-ccdc --dataset other --keep-files`
+* Run SAGE on the CCDC dataset and do not delete the dot files (you can omit `--dataset other`): `python sage.py alerts/ccdc/ exp-ccdc --dataset other --keep-files`
 
 Tip: in case you often use the same non-default values, you can create an alias (e.g `alias sage="python sage.py -t 1.5 --dataset cptc --keep-files"` and then run `sage alerts/cptc-2017/ exp-2017`)
 
