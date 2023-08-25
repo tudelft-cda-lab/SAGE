@@ -10,7 +10,7 @@ import requests
 
 from ag_generation import make_attack_graphs
 from episode_sequence_generation import aggregate_into_episodes, host_episode_sequences, break_into_subbehaviors
-from model_learning import generate_traces, flexfringe, load_model, encode_sequences, make_state_sequences, group_episodes_per_av
+from model_learning import generate_traces, flexfringe, load_model, encode_sequences, make_state_sequences
 from plotting import plot_alert_filtering, plot_histogram, plot_state_groups
 from signatures.attack_stages import MicroAttackStage
 from signatures.mappings import micro_inv
@@ -302,11 +302,8 @@ state_sequences = make_state_sequences(episode_subsequences, state_traces)
 # print('------ Clustering state groups ------')
 # state_groups = plot_state_groups(state_sequences, path_to_traces)
 
-print('------ Grouping episodes per (team, victim) ------')
-episodes_per_victim, _ = group_episodes_per_av(state_sequences)
-
 print('------ Making alert-driven AGs ------')
-make_attack_graphs(episodes_per_victim, state_sequences, severe_sinks, path_to_traces, ag_directory, SAVE)
+make_attack_graphs(state_sequences, severe_sinks, path_to_traces, ag_directory, SAVE)
 
 if DOCKER:
     print('Deleting extra files')

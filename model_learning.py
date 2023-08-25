@@ -215,7 +215,7 @@ def make_state_sequences(episode_subsequences, state_traces):
     return state_sequences
 
 
-# Step 6.4: Group episodes (state sequences) per (team, victim) pair
+# Group episodes (state sequences) per (team, victim) pair
 def group_episodes_per_av(state_sequences):
     # Experiment: attack graph for one victim w.r.t time
     victim_episodes = dict()  # Episodes per (team, victim)

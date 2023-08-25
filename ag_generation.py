@@ -128,7 +128,7 @@ def _print_simplicity(ag_name, lines):
 
 
 # Step 7: Create AGs per victim per objective (14 Nov)
-def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, dir_name, save_ag=True):
+def make_attack_graphs(state_sequences, sev_sinks, datafile, dir_name, save_ag=True):
     tcols = {'t0': 'maroon', 't1': 'orange', 't2': 'darkgreen', 't3': 'blue', 't4': 'magenta',
              't5': 'purple', 't6': 'brown', 't7': 'tomato', 't8': 'turquoise', 't9': 'skyblue'}
 
@@ -141,8 +141,8 @@ def make_attack_graphs(victim_episodes, state_sequences, sev_sinks, datafile, di
             print("Successfully created directory for AGs")
 
     shapes = ['oval', 'oval', 'oval', 'box', 'box', 'box', 'box', 'hexagon', 'hexagon', 'hexagon', 'hexagon', 'hexagon']
-    in_main_model = [episode[3] for sequence in state_sequences.values() for episode in sequence]
-    total_victims = set([team_victim.split('-')[1] for team_victim in victim_episodes.keys()])  # Collect all victim IPs
+    in_main_model = set([episode[3] for sequence in state_sequences.values() for episode in sequence])
+    total_victims = set([attacker_victim.split('->')[1] for attacker_victim in state_sequences.keys()])  # Victim IPs
 
     objectives = _get_objective_nodes(state_sequences)
 
