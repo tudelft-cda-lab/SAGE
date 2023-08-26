@@ -20,6 +20,7 @@ from signatures.alert_signatures import usual_mapping, unknown_mapping, ccdc_com
 
 IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
 IANA_NUM_RETRIES = 5
+CPTC_BAD_IP = '169.254.169.254'
 SAVE_AG = True
 
 
@@ -86,7 +87,6 @@ def _readfile(fname):
 
 # Step 1.1: Parse the input alerts
 def _parse(unparsed_data, filter_alerts=False):
-    bad_ip = '169.254.169.254'
     parsed_data = []
 
     prev = -1
@@ -125,7 +125,7 @@ def _parse(unparsed_data, filter_alerts=False):
         dst_port = None if 'dest_port' not in raw.keys() else raw['dest_port']
 
         # Filter out mistaken alerts / uninteresting alerts
-        if src_ip == bad_ip or dst_ip == bad_ip or cat == 'Not Suspicious Traffic':
+        if dataset_name == 'cptc' and (src_ip == CPTC_BAD_IP or dst_ip == CPTC_BAD_IP or cat == 'Not Suspicious Traffic'):
             continue
 
         mcat = _get_attack_stage_mapping(sig)
@@ -203,9 +203,15 @@ def group_alerts_per_team(alerts, port_mapping):
             else:
                 dst_port = port_mapping[dst_port]['name']
 
-            # TODO: add the check for 10.0.254 in src_ip or in dst_ip - if not, then discard
-            # TODO: If present in src_ip, then add (src_ip, dst_ip). If in dst_ip, then add (dst_ip, src_ip)
+            # For CPTC dataset, attacker IPs (src_ip) start with '10.0.254', but this prefix might be in dst_ip
             # TODO: for the future, we might want to address internal paths
+            if dataset_name == 'cptc' and not src_ip.startswith('10.0.254') and not dst_ip.startswith('10.0.254'):
+                continue
+            if dataset_name == 'cptc' and dst_ip.startswith('10.0.254'):
+                temp = dst_ip
+                dst_ip = src_ip
+                src_ip = temp
+
             if (src_ip, dst_ip) not in host_alerts.keys() and (dst_ip, src_ip) not in host_alerts.keys():
                 host_alerts[(src_ip, dst_ip)] = []
 

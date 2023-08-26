@@ -177,11 +177,6 @@ def make_state_sequences(episode_subsequences, state_traces):
             continue
         counter += 1
 
-        if '10.0.254' not in attack:  # TODO: move all these checks to the `_group_alerts_per_team` function
-            continue
-        if '147.75' in attack or '69.172' in attack:
-            continue
-
         trace = [int(state) for state in state_traces[counter]]
         max_services = [_most_frequent(epi[6]) for epi in episode_subsequence]
 
@@ -192,25 +187,12 @@ def make_state_sequences(episode_subsequences, state_traces):
                              for i, epi in enumerate(episode_subsequence)]
 
         parts = attack.split('->')
-        team, attacker = parts[0].split('-')
-        victim, attack_num = parts[1].split('-')
-        attacker_victim = team + '-' + attacker + '->' + victim
-        attacker_victim_inv = team + '-' + victim + '->' + attacker
-        inv = False
-        if '10.0.254' in victim:
-            inv = True
+        attacker_victim = parts[0] + '->' + parts[1].split('-')[0]  # Remove the subsequence number (if present)
 
-        if attacker_victim not in state_sequences.keys() and attacker_victim_inv not in state_sequences.keys():
-            if inv:
-                state_sequences[attacker_victim_inv] = []
-            else:
-                state_sequences[attacker_victim] = []
-        if inv:
-            state_sequences[attacker_victim_inv].extend(state_subsequence)
-            state_sequences[attacker_victim_inv].sort(key=lambda epi: epi[0])  # Sort in place based on starting times
-        else:
-            state_sequences[attacker_victim].extend(state_subsequence)
-            state_sequences[attacker_victim].sort(key=lambda epi: epi[0])  # Sort in place based on starting times
+        if attacker_victim not in state_sequences.keys():
+            state_sequences[attacker_victim] = []
+        state_sequences[attacker_victim].extend(state_subsequence)
+        state_sequences[attacker_victim].sort(key=lambda epi: epi[0])  # Sort in place based on starting times
 
     return state_sequences
 
