@@ -198,8 +198,6 @@ def host_episode_sequences(team_episodes):
     for tid, team in enumerate(team_episodes):
         print(tid, sep=' ', end=' ', flush=True)
         for (attacker, victim), episodes in team.items():
-            if len(episodes) < 2:
-                continue
             # if ('10.0.0' in attacker or '10.0.1' in attacker):
             #        continue
 
