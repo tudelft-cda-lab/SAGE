@@ -111,24 +111,20 @@ def traverse(dfa, sinks, sequence):
     for event in sequence.split(" "):
         sym = event.split(":")[0]  # This is needed for the multivariate case in `generate_traces` function
         sev = rev_smallmapping[sym.split('|')[0]]
-        state = dfa[state][sym]
-        if state == "":
-            # Only keep IDs of medium- and high-severity sinks
-            if len(str(sev)) >= 2:
-                # TODO: a better way is `if state_list[-1] in sinks and sym in sinks[state_list[-1]]:`
-                # However, in this case `-1` will not be created in `sinks` when accessing a non-existent key
-                # This is an issue when state_list[-1] == '-1' (e.g. in CCDC-2018)
-                # Alternatively, change defaultdict to dict
-                try:
-                    state = sinks[state_list[-1]][sym]
-                    state = '-1' if state == '' else state
-                except IndexError:
-                    state = '-1'  # With `printblue = 1` in spdfa-config.ini this should not happen
-            else:
-                state = '-1'
 
-        state_list.append(state)
-        if state in sinks and len(str(sev)) >= 2:
+        if state in dfa and sym in dfa[state]:  # Use the main model if possible, otherwise use the model with the sinks
+            state = dfa[state][sym]
+            state_list.append(state)
+        else:
+            if state in sinks and sym in sinks[state]:
+                state = sinks[state][sym]
+            else:
+                state = '-1'  # With `printblue = 1` in spdfa-config.ini this should not happen
+
+            state_to_save = state if len(str(sev)) >= 2 else '-1'  # Discard IDs from low-severity sinks
+            state_list.append(state_to_save)
+
+        if state in sinks and len(str(sev)) >= 2:  # Save med- and high-sev sinks (might be defined in the main model)
             sev_sinks.add(state)
 
     return state_list, sev_sinks
@@ -177,11 +173,6 @@ def make_state_sequences(episode_subsequences, state_traces):
             continue
         counter += 1
 
-        if '10.0.254' not in attack:  # TODO: move all these checks to the `_group_alerts_per_team` function
-            continue
-        if '147.75' in attack or '69.172' in attack:
-            continue
-
         trace = [int(state) for state in state_traces[counter]]
         max_services = [_most_frequent(epi[6]) for epi in episode_subsequence]
 
@@ -192,25 +183,12 @@ def make_state_sequences(episode_subsequences, state_traces):
                              for i, epi in enumerate(episode_subsequence)]
 
         parts = attack.split('->')
-        team, attacker = parts[0].split('-')
-        victim, attack_num = parts[1].split('-')
-        attacker_victim = team + '-' + attacker + '->' + victim
-        attacker_victim_inv = team + '-' + victim + '->' + attacker
-        inv = False
-        if '10.0.254' in victim:
-            inv = True
+        attacker_victim = parts[0] + '->' + parts[1].split('-')[0]  # Remove the subsequence number (if present)
 
-        if attacker_victim not in state_sequences.keys() and attacker_victim_inv not in state_sequences.keys():
-            if inv:
-                state_sequences[attacker_victim_inv] = []
-            else:
-                state_sequences[attacker_victim] = []
-        if inv:
-            state_sequences[attacker_victim_inv].extend(state_subsequence)
-            state_sequences[attacker_victim_inv].sort(key=lambda epi: epi[0])  # Sort in place based on starting times
-        else:
-            state_sequences[attacker_victim].extend(state_subsequence)
-            state_sequences[attacker_victim].sort(key=lambda epi: epi[0])  # Sort in place based on starting times
+        if attacker_victim not in state_sequences.keys():
+            state_sequences[attacker_victim] = []
+        state_sequences[attacker_victim].extend(state_subsequence)
+        state_sequences[attacker_victim].sort(key=lambda epi: epi[0])  # Sort in place based on starting times
 
     return state_sequences
 
