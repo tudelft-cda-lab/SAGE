@@ -203,14 +203,13 @@ def group_alerts_per_team(alerts, port_mapping):
             else:
                 dst_port = port_mapping[dst_port]['name']
 
-            # For CPTC dataset, attacker IPs (src_ip) start with '10.0.254', but this prefix might be in dst_ip
+            # For the CPTC dataset, attacker IPs (src_ip) start with '10.0.254', but this prefix might also be in dst_ip
             # TODO: for the future, we might want to address internal paths
             if dataset_name == 'cptc' and not src_ip.startswith('10.0.254') and not dst_ip.startswith('10.0.254'):
                 continue
+            # Swap src_ip and dst_ip, so that the prefix '10.0.254' is in src_ip
             if dataset_name == 'cptc' and dst_ip.startswith('10.0.254'):
-                temp = dst_ip
-                dst_ip = src_ip
-                src_ip = temp
+                src_ip, dst_ip = dst_ip, src_ip
 
             if (src_ip, dst_ip) not in host_alerts.keys() and (dst_ip, src_ip) not in host_alerts.keys():
                 host_alerts[(src_ip, dst_ip)] = []
