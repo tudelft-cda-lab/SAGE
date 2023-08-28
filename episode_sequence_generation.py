@@ -238,6 +238,9 @@ def break_into_subbehaviors(host_data, full_seq=False):
             if pieces < 1:  # TODO: double-check what is happening here
                 subsequences[attacker_victim + '-0'] = episodes
                 continue
+            if len(episodes) == 1:
+                subsequences[attacker_victim + '-0'] = episodes
+                continue
 
             # This part of the code only needs to cut the sequences at appropriate places -- no discarding is needed.
             # The discarding already happens later in make_attack_graphs.
@@ -255,14 +258,9 @@ def break_into_subbehaviors(host_data, full_seq=False):
                 end = cuts[j]
                 rest = (end + 1, len(episodes) - 1)
                 subsequence = episodes[start:end+1]
-                if len(subsequence) < 2:
-                    continue
                 subsequences[attacker_victim + '-' + str(count)] = subsequence
                 count += 1
             subsequence = episodes[rest[0]:rest[1]+1]
-            if len(subsequence) < 2:
-                # print('discarding symbol ', [x[2] for x in al]) # TODO This one is not cool1
-                continue
             subsequences[attacker_victim + '-' + str(count)] = subsequence
 
     print('\n# sub-sequences:', len(subsequences))
