@@ -220,7 +220,6 @@ def host_episode_sequences(team_episodes):
 # Each episode subsequence represents an attack attempt.
 def break_into_subbehaviors(host_data, full_seq=False):
     subsequences = dict()
-    cut_length = 4
 
     print('----- Sub-sequences -----')
     for i, (attacker, victim_episodes) in enumerate(host_data.items()):
@@ -231,12 +230,8 @@ def break_into_subbehaviors(host_data, full_seq=False):
 
             victim = episodes[0][-1]
             attacker_victim = attacker + '->' + victim
-            pieces = math.floor(len(episodes) / cut_length)
             if full_seq:
                 subsequences[attacker_victim] = episodes
-                continue
-            if pieces < 1:  # TODO: double-check what is happening here
-                subsequences[attacker_victim + '-0'] = episodes
                 continue
             if len(episodes) == 1:
                 subsequences[attacker_victim + '-0'] = episodes
