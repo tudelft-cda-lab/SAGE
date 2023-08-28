@@ -125,7 +125,7 @@ def _parse(unparsed_data, filter_alerts=False):
         dst_port = None if 'dest_port' not in raw.keys() else raw['dest_port']
 
         # Filter out mistaken alerts / uninteresting alerts
-        if dataset_name == 'cptc' and (src_ip == CPTC_BAD_IP or dst_ip == CPTC_BAD_IP or cat == 'Not Suspicious Traffic'):
+        if (dataset_name == 'cptc' and CPTC_BAD_IP in (src_ip, dst_ip)) or cat == 'Not Suspicious Traffic':
             continue
 
         mcat = _get_attack_stage_mapping(sig)
