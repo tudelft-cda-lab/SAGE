@@ -9,12 +9,17 @@ from signatures.mappings import small_mapping, rev_smallmapping
 def _most_frequent(serv):
     max_frequency = 0
     most_frequent_service = None
+    count_unknown = 0
     for s in serv:
         frequency = serv.count(s)
+        # Count the frequency of 'unknown' to break a tie against it
+        if s == 'unknown':
+            count_unknown = frequency
+            continue
         if frequency > max_frequency:
             most_frequent_service = s
             max_frequency = frequency
-    return most_frequent_service
+    return most_frequent_service if max_frequency >= count_unknown else 'unknown'
 
 
 # Step 4.2: Generate traces for FlexFringe (27 Aug 2020)
