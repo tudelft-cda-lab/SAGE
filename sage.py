@@ -20,8 +20,8 @@ from signatures.alert_signatures import usual_mapping, unknown_mapping, ccdc_com
 
 IANA_CSV_FILE = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv"
 IANA_NUM_RETRIES = 5
-CPTC_BAD_IP = '169.254.169.254'
 SAVE_AG = True
+CPTC_BAD_IP = '169.254.169.254'
 
 
 def _get_attack_stage_mapping(signature):
@@ -86,7 +86,7 @@ def _readfile(fname):
 
 
 # Step 1.1: Parse the input alerts
-def _parse(unparsed_data, filter_alerts=False):
+def _parse(unparsed_data):
     parsed_data = []
 
     prev = -1
@@ -114,10 +114,6 @@ def _parse(unparsed_data, filter_alerts=False):
 
         sig = raw['alert']['signature']
         cat = raw['alert']['category']
-
-        # Filter out the alert that occurs way too often
-        if cat == 'Attempted Information Leak' and filter_alerts:
-            continue
 
         src_ip = raw['src_ip']
         src_port = None if 'src_port' not in raw.keys() else raw['src_port']
