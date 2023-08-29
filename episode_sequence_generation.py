@@ -198,8 +198,6 @@ def host_episode_sequences(team_episodes):
     for tid, team in enumerate(team_episodes):
         print(tid, sep=' ', end=' ', flush=True)
         for (attacker, victim), episodes in team.items():
-            if len(episodes) < 2:
-                continue
             # if ('10.0.0' in attacker or '10.0.1' in attacker):
             #        continue
 
@@ -220,7 +218,6 @@ def host_episode_sequences(team_episodes):
 # Each episode subsequence represents an attack attempt.
 def break_into_subbehaviors(host_data, full_seq=False):
     subsequences = dict()
-    cut_length = 4
 
     print('----- Sub-sequences -----')
     for i, (attacker, victim_episodes) in enumerate(host_data.items()):
@@ -231,11 +228,10 @@ def break_into_subbehaviors(host_data, full_seq=False):
 
             victim = episodes[0][-1]
             attacker_victim = attacker + '->' + victim
-            pieces = math.floor(len(episodes) / cut_length)
             if full_seq:
                 subsequences[attacker_victim] = episodes
                 continue
-            if pieces < 1:  # TODO: double-check what is happening here
+            if len(episodes) == 1:
                 subsequences[attacker_victim + '-0'] = episodes
                 continue
 
@@ -255,14 +251,9 @@ def break_into_subbehaviors(host_data, full_seq=False):
                 end = cuts[j]
                 rest = (end + 1, len(episodes) - 1)
                 subsequence = episodes[start:end+1]
-                if len(subsequence) < 2:
-                    continue
                 subsequences[attacker_victim + '-' + str(count)] = subsequence
                 count += 1
             subsequence = episodes[rest[0]:rest[1]+1]
-            if len(subsequence) < 2:
-                # print('discarding symbol ', [x[2] for x in al]) # TODO This one is not cool1
-                continue
             subsequences[attacker_victim + '-' + str(count)] = subsequence
 
     print('\n# sub-sequences:', len(subsequences))
