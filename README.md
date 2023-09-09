@@ -48,7 +48,7 @@ Tip: in case you often use the same non-default values, you can create an alias 
 
 ## First time use
 
-- In `sage.py`, set paths to `flexfringe/` executable, and `path_to_ini` variable.
+- In `sage.py`, set paths to `flexfringe/` executable, and `path_to_ini` variable (path to the `spdfa-config.ini` file, depending on whether you want to move this file to `FlexFringe/ini/` or keep it in the SAGE directory as it is).
 - A sample alert file is provided with the name `sample-input.json` (T5 alerts from CPTC-2018) to test SAGE. Use the following command: 
 
 `python sage.py alerts/ firstExp`

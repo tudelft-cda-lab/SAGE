@@ -7,6 +7,13 @@ from signatures.mappings import small_mapping, rev_smallmapping
 
 
 def _most_frequent(serv):
+    """
+    Gets the most frequently occurring service in a list of services, which is further used in attack graphs.
+    As a tie-breaker, if an 'unknown' service has the same count as a specific service, the latter is explicitly chosen.
+
+    @param serv: a list of services
+    @return: the most frequently occurring service (the most targeted service)
+    """
     max_frequency = 0
     most_frequent_service = None
     count_unknown = 0
@@ -24,6 +31,13 @@ def _most_frequent(serv):
 
 # Step 4.2: Generate traces for FlexFringe (27 Aug 2020)
 def generate_traces(subsequences, datafile):
+    """
+    Generates the episode traces to pass to FlexFringe. An episode trace is a (reversed) sequence of `mcat|mserv`.
+
+    @param subsequences: the episode subsequences per attacker-victim pair
+    @param datafile: the file where the traces have to be written to
+    @return: the FlexFringe traces (to be reused in the `encode_sequences` function)
+    """
     num_traces = 0
     unique_symbols = set()  # FlexFringe treats the (mcat,mserv) pairs as symbols of the alphabet
 
@@ -53,11 +67,11 @@ def generate_traces(subsequences, datafile):
 
 # Step 5: Learn the model (2 sept 2020)
 def flexfringe(*args, **kwargs):
-    """Wrapper to call the flexfringe binary
+    """
+    Acts as a wrapper to call the FlexFringe binary to create an S-PDFA model.
 
-    Keyword arguments:
-    position 0 -- input file with trace samples
-    kwargs -- list of key=value arguments to pass as command line arguments
+    @param args: the input file with the episode traces (position 0)
+    @param kwargs: the list of key=value arguments to pass as command line arguments
     """
 
     command = []
@@ -73,10 +87,12 @@ def flexfringe(*args, **kwargs):
 
 # Step 6.1: Load the resulting model
 def load_model(model_file):
-    """Wrapper to load resulting model json file
+    """
+    Loads the resulting S-PDFA model from a json file created by FlexFringe.
+    First this method is called on the core model, then on the sinks model.
 
-    Keyword arguments:
-    model_file -- path to the json model file
+    @param model_file: the path to the json file with the model
+    @return: the resulting S-PDFA model (in a dictionary format)
     """
 
     # Because users can provide unescaped new lines breaking json conventions
@@ -103,12 +119,13 @@ def load_model(model_file):
 
 
 def traverse(dfa, sinks, sequence):
-    """Wrapper to traverse a given model with a string to create a state subsequence.
+    """
+    Traverses the given S-PDFA model with a trace string to collect the state IDs.
 
-    Keyword arguments:
-    dfa -- loaded main model
-    sinks -- loaded sinks model
-    sequence -- space-separated string to accept/reject in dfa
+    @param dfa: the loaded main model
+    @param sinks: the loaded sinks model
+    @param sequence: the space-separated string to traverse the S-PDFA and get the state IDs
+    @return: the list of state IDs and the found severe sinks (medium- and high-severity sinks only)
     """
     sev_sinks = set()
     state = "0"
@@ -137,6 +154,14 @@ def traverse(dfa, sinks, sequence):
 
 # Step 6.2: Encode traces (include state IDs to mcat|mserv)
 def encode_sequences(dfa, sinks, flexfringe_traces):
+    """
+    Encodes the episode traces into state traces, i.e. gathers the state IDs.
+
+    @param dfa: the loaded main model
+    @param sinks: the loaded sinks model
+    @param flexfringe_traces: the traces that were passed to FlexFringe in the `generate_traces` function
+    @return: the state traces, the found medium- and high-severity states, and the medium- and high-severity sinks
+    """
     traces_in_sinks, total_traces = 0, 0
     state_traces = dict()
     med_sev_states, high_sev_states, sev_sinks = set(), set(), set()
@@ -168,8 +193,15 @@ def encode_sequences(dfa, sinks, flexfringe_traces):
     return state_traces, med_sev_states, high_sev_states, sev_sinks
 
 
-# Step 6.3: Create state sequences (collecting sub-behaviors back into the same trace, augmented with state IDs)
+# Step 6.3: Create state sequences
 def make_state_sequences(episode_subsequences, state_traces):
+    """
+    Creates state sequences, i.e. collects the sub-behaviors back into a single sequence, augmenting with state IDs.
+
+    @param episode_subsequences: the previously created episode subsequences
+    @param state_traces: the previously created state traces (the lists of state IDs)
+    @return: state sequences per each attacker-victim pair
+    """
     state_sequences = dict()
     counter = -1
     for tid, (attack, episode_subsequence) in enumerate(episode_subsequences.items()):
@@ -198,8 +230,13 @@ def make_state_sequences(episode_subsequences, state_traces):
     return state_sequences
 
 
-# Group episodes (state sequences) per (team, victim) pair
 def group_episodes_per_av(state_sequences):
+    """
+    Groups the episodes (state sequences) per (team, victim) pair and per (team, attacker) pair (separately).
+
+    @param state_sequences: the previously created state sequences per attacker-victim pair
+    @return: episodes per (team, victim) pair, episodes per (team, attacker) pair
+    """
     # Experiment: attack graph for one victim w.r.t time
     victim_episodes = dict()  # Episodes per (team, victim)
     for attack, episodes in state_sequences.items():

@@ -10,6 +10,12 @@ from signatures.mappings import macro_inv, mcols, micro, micro2macro
 
 
 def plot_alert_filtering(unfiltered_alerts, filtered_alerts):
+    """
+    Plots the frequency of the alerts before and after filtering next to each other, for each attack stage (mcat).
+
+    @param unfiltered_alerts: the raw alerts before filtering (i.e. before removing duplicates)
+    @param filtered_alerts: the cleaned alerts after filtering (i.e. after removing duplicates)
+    """
     original, remaining = dict(), dict()
     original_mcat = [x[9] for x in unfiltered_alerts]
     for i in original_mcat:
@@ -53,11 +59,17 @@ def plot_alert_filtering(unfiltered_alerts, filtered_alerts):
     # Create legend & show graphic
     plt.legend(prop={'size': 20})
     plt.show()
-    return
 
 
-# Plotting for each team, how many categories are consumed
-def plot_histogram(_team_alerts, _team_labels, experiment_name, suricata_summary=False):
+def plot_histogram(team_alerts, team_labels, experiment_name, suricata_summary=False):
+    """
+    Plots for each team, how many categories are consumed.
+
+    @param team_alerts: the alerts grouped per team after filtering (i.e. after removing duplicates)
+    @param team_labels: the labels of the teams (which correspond to the file name without the '.json' extension)
+    @param experiment_name: the name of the experiment
+    @param suricata_summary: whether to use suricata summary or Micro Attack Stage
+    """
     # Choice of: Suricata category usage or Micro attack stage usage? (has to be updated when used)
     suricata_categories = {
         'A Network Trojan was detected': 0, 'Generic Protocol Command Decode': 1, 'Attempted Denial of Service': 2,
@@ -73,14 +85,14 @@ def plot_histogram(_team_alerts, _team_labels, experiment_name, suricata_summary
 
     if suricata_summary:
         num_categories = len(suricata_categories)
-        percentages = [[0 * num_categories] for _ in range(len(_team_alerts))]
+        percentages = [[0 * num_categories] for _ in range(len(team_alerts))]
     else:
         num_categories = len(micro_attack_stages)
-        percentages = [[0] * num_categories for _ in range(len(_team_alerts))]
+        percentages = [[0] * num_categories for _ in range(len(team_alerts))]
     indices = np.arange(num_categories)    # The x locations for the groups
     bar_width = 0.75       # The width of the bars: can also be len(x) sequence
 
-    for tid, team in enumerate(_team_alerts):
+    for tid, team in enumerate(team_alerts):
         for alert in team:
             if suricata_summary:
                 percentages[tid][suricata_categories[alert[6]]] += 1
@@ -89,7 +101,7 @@ def plot_histogram(_team_alerts, _team_labels, experiment_name, suricata_summary
         for i, acat in enumerate(percentages[tid]):
             percentages[tid][i] = acat / len(team)
     plots = []
-    for tid, team in enumerate(_team_alerts):
+    for tid, team in enumerate(team_alerts):
         if tid == 0:
             plot = plt.bar(indices, percentages[tid], bar_width)
         elif tid == 1:
@@ -112,13 +124,20 @@ def plot_histogram(_team_alerts, _team_labels, experiment_name, suricata_summary
     plt.tick_params(axis='x', which='major', labelsize=8)
     plt.tick_params(axis='x', which='minor', labelsize=8)
     # plt.yticks(np.arange(0, 13000, 1000))
-    plt.legend([plot[0] for plot in plots], _team_labels)
+    plt.legend([plot[0] for plot in plots], team_labels)
     plt.tight_layout()
     plt.savefig('data_histogram-' + experiment_name + '.png')
     # plt.show()
 
 
 def plot_episodes(frequencies, episodes, mcat):
+    """
+    Plot the slopes based on the time, for a given (hyper)alert sequence (for an attacker-victim pair and mcat).
+
+    @param frequencies: the frequencies of the corresponding alert windows
+    @param episodes: the episodes for the given (hyper)alert sequence
+    @param mcat: the corresponding Micro Attack Stage
+    """
     cap = max(frequencies) + 1
 
     plt.figure()
@@ -135,10 +154,16 @@ def plot_episodes(frequencies, episodes, mcat):
         plt.plot(xax_end, yax, 'r', linestyle=(0, (5, 10)))
 
     plt.show()
-    return
 
 
 def _legend_without_duplicate_labels(ax, fontsize=10, loc='upper right'):
+    """
+    Creates a legend without duplicate labels.
+
+    @param ax: the axis for which the legend has to be created
+    @param fontsize: the size of the font
+    @param loc: the location of the legend
+    """
     handles, labels = ax.get_legend_handles_labels()
     unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
     unique = sorted(unique, key=lambda x: x[1])
@@ -146,6 +171,14 @@ def _legend_without_duplicate_labels(ax, fontsize=10, loc='upper right'):
 
 
 def plot_alert_volume_per_episode(tid, attacker_victim, host_episodes, mcats):
+    """
+    Plots the alert volume per episode for the episodes of the given attacker-victim pair and the given mcat.
+
+    @param tid: the ID of the team
+    @param attacker_victim: the attacker-victim pair to create plots for
+    @param host_episodes: episodes for a given attacker-victim pair and mcat
+    @param mcats: a list with the Micro Attack Stages
+    """
     plt.figure(figsize=(10, 10))
     ax = plt.gca()
     plt.title('Micro attack episodes | Team: ' + str(tid) + ' | Host: ' + '->'.join(attacker_victim))
@@ -176,6 +209,13 @@ def plot_alert_volume_per_episode(tid, attacker_victim, host_episodes, mcats):
 
 
 def plot_state_groups(state_sequences, data_file):
+    """
+    Creates and plots the stage clusters (aka state groups), based on Macro Attack Stages.
+
+    @param state_sequences: the previously created state sequences (per attacker-victim pair)
+    @param data_file: the name of the file with the traces (will be a part of the name of the output file)
+    @return: the created state groups (i.e. MacroAttackStage -> <set_of_stateIDs>)
+    """
     state_groups = dict()
     all_states = set()
     gcols = ['lemonchiffon', 'gold', 'khaki', 'darkkhaki', 'beige', 'goldenrod',

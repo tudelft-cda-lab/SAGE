@@ -3,8 +3,14 @@ import os
 from signatures.mappings import macro_inv, micro, micro2macro, verbose_micro
 
 
-# Translate technical nodes to human-readable
 def _translate(label, root=False):
+    """
+    Translates the node label into a more human-readable version.
+
+    @param label: the label of the node (`mcat|mserv`, where mcat is an integer)
+    @param root: whether this node is a root node (will be prepended with 'Victim: <victim_ip>\n')
+    @return: a new more human-readable version of the label
+    """
     new_label = ""
     parts = label.split("|")
     if root:
@@ -21,6 +27,14 @@ def _translate(label, root=False):
 
 
 def _get_objective_nodes(state_sequences, obj_only=False):
+    """
+    Gets the objectives from the state sequences. An objective is defined as `mcat|mserv` (by default),
+        with `mcat` having a high severity.
+
+    @param state_sequences: the state sequences per attacker-victim pair
+    @param obj_only: whether to use only `mcat` (instead of `mcat|mserv`)
+    @return: a list of the found objective nodes
+    """
     objectives = set()
     for episodes in state_sequences.values():  # Iterate over all episodes and collect the objective nodes
         for epi in episodes:
@@ -35,6 +49,13 @@ def _get_objective_nodes(state_sequences, obj_only=False):
 
 
 def _is_severe_sink(vname, sev_sinks):
+    """
+    Checks whether a node is a severe sink (i.e. a sink that has a medium or high severity).
+
+    @param vname: the name of the node (for low-severity nodes: `mcat|mserv`, for other nodes `mcat|mserv|stateID`)
+    @param sev_sinks: the list of IDs of the severe sinks
+    @return: True if the node is a severe sink, False otherwise
+    """
     for sink in sev_sinks:
         if vname.split("|")[-1] == sink:
             return True
@@ -42,6 +63,14 @@ def _is_severe_sink(vname, sev_sinks):
 
 
 def _make_vertex_info(episode, in_main_model):
+    """
+    Creates a tuple with the information about the node corresponding to the given episode.
+    The format of the node information: (vert_name, start_time, end_time, signs, timestamps)
+
+    @param episode: the episode corresponding to the current node
+    @param in_main_model: the state IDs that are present in the main model
+    @return: the tuple with the node information, as defined above
+    """
     start_time = round(episode[0] / 1.0)
     end_time = round(episode[1] / 1.0)
     cat = micro[episode[2]].split('.')[1]
@@ -57,6 +86,15 @@ def _make_vertex_info(episode, in_main_model):
 
 
 def _get_attack_attempts(state_sequences, victim, objective, in_main_model):
+    """
+    Gets the attack attempts for a given victim and objective from the given state sequences (per attacker-victim pair).
+
+    @param state_sequences: the state sequences per attacker-victim pair
+    @param victim: the IP of the given victim
+    @param objective: the given objective (`mcat|mserv`)
+    @param in_main_model: the state IDs that are present in the main model
+    @return: a list of the attack attempts and a list of the observed objective variants for a given (victim, objective)
+    """
     team_attack_attempts = dict()
     observed_obj = set()  # Variants of current objective
     for att, episodes in state_sequences.items():  # Iterate over (a,v): [episode, episode, episode]
@@ -93,6 +131,12 @@ def _get_attack_attempts(state_sequences, victim, objective, in_main_model):
 
 
 def _print_unique_attempts(team_attacker, attempts):
+    """
+    For a given attacker, print the path info (i.e. total paths, unique paths, the longest and the shortest paths).
+
+    @param team_attacker: the IP of the given attacker (prepended with the team ID, e.g. 't0-10.0.254.30')
+    @param attempts: the attack attempts for the given attacker
+    """
     paths = [''.join([action[0] for action in attempt]) for attempt in attempts]
     unique_paths = len(set(paths))  # Count exactly unique attempts
     longest_path = max([len(attempt) for attempt in attempts], default=0)
@@ -102,6 +146,18 @@ def _print_unique_attempts(team_attacker, attempts):
 
 
 def _create_edge_line(vid, vname1, vname2, ts1, ts2, color, attacker):
+    """
+    Creates a line defining the given edge, which will be written to the dot file for graphviz.
+
+    @param vid: the ID of the current node (the first edge will have a different label format)
+    @param vname1: the name of the first node (tail node)
+    @param vname2: the name of the second node (head node)
+    @param ts1: the start and end times of the first episode
+    @param ts2: the start and end times of the second episode
+    @param color: the color to be used for this edge
+    @param attacker: the IP of the attacker for which this edge is created
+    @return: the line defining the given edge (edge name, i.e. "tail -> head", color, label)
+    """
     from_last = ts1[1].strftime("%d/%m/%y, %H:%M:%S")
     to_first = ts2[0].strftime("%d/%m/%y, %H:%M:%S")
     gap = round((ts2[0] - ts1[1]).total_seconds())
@@ -118,6 +174,12 @@ def _create_edge_line(vid, vname1, vname2, ts1, ts2, color, attacker):
 
 
 def _print_simplicity(ag_name, lines):
+    """
+    Computes and prints the number of nodes and edges, and the simplicity for the given attack graph.
+
+    @param ag_name: the name of the given attack graph
+    @param lines: the lines in the dot file for a given attack graph
+    """
     vertices, edges = 0, 0
     for line in lines:  # Count vertices and edges
         if '->' in line[1]:
@@ -129,6 +191,15 @@ def _print_simplicity(ag_name, lines):
 
 # Step 7: Create AGs per victim per objective (14 Nov)
 def make_attack_graphs(state_sequences, sev_sinks, datafile, dir_name, save_ag=True):
+    """
+    Creates the attack graphs based on the given state sequences.
+
+    @param state_sequences: the previously created state sequences (per attacker-victim pair)
+    @param sev_sinks: the set of severe sinks (i.e. sinks with a medium or high severity)
+    @param datafile: the name of the file with the traces (used as a prefix for the file name of the attack graph)
+    @param dir_name: the name of the directory where the attack graphs should be saved
+    @param save_ag: whether to save the attack graphs (i.e. create dot, png and svg files with the attack graphs)
+    """
     tcols = {'t0': 'maroon', 't1': 'orange', 't2': 'darkgreen', 't3': 'blue', 't4': 'magenta',
              't5': 'purple', 't6': 'brown', 't7': 'tomato', 't8': 'turquoise', 't9': 'skyblue'}
 
