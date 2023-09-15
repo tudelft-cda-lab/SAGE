@@ -63,6 +63,21 @@ jobs:
           cd ..
           rm -rf SAGE-main/alers/
           cp -R SAGE-updated/alerts SAGE-main/alerts/
+          
+      - name: Copy FlexFringe to SAGE
+        shell: bash
+        run: |
+          cd SAGE-main/
+          mkdir FlexFringe/
+          mkdir FlexFringe/ini/
+          cp ../*-x64-* FlexFringe/flexfringe
+          mv spdfa-config.ini FlexFringe/ini/
+          cd ..
+          cd SAGE-updated/
+          mkdir FlexFringe/
+          mkdir FlexFringe/ini/
+          cp ../*-x64-* FlexFringe/flexfringe
+          mv spdfa-config.ini FlexFringe/ini/
 
       - name: Run SAGE on the main branch
         shell: bash
