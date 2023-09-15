@@ -71,12 +71,14 @@ jobs:
           mkdir FlexFringe/
           mkdir FlexFringe/ini/
           cp ../flexfringe-x64-linux FlexFringe/flexfringe
+          chmod u+x FlexFringe/flexfringe
           mv spdfa-config.ini FlexFringe/ini/
           cd ..
           cd SAGE-updated/
           mkdir FlexFringe/
           mkdir FlexFringe/ini/
           cp ../flexfringe-x64-linux FlexFringe/flexfringe
+          chmod u+x FlexFringe/flexfringe
           mv spdfa-config.ini FlexFringe/ini/
 
       - name: Run SAGE on the main branch
