@@ -41,7 +41,7 @@ jobs:
 
 
       ################################################################
-      #################    RUN STYLE CHECK    ########################
+      ##################    RUN STYLE CHECK    #######################
       ################################################################
 
      #- name: autopep8
@@ -52,7 +52,7 @@ jobs:
 
 
       ################################################################
-      #############    RUN BOTH VERSIONS OF SAGE     #################
+      ##############    PREPARE THE ENVIRONMENT    ##################
       ################################################################
 
       - name: Extract alerts
@@ -64,8 +64,9 @@ jobs:
           rm -rf SAGE-main/alers/
           cp -R SAGE-updated/alerts SAGE-main/alerts/
           
-      - name: Copy FlexFringe to SAGE
+      - name: Copy FlexFringe to SAGE (main branch)
         shell: bash
+        if: github.event.label.name != 'changes-ags'
         run: |
           cd SAGE-main/
           mkdir FlexFringe/
@@ -73,7 +74,10 @@ jobs:
           cp ../flexfringe-x64-linux FlexFringe/flexfringe
           chmod u+x FlexFringe/flexfringe
           mv spdfa-config.ini FlexFringe/ini/
-          cd ..
+
+      - name: Copy FlexFringe to SAGE (updated branch)
+        shell: bash
+        run: |
           cd SAGE-updated/
           mkdir FlexFringe/
           mkdir FlexFringe/ini/
@@ -87,7 +91,12 @@ jobs:
           cd SAGE-updated/
           mv test-scripts/* ..
 
+      ################################################################
+      #############    RUN BOTH VERSIONS OF SAGE     #################
+      ################################################################
+      
       - name: Run SAGE on the main branch
+        if: github.event.label.name != 'changes-ags'
         shell: bash
         run: |
           cd SAGE-main/
@@ -121,19 +130,19 @@ jobs:
       ################################################################
 
       - name: Run regression tests on CPTC-2017
-        if: ${{ github.event.label.name != 'changes-ags' }}
+        if: github.event.label.name != 'changes-ags'
         shell: bash
         run: |
           ./test-ags.sh orig-2017 updated-2017
 
       - name: Run regression tests CPTC-2018
-        if: ${{ github.event.label.name != 'changes-ags' }}
+        if: github.event.label.name != 'changes-ags'
         shell: bash
         run: |
           ./test-ags.sh orig-2018 updated-2018
 
       - name: Run regression tests CCDC-2018
-        if: ${{ github.event.label.name != 'changes-ags' }}
+        if: github.event.label.name != 'changes-ags'
         shell: bash
         run: |
           ./test-ags.sh orig-ccdc updated-ccdc
