@@ -25,7 +25,7 @@ jobs:
           FF_REPO: "https://github.com/tudelft-cda-lab/FlexFringe"
         shell: bash
         run: |
-          gh release download latest -R $FF_REPO -p "*x64-${{ inputs.platform }}*"
+          gh release download latest -R $FF_REPO -p "flexfringe-x64-linux"
 
       - name: Clone main branch of tudelft-cda-lab/SAGE
         uses: actions/checkout@v4
@@ -70,13 +70,13 @@ jobs:
           cd SAGE-main/
           mkdir FlexFringe/
           mkdir FlexFringe/ini/
-          cp ../*-x64-* FlexFringe/flexfringe
+          cp ../flexfringe-x64-linux FlexFringe/flexfringe
           mv spdfa-config.ini FlexFringe/ini/
           cd ..
           cd SAGE-updated/
           mkdir FlexFringe/
           mkdir FlexFringe/ini/
-          cp ../*-x64-* FlexFringe/flexfringe
+          cp ../flexfringe-x64-linux FlexFringe/flexfringe
           mv spdfa-config.ini FlexFringe/ini/
 
       - name: Run SAGE on the main branch
