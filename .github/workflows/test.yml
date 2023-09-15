@@ -1,0 +1,138 @@
+name: 'Run tests'
+
+on:
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      ################################################################
+      #################   INSTALL DEPENDENCIES  ######################
+      ################################################################
+
+      - name: Install dependencies
+        run: |
+          apt update
+          apt install graphviz
+          pip install requests numpy matplotlib
+     
+      - name: Fetch flexfringe binary
+        env:
+          FF_REPO: "https://github.com/tudelft-cda-lab/FlexFringe"
+        shell: bash
+        run: |
+          gh release download latest -R $FF_REPO -p "*x64-${{ inputs.platform }}*"
+
+      - name: Clone main branch of tudelft-cda-lab/SAGE
+        uses: actions/checkout@v4
+        with:
+          repository: 'tudelft-cda-lab/SAGE'
+          ref: 'main'
+          path: 'SAGE-main'
+
+      - name: Clone PR branch of tudelft-cda-lab/SAGE
+        uses: actions/checkout@v4
+        with:
+          path: 'SAGE-updated'
+
+
+      ################################################################
+      #################    RUN STYLE CHECK    ########################
+      ################################################################
+
+     #- name: autopep8
+     #  id: autopep8
+     #  uses: peter-evans/autopep8@v2
+     #  with:
+     #    args: --recursive --in-place --aggressive --aggressive .
+
+
+      ################################################################
+      #############    RUN BOTH VERSIONS OF SAGE     #################
+      ################################################################
+
+      - name: Run SAGE on the main branch
+        shell: bash
+        run: |
+          cd SAGE-main/
+          python sage.py alerts/cptc-2017/ orig-2017 --dataset cptc --keep-files
+          python sage.py alerts/cptc-2018/ orig-2018 --dataset cptc --keep-files
+          python sage.py alerts/ccdc/ orig-ccdc --dataset other --keep-files
+          cp -R orig-2017.txt orig-2017.txt.ff.final.json orig-2017.txt.ff.finalsinks.json orig-2017AGs/ ..
+          cp -R orig-2018.txt orig-2018.txt.ff.final.json orig-2018.txt.ff.finalsinks.json orig-2018AGs/ ..
+          cp -R orig-ccdc.txt orig-ccdc.txt.ff.final.json orig-ccdc.txt.ff.finalsinks.json orig-ccdcAGs/ ..
+
+      - name: Copy the test file in the top directory
+        shell: bash
+        run: |
+          cd SAGE-main/
+          mv test-scripts/* ..
+
+      - name: Run SAGE on the updated branch
+        shell: bash
+        run: |
+          cd SAGE-updated/
+          python sage.py alerts/cptc-2017 updated-2017 --dataset cptc --keep-files
+          python sage.py alerts/cptc-2018/ updated-2018 --dataset cptc --keep-files
+          python sage.py alerts/ccdc/ updated-ccdc --dataset other --keep-files
+          cp -R updated-2017.txt updated-2017.txt.ff.final.json updated-2017.txt.ff.finalsinks.json updated-2017AGs/ ..
+          cp -R updated-2018.txt updated-2018.txt.ff.final.json updated-2018.txt.ff.finalsinks.json updated-2018AGs/ ..
+          cp -R updated-ccdc.txt updated-ccdc.txt.ff.final.json updated-ccdc.txt.ff.finalsinks.json updated-ccdcAGs/ ..
+
+      ################################################################
+      #################    RUN REGRESSION TESTS    ###################
+      ################################################################
+
+      - name: Run regression tests on CPTC-2017
+        if: ${{ github.event.label.name != 'changes-ags' }}
+        shell: bash
+        run: |
+          ./test-ags.sh orig-2017 updated-2017
+
+      - name: Run regression tests CPTC-2018
+        if: ${{ github.event.label.name != 'changes-ags' }}
+        shell: bash
+        run: |
+          ./test-ags.sh orig-2018 updated-2018
+
+      - name: Run regression tests CCDC-2018
+        if: ${{ github.event.label.name != 'changes-ags' }}
+        shell: bash
+        run: |
+          ./test-ags.sh orig-ccdc updated-ccdc
+
+
+      ################################################################
+      ###################    RUN SINKS TESTS    ######################
+      ################################################################
+
+      - name: Run sinks tests on CPTC-2017
+        shell: bash
+        run: |
+          cd SAGE-updated/
+          ./test-sinks.sh orig-2017 updated-2017
+
+      - name: Run sinks tests on CPTC-2018
+        shell: bash
+        run: |
+          cd SAGE-updated/
+          ./test-sinks.sh orig-2018 updated-2018
+
+      - name: Run sinks tests on CCDC-2018
+        shell: bash
+        run: |
+          cd SAGE-updated/
+          ./test-sinks.sh orig-ccdc updated-ccdc
+
+      ################################################################
+      ##################    RUN PYTHON TESTS    ######################
+      ################################################################
+
+      - name: Run Python tests for episodes
+        run: |
+          cd SAGE-updated/
+          python tests.py
+
