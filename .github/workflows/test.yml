@@ -55,6 +55,15 @@ jobs:
       #############    RUN BOTH VERSIONS OF SAGE     #################
       ################################################################
 
+      - name: Extract alerts
+        shell: bash
+        run: |
+          cd SAGE-main/
+          find alerts/ -type f -name '*.gz' | xargs gunzip
+          cd ..
+          cd SAGE-updated/
+          find alerts/ -type f -name '*.gz' | xargs gunzip
+
       - name: Run SAGE on the main branch
         shell: bash
         run: |
