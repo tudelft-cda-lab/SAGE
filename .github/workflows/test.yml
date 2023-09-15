@@ -146,20 +146,17 @@ jobs:
       - name: Run sinks tests on CPTC-2017
         shell: bash
         run: |
-          cd SAGE-updated/
-          ./test-sinks.sh orig-2017 updated-2017
+          ./test-sinks.sh updated-2017
 
       - name: Run sinks tests on CPTC-2018
         shell: bash
         run: |
-          cd SAGE-updated/
-          ./test-sinks.sh orig-2018 updated-2018
+          ./test-sinks.sh updated-2018
 
       - name: Run sinks tests on CCDC-2018
         shell: bash
         run: |
-          cd SAGE-updated/
-          ./test-sinks.sh orig-ccdc updated-ccdc
+          ./test-sinks.sh updated-ccdc
 
       ################################################################
       ##################    RUN PYTHON TESTS    ######################
