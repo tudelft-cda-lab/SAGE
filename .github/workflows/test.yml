@@ -12,12 +12,16 @@ jobs:
       ################################################################
       #################   INSTALL DEPENDENCIES  ######################
       ################################################################
-
-      - name: Test conditions
-        # if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'
-        if: "!(contains(github.event.pull_request.labels.*.name, 'changes-ags))"
+      
+      - name: Test conditions 1
+        if: 'contains(github.event.pull_request.labels.*.name, ''changes-ags'')'
         run: |
-          echo "This should not run"
+          echo "The PR has 'contains' label"
+
+      - name: Test conditions 2
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'
+        run: |
+          echo "The PR does not have 'contains' label"
       
       - name: Install dependencies
         run: |
