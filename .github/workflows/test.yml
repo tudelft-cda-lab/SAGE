@@ -17,7 +17,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install graphviz bc
-          pip install requests numpy matplotlib
+          pip install requests numpy matplotlib pycodestyle
 
       - name: Fetch flexfringe binary
         env:
@@ -44,7 +44,12 @@ jobs:
       ##################    RUN STYLE CHECK    #######################
       ################################################################
 
-     #- name: Run PEP8 style check
+      - name: Run Python style guide checker (PEP 8)
+        shell: bash
+        run: |
+          cd SAGE-updated/
+          pycodestyle --ignore=E501,W503,W504 *.py  # Ignore "E501 line too long", and warnings "Line break occurred before/after a binary operator"
+          pycodestyle --ignore=E501,W503,W504 signatures/*.py
 
 
       ################################################################
