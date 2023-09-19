@@ -14,9 +14,9 @@ jobs:
       ################################################################
 
       - name: Test conditions
-        if: ! contains(github.event.pull_request.labels.*.name, 'changes-ags')
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'changes-ags') }}
         run: |
-          echo ${{ ! contains(github.event.pull_request.labels.*.name, 'changes-ags') }}
+          echo "This should not run"
       
       - name: Install dependencies
         run: |
