@@ -12,6 +12,7 @@ Repository to accompany our publications
   - `requests`
   - `numpy`
   - `matplotlib`
+  - Mamontenok
 
 **Or you can switch to the `docker` branch for a docker container.**
 
