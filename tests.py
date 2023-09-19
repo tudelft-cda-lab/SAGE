@@ -24,6 +24,7 @@ def run_episode_test(frequencies, expected, test_name="test"):
 
     total_tests += 1
 
+
 # TODO: has to be written
 def run_cutting_episode_sequences_test():
     pass
@@ -36,7 +37,7 @@ def run_episode_vs_state_sequences_test():
 
 passed_tests = 0
 total_tests = 0
-    
+
 # Test case 1: normal sequence
 y = [11, 0, 0, 2, 5, 2, 2, 2, 4, 2, 0, 0, 8, 6, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 13, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 9, 2]
 expected = [(0, 1), (2, 10), (11, 14), (18, 20), (31, 35), (39, 45), (54, 56), (95, 98), (99, 101)]

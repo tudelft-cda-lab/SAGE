@@ -39,7 +39,7 @@ def _get_attack_stage_mapping(signature):
                 break
     return micro_inv[str(result)]
 
- 
+
 # Step 0: Download the IANA port-service mapping
 def load_iana_mapping():
     # Perform the first request and in case of a failure retry the specified number of times
@@ -62,7 +62,7 @@ def load_iana_mapping():
     for row in table:
         # Drop missing port number, Unassigned and Reserved ports
         if row[1] and 'Unassigned' not in row[3]:  # and 'Reserved' not in row[3]:
-            
+
             # Split range in single ports
             if '-' in row[1]:
                 low_port, high_port = map(int, row[1].split('-'))
@@ -80,7 +80,7 @@ def load_iana_mapping():
 def _readfile(fname):
     with open(fname, 'r') as f:
         unparsed_data = json.load(f)
-        
+
     unparsed_data = unparsed_data[::-1]
     return unparsed_data
 

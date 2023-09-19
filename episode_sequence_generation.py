@@ -143,7 +143,7 @@ def aggregate_into_episodes(team_data, start_times, step=150, plot=False, plot_a
                 raw_episodes = _get_episodes(hyperalert_seq, micro[mcat], plot=plot)
                 if len(raw_episodes) > 0:
                     for epi in raw_episodes:
-                        hyperalert_seq_epi = hyperalert_seq[epi[0]:epi[1]+1]
+                        hyperalert_seq_epi = hyperalert_seq[epi[0]:epi[1] + 1]
                         episode = _create_episode(hyperalert_seq_epi, mcat, start_times[tid])
                         host_episodes.append(episode)
 
@@ -222,10 +222,10 @@ def break_into_subbehaviors(host_data, full_seq=False):
                 start = 0 if j == 0 else cuts[j - 1] + 1
                 end = cuts[j]
                 rest = (end + 1, len(episodes) - 1)
-                subsequence = episodes[start:end+1]
+                subsequence = episodes[start:end + 1]
                 subsequences[attacker_victim + '-' + str(count)] = subsequence
                 count += 1
-            subsequence = episodes[rest[0]:rest[1]+1]
+            subsequence = episodes[rest[0]:rest[1] + 1]
             subsequences[attacker_victim + '-' + str(count)] = subsequence
 
     print('\n# sub-sequences:', len(subsequences))
