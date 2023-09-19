@@ -17,8 +17,8 @@ jobs:
         run: |
           sudo apt update
           sudo apt install graphviz bc
-          pip install requests numpy matplotlib
-     
+          pip install requests numpy matplotlib pycodestyle
+          
       - name: Fetch flexfringe binary
         env:
           GH_TOKEN: ${{ github.token }}
@@ -44,7 +44,12 @@ jobs:
       ##################    RUN STYLE CHECK    #######################
       ################################################################
 
-     #- name: Run PEP8 style check
+      - name: Run Python style guide checker (PEP 8)
+        shell: bash
+        run: |
+          cd SAGE-updated/
+          pycodestyle --ignore=E501,W503,W504 *.py  # Ignore "E501 line too long", and warnings "Line break occurred before/after a binary operator"
+          pycodestyle --ignore=E501,W503,W504 signatures/*.py
 
 
       ################################################################
@@ -117,7 +122,7 @@ jobs:
           python sage.py alerts/cptc-2018/ updated-2018 --dataset cptc --keep-files
           echo "Running CCDC-2018..."
           python sage.py alerts/ccdc/ updated-ccdc --dataset other --keep-files
-          
+
           cp -R updated-2017.txt updated-2017.txt.ff.final.json updated-2017.txt.ff.finalsinks.json updated-2017AGs/ ../
           cp -R updated-2018.txt updated-2018.txt.ff.final.json updated-2018.txt.ff.finalsinks.json updated-2018AGs/ ../
           cp -R updated-ccdc.txt updated-ccdc.txt.ff.final.json updated-ccdc.txt.ff.finalsinks.json updated-ccdcAGs/ ../
@@ -174,4 +179,3 @@ jobs:
         run: |
           cd SAGE-updated/
           python tests.py
-

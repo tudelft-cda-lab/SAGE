@@ -215,14 +215,14 @@ verbose_micro = {
 
 ser_groups = dict({
     "http(s)": ["http", "https", "ddi-udp-1", "radan-http"],
-    "wireless" : ["wap-wsp"],
+    "wireless": ["wap-wsp"],
     "voip": ["sip", "sips"],
     "browser": ["vrml-multi-use"],
     "searchEng": ["search-agent"],
     "broadcast": ["ssdp", "snmp", "commplex-main", "icmpd", "wsdapi"],
     "nameserver": ["domain", "netbios-ns", "menandmice-dns"],
-    "remoteAccess": ["ssh", "rfb", "us-cli",  "ahsp", "spt-automation", "asf-rmcp", "xdmcp", "pcanywherestat", "esmagent",
-                     "irdmi", "epmap", "wsman", "icslap","ms-wbt-server", "appiq-mgmt", "sunrpc", "mosaicsyssvc1"],
+    "remoteAccess": ["ssh", "rfb", "us-cli", "ahsp", "spt-automation", "asf-rmcp", "xdmcp", "pcanywherestat", "esmagent",
+                     "irdmi", "epmap", "wsman", "icslap", "ms-wbt-server", "appiq-mgmt", "sunrpc", "mosaicsyssvc1"],
     "surveillance": ["remoteware-cl", "ads-c", "syslog", "websm", "distinct", "irisa"],
 
     "hostingServer": ["cslistener", "etlservicemgr", "web2host"],
