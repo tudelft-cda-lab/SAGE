@@ -98,4 +98,3 @@ echo "------------"
 echo "Tests passed: ${passed_tests}/${total_tests}"
 
 [[ "$passed_tests" -eq "$total_tests" ]] && exit 0 || exit 1
-

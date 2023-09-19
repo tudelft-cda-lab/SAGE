@@ -12,13 +12,13 @@ jobs:
       ################################################################
       #################   INSTALL DEPENDENCIES  ######################
       ################################################################
-
+      
       - name: Install dependencies
         run: |
           sudo apt update
           sudo apt install graphviz bc
           pip install requests numpy matplotlib pycodestyle
-
+          
       - name: Fetch flexfringe binary
         env:
           GH_TOKEN: ${{ github.token }}
@@ -64,10 +64,10 @@ jobs:
           cd ..
           rm -rf SAGE-main/alers/
           cp -R SAGE-updated/alerts SAGE-main/alerts/
-
+          
       - name: Copy FlexFringe to SAGE (main branch)
         shell: bash
-        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run 
         run: |
           cd SAGE-main/
           mkdir FlexFringe/
@@ -95,7 +95,7 @@ jobs:
       ################################################################
       #############    RUN BOTH VERSIONS OF SAGE     #################
       ################################################################
-
+      
       - name: Run SAGE on the main branch
         if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'   # With 'changes-ags' label no regression tests will be run
         shell: bash
