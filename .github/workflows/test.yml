@@ -76,7 +76,7 @@ jobs:
           
       - name: Copy FlexFringe to SAGE (main branch)
         shell: bash
-        if: github.event.label.name != 'changes-ags'
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run 
         run: |
           cd SAGE-main/
           mkdir FlexFringe/
@@ -106,7 +106,7 @@ jobs:
       ################################################################
       
       - name: Run SAGE on the main branch
-        if: github.event.label.name != 'changes-ags'
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'   # With 'changes-ags' label no regression tests will be run
         shell: bash
         run: |
           cd SAGE-main/
@@ -140,19 +140,19 @@ jobs:
       ################################################################
 
       - name: Run regression tests on CPTC-2017
-        if: github.event.label.name != 'changes-ags'
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
         shell: bash
         run: |
           ./test-ags.sh orig-2017 updated-2017
 
       - name: Run regression tests CPTC-2018
-        if: github.event.label.name != 'changes-ags'
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
         shell: bash
         run: |
           ./test-ags.sh orig-2018 updated-2018
 
       - name: Run regression tests CCDC-2018
-        if: github.event.label.name != 'changes-ags'
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
         shell: bash
         run: |
           ./test-ags.sh orig-ccdc updated-ccdc
