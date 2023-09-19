@@ -18,27 +18,36 @@ umask 077
 
 
 function usage(){
-    echo "Usage: $0 ExpName1 ExpName2"
+    echo -e "Usage: $0 [-i] ExpName1 ExpName2\n\n\t-i\tremove node IDs when comparing the attack graphs"
 }
 
-# Check if exactly two arguments are provided
-[[ $# -ne 2 ]] && { usage >&2 ; exit 1; }
 
-# Experiment names that have been used to run SAGE
-orig_exp_name="$1"
-updated_exp_name="$2"
+option_i=
+if [[ $# -eq 2 ]]; then
+    # Experiment names that have been used to run SAGE
+    orig_exp_name="$1"
+    updated_exp_name="$2"
+elif [[ $# -eq 3 ]] && [[ "$1" == "-i" ]] ; then
+    option_i="-i"
+    orig_exp_name="$2"
+    updated_exp_name="$3"
+# The number of arguments can only be two or three; if three arguments, the first one must be -i option
+else
+    usage >&2
+    exit 1
+fi
 
 # Resolve the FlexFringe files based on the experiment name
-orig_traces="${1}.txt"
-updated_traces="${2}.txt"
+orig_traces="${orig_exp_name}.txt"
+updated_traces="${updated_exp_name}.txt"
 
 # Check if these FlexFringe files exist
 ! [[ -f "$orig_traces" ]] && { echo "$0: file $orig_traces does not exits" >&2 ; exit 1 ; }
 ! [[ -f "$updated_traces" ]] && { echo "$0: file $updated_traces does not exits" >&2 ; exit 1 ; }
 
 # Resolve the directories with the attack graphs
-orig_ags="${1}AGs/"
-updated_ags="${2}AGs/"
+orig_ags="${orig_exp_name}AGs/"
+updated_ags="${updated_exp_name}AGs/"
 
 # Check if this directory exists
 ! [[ -d "$orig_ags" ]] && { echo "$0: directory $orig_ags does not exist" >&2 ; exit 1 ; }
@@ -54,6 +63,8 @@ echo "------------"
 
 
 echo "Test 2: Performing diffs on FlexFringe stats"
+./stats-ff.sh "$orig_exp_name" > /dev/null  # Check for potential errors that will not be caught because of process substitution
+./stats-ff.sh "$updated_exp_name" > /dev/null
 diff <(./stats-ff.sh "$orig_exp_name") <(./stats-ff.sh "$updated_exp_name") && { echo "Passed" ; passed_tests=$((passed_tests + 1)) ; } || echo "Failed"
 total_tests=$((total_tests + 1))
 echo "------------"
@@ -66,12 +77,14 @@ echo "------------"
 
 
 echo "Test 4: Performing diffs on AGs"
-./diff-ags.sh "$orig_ags" "$updated_ags" && { echo "Passed" ; passed_tests=$((passed_tests + 1)) ; } || echo "Failed"
+./diff-ags.sh $option_i "$orig_ags" "$updated_ags" && { echo "Passed" ; passed_tests=$((passed_tests + 1)) ; } || echo "Failed"
 total_tests=$((total_tests + 1))
 echo "------------"
 
 
 echo "Test 5: Checking node stats"
+./stats-ff.sh "$orig_exp_name" > /dev/null
+./stats-ff.sh "$updated_exp_name" > /dev/null
 diff -q <(./stats-nodes-ags.sh "$orig_ags") <(./stats-nodes-ags.sh "$updated_ags") && { echo "Passed" ; passed_tests=$((passed_tests + 1)) ; } || echo "Failed"
 total_tests=$((total_tests + 1))
 echo "------------"
@@ -85,4 +98,3 @@ echo "------------"
 echo "Tests passed: ${passed_tests}/${total_tests}"
 
 [[ "$passed_tests" -eq "$total_tests" ]] && exit 0 || exit 1
-
