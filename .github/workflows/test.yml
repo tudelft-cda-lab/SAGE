@@ -13,16 +13,6 @@ jobs:
       #################   INSTALL DEPENDENCIES  ######################
       ################################################################
       
-      - name: Test conditions 1
-        if: 'contains(github.event.pull_request.labels.*.name, ''changes-ags'')'
-        run: |
-          echo "The PR has 'contains' label"
-
-      - name: Test conditions 2
-        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'
-        run: |
-          echo "The PR does not have 'contains' label"
-      
       - name: Install dependencies
         run: |
           sudo apt update
@@ -54,11 +44,7 @@ jobs:
       ##################    RUN STYLE CHECK    #######################
       ################################################################
 
-     #- name: autopep8
-     #  id: autopep8
-     #  uses: peter-evans/autopep8@v2
-     #  with:
-     #    args: --recursive --in-place --aggressive --aggressive .
+     #- name: Run PEP8 style check
 
 
       ################################################################
@@ -117,9 +103,9 @@ jobs:
           echo "Running CCDC-2018..."
           python sage.py alerts/ccdc/ orig-ccdc --dataset other --keep-files
 
-          cp -R orig-2017.txt orig-2017.txt.ff.final.json orig-2017.txt.ff.finalsinks.json orig-2017AGs/ ..
-          cp -R orig-2018.txt orig-2018.txt.ff.final.json orig-2018.txt.ff.finalsinks.json orig-2018AGs/ ..
-          cp -R orig-ccdc.txt orig-ccdc.txt.ff.final.json orig-ccdc.txt.ff.finalsinks.json orig-ccdcAGs/ ..
+          cp -R orig-2017.txt orig-2017.txt.ff.final.json orig-2017.txt.ff.finalsinks.json orig-2017AGs/ ../
+          cp -R orig-2018.txt orig-2018.txt.ff.final.json orig-2018.txt.ff.finalsinks.json orig-2018AGs/ ../
+          cp -R orig-ccdc.txt orig-ccdc.txt.ff.final.json orig-ccdc.txt.ff.finalsinks.json orig-ccdcAGs/ ../
 
       - name: Run SAGE on the updated branch
         shell: bash
@@ -127,14 +113,14 @@ jobs:
           cd SAGE-updated/
           echo "Running CPTC-2017..."
           python sage.py alerts/cptc-2017 updated-2017 --dataset cptc --keep-files
-          # echo "Running CPTC-2018..."
-          # python sage.py alerts/cptc-2018/ updated-2018 --dataset cptc --keep-files
-          # echo "Running CCDC-2018..."
-          # python sage.py alerts/ccdc/ updated-ccdc --dataset other --keep-files
+          echo "Running CPTC-2018..."
+          python sage.py alerts/cptc-2018/ updated-2018 --dataset cptc --keep-files
+          echo "Running CCDC-2018..."
+          python sage.py alerts/ccdc/ updated-ccdc --dataset other --keep-files
           
-          cp -R updated-2017.txt updated-2017.txt.ff.final.json updated-2017.txt.ff.finalsinks.json updated-2017AGs/ ..
-          # cp -R updated-2018.txt updated-2018.txt.ff.final.json updated-2018.txt.ff.finalsinks.json updated-2018AGs/ ..
-          # cp -R updated-ccdc.txt updated-ccdc.txt.ff.final.json updated-ccdc.txt.ff.finalsinks.json updated-ccdcAGs/ ..
+          cp -R updated-2017.txt updated-2017.txt.ff.final.json updated-2017.txt.ff.finalsinks.json updated-2017AGs/ ../
+          cp -R updated-2018.txt updated-2018.txt.ff.final.json updated-2018.txt.ff.finalsinks.json updated-2018AGs/ ../
+          cp -R updated-ccdc.txt updated-ccdc.txt.ff.final.json updated-ccdc.txt.ff.finalsinks.json updated-ccdcAGs/ ../
 
 
       ################################################################
@@ -170,15 +156,15 @@ jobs:
           ls
           ./test-sinks.sh updated-2017
 
-      # - name: Run sinks tests on CPTC-2018
-      #   shell: bash
-      #   run: |
-      #     ./test-sinks.sh updated-2018
+      - name: Run sinks tests on CPTC-2018
+        shell: bash
+        run: |
+           ./test-sinks.sh updated-2018
 
-      # - name: Run sinks tests on CCDC-2018
-      #   shell: bash
-      #   run: |
-      #     ./test-sinks.sh updated-ccdc
+      - name: Run sinks tests on CCDC-2018
+        shell: bash
+        run: |
+           ./test-sinks.sh updated-ccdc
 
       ################################################################
       ##################    RUN PYTHON TESTS    ######################
