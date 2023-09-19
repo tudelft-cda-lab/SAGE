@@ -16,16 +16,16 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install graphviz
+          sudo apt install graphviz bc
           pip install requests numpy matplotlib
-     
+
       - name: Fetch flexfringe binary
         env:
           GH_TOKEN: ${{ github.token }}
           FF_REPO: "https://github.com/tudelft-cda-lab/FlexFringe"
         shell: bash
         run: |
-          gh release download latest -R $FF_REPO -p "*x64-${{ inputs.platform }}*"
+          gh release download latest -R $FF_REPO -p "flexfringe-x64-linux"
 
       - name: Clone main branch of tudelft-cda-lab/SAGE
         uses: actions/checkout@v4
@@ -41,75 +41,106 @@ jobs:
 
 
       ################################################################
-      #################    RUN STYLE CHECK    ########################
+      ##################    RUN STYLE CHECK    #######################
       ################################################################
 
-     #- name: autopep8
-     #  id: autopep8
-     #  uses: peter-evans/autopep8@v2
-     #  with:
-     #    args: --recursive --in-place --aggressive --aggressive .
+     #- name: Run PEP8 style check
 
 
       ################################################################
-      #############    RUN BOTH VERSIONS OF SAGE     #################
+      ##############    PREPARE THE ENVIRONMENT    ##################
       ################################################################
 
       - name: Extract alerts
         shell: bash
         run: |
-          cd SAGE-main/
-          find alerts/ -type f -name '*.gz' | xargs gunzip
-          cd ..
           cd SAGE-updated/
           find alerts/ -type f -name '*.gz' | xargs gunzip
+          cd ..
+          rm -rf SAGE-main/alers/
+          cp -R SAGE-updated/alerts SAGE-main/alerts/
 
-      - name: Run SAGE on the main branch
+      - name: Copy FlexFringe to SAGE (main branch)
         shell: bash
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
         run: |
           cd SAGE-main/
-          python sage.py alerts/cptc-2017/ orig-2017 --dataset cptc --keep-files
-          python sage.py alerts/cptc-2018/ orig-2018 --dataset cptc --keep-files
-          python sage.py alerts/ccdc/ orig-ccdc --dataset other --keep-files
-          cp -R orig-2017.txt orig-2017.txt.ff.final.json orig-2017.txt.ff.finalsinks.json orig-2017AGs/ ..
-          cp -R orig-2018.txt orig-2018.txt.ff.final.json orig-2018.txt.ff.finalsinks.json orig-2018AGs/ ..
-          cp -R orig-ccdc.txt orig-ccdc.txt.ff.final.json orig-ccdc.txt.ff.finalsinks.json orig-ccdcAGs/ ..
+          mkdir FlexFringe/
+          mkdir FlexFringe/ini/
+          cp ../flexfringe-x64-linux FlexFringe/flexfringe
+          chmod u+x FlexFringe/flexfringe
+          mv spdfa-config.ini FlexFringe/ini/
+
+      - name: Copy FlexFringe to SAGE (updated branch)
+        shell: bash
+        run: |
+          cd SAGE-updated/
+          mkdir FlexFringe/
+          mkdir FlexFringe/ini/
+          cp ../flexfringe-x64-linux FlexFringe/flexfringe
+          chmod u+x FlexFringe/flexfringe
+          mv spdfa-config.ini FlexFringe/ini/
 
       - name: Copy the test file in the top directory
         shell: bash
         run: |
-          cd SAGE-main/
+          cd SAGE-updated/
           mv test-scripts/* ..
+
+      ################################################################
+      #############    RUN BOTH VERSIONS OF SAGE     #################
+      ################################################################
+
+      - name: Run SAGE on the main branch
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'   # With 'changes-ags' label no regression tests will be run
+        shell: bash
+        run: |
+          cd SAGE-main/
+          echo "Running CPTC-2017..."
+          python sage.py alerts/cptc-2017/ orig-2017 --dataset cptc --keep-files
+          echo "Running CPTC-2018..."
+          python sage.py alerts/cptc-2018/ orig-2018 --dataset cptc --keep-files
+          echo "Running CCDC-2018..."
+          python sage.py alerts/ccdc/ orig-ccdc --dataset other --keep-files
+
+          cp -R orig-2017.txt orig-2017.txt.ff.final.json orig-2017.txt.ff.finalsinks.json orig-2017AGs/ ../
+          cp -R orig-2018.txt orig-2018.txt.ff.final.json orig-2018.txt.ff.finalsinks.json orig-2018AGs/ ../
+          cp -R orig-ccdc.txt orig-ccdc.txt.ff.final.json orig-ccdc.txt.ff.finalsinks.json orig-ccdcAGs/ ../
 
       - name: Run SAGE on the updated branch
         shell: bash
         run: |
           cd SAGE-updated/
+          echo "Running CPTC-2017..."
           python sage.py alerts/cptc-2017 updated-2017 --dataset cptc --keep-files
+          echo "Running CPTC-2018..."
           python sage.py alerts/cptc-2018/ updated-2018 --dataset cptc --keep-files
+          echo "Running CCDC-2018..."
           python sage.py alerts/ccdc/ updated-ccdc --dataset other --keep-files
-          cp -R updated-2017.txt updated-2017.txt.ff.final.json updated-2017.txt.ff.finalsinks.json updated-2017AGs/ ..
-          cp -R updated-2018.txt updated-2018.txt.ff.final.json updated-2018.txt.ff.finalsinks.json updated-2018AGs/ ..
-          cp -R updated-ccdc.txt updated-ccdc.txt.ff.final.json updated-ccdc.txt.ff.finalsinks.json updated-ccdcAGs/ ..
+
+          cp -R updated-2017.txt updated-2017.txt.ff.final.json updated-2017.txt.ff.finalsinks.json updated-2017AGs/ ../
+          cp -R updated-2018.txt updated-2018.txt.ff.final.json updated-2018.txt.ff.finalsinks.json updated-2018AGs/ ../
+          cp -R updated-ccdc.txt updated-ccdc.txt.ff.final.json updated-ccdc.txt.ff.finalsinks.json updated-ccdcAGs/ ../
+
 
       ################################################################
       #################    RUN REGRESSION TESTS    ###################
       ################################################################
 
       - name: Run regression tests on CPTC-2017
-        if: ${{ github.event.label.name != 'changes-ags' }}
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
         shell: bash
         run: |
           ./test-ags.sh orig-2017 updated-2017
 
       - name: Run regression tests CPTC-2018
-        if: ${{ github.event.label.name != 'changes-ags' }}
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
         shell: bash
         run: |
           ./test-ags.sh orig-2018 updated-2018
 
       - name: Run regression tests CCDC-2018
-        if: ${{ github.event.label.name != 'changes-ags' }}
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
         shell: bash
         run: |
           ./test-ags.sh orig-ccdc updated-ccdc
@@ -122,20 +153,18 @@ jobs:
       - name: Run sinks tests on CPTC-2017
         shell: bash
         run: |
-          cd SAGE-updated/
-          ./test-sinks.sh orig-2017 updated-2017
+          ls
+          ./test-sinks.sh updated-2017
 
       - name: Run sinks tests on CPTC-2018
         shell: bash
         run: |
-          cd SAGE-updated/
-          ./test-sinks.sh orig-2018 updated-2018
+           ./test-sinks.sh updated-2018
 
       - name: Run sinks tests on CCDC-2018
         shell: bash
         run: |
-          cd SAGE-updated/
-          ./test-sinks.sh orig-ccdc updated-ccdc
+           ./test-sinks.sh updated-ccdc
 
       ################################################################
       ##################    RUN PYTHON TESTS    ######################
@@ -145,4 +174,3 @@ jobs:
         run: |
           cd SAGE-updated/
           python tests.py
-
