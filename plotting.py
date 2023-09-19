@@ -132,7 +132,7 @@ def plot_histogram(team_alerts, team_labels, experiment_name, suricata_summary=F
 
 def plot_episodes(frequencies, episodes, mcat):
     """
-    Plot the slopes based on the time, for a given (hyper)alert sequence (for an attacker-victim pair and mcat).
+    Plot the rate of alerts over time, for a given hyperalert sequence of specific mcat and belonging to an attacker-victim pair.
 
     @param frequencies: the frequencies of the corresponding alert windows
     @param episodes: the episodes for the given (hyper)alert sequence
@@ -158,7 +158,7 @@ def plot_episodes(frequencies, episodes, mcat):
 
 def _legend_without_duplicate_labels(ax, fontsize=10, loc='upper right'):
     """
-    Creates a legend without duplicate labels.
+    Removes redundant legend handles.
 
     @param ax: the axis for which the legend has to be created
     @param fontsize: the size of the font
@@ -172,7 +172,7 @@ def _legend_without_duplicate_labels(ax, fontsize=10, loc='upper right'):
 
 def plot_alert_volume_per_episode(tid, attacker_victim, host_episodes, mcats):
     """
-    Plots the alert volume per episode for the episodes of the given attacker-victim pair and the given mcat.
+    Plots the episodes over time for each attacker victim pair and shows a global view of the different attacker actions over time.
 
     @param tid: the ID of the team
     @param attacker_victim: the attacker-victim pair to create plots for

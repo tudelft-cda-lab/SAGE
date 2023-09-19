@@ -7,10 +7,11 @@ def _translate(label, root=False):
     """
     Translates the node label into a more human-readable version.
 
-    @param label: the label of the node (`mcat|mserv`, where mcat is an integer)
+    @param label: the label of the node (`mcat|mserv` or `mcat|mserv|state_ID`, where `mcat` is a string mapped from the `micro` dictionary, e.g. `DATA_DELIVERY|http|36`)
     @param root: whether this node is a root node (will be prepended with 'Victim: <victim_ip>\n')
     @return: a new more human-readable version of the label
     """
+    print(label)
     new_label = ""
     parts = label.split("|")
     if root:

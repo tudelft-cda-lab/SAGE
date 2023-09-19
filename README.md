@@ -1,11 +1,11 @@
 # SAGE (IntruSion alert-driven Attack Graph Extractor)
-Repository to accompany our publications 
+Repository to accompany our publications
 
 "SAGE: Intrusion Alert-driven Attack Graph Extractor" at VizSec'21, and
 
 "Alert-driven Attack Graph Generation using S-PDFA" at TDSC'21.
 
-## Requires 
+## Requires
 - Flexfringe (https://github.com/tudelft-cda-lab/FlexFringe)
 - Python packages
   - `graphviz`
@@ -48,8 +48,10 @@ Tip: in case you often use the same non-default values, you can create an alias 
 
 ## First time use
 
-- In `sage.py`, set paths to `flexfringe/` executable, and `path_to_ini` variable (path to the `spdfa-config.ini` file, depending on whether you want to move this file to `FlexFringe/ini/` or keep it in the SAGE directory as it is).
-- A sample alert file is provided with the name `sample-input.json` (T5 alerts from CPTC-2018) to test SAGE. Use the following command: 
+- Clone [FlexFringe repository](https://github.com/tudelft-cda-lab/FlexFringe)
+- Move `spdfa-config.ini` file to `FlexFringe/ini/` directory. Alternatively, you can set the `path_to_ini` variable in `sage.py` to `"./spdfa-config.ini"`
+- In case you move the `FlexFringe/` directory to another location, update the function `flexfringe` in `model_learning.py` accordingly.
+- A sample alert file is provided with the name `sample-input.json` (T5 alerts from CPTC-2018) to test SAGE. Use the following command:
 
 `python sage.py alerts/ firstExp`
 
