@@ -13,6 +13,11 @@ jobs:
       #################   INSTALL DEPENDENCIES  ######################
       ################################################################
 
+      - name: Test conditions
+        if: ! contains(github.event.pull_request.labels.*.name, 'changes-ags')
+        run: |
+          echo ${{ ! contains(github.event.pull_request.labels.*.name, 'changes-ags') }}
+      
       - name: Install dependencies
         run: |
           sudo apt update
