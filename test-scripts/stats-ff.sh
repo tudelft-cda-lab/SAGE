@@ -9,7 +9,7 @@
 #     and querying the file `ExpName.txt.ff.final.json`.
 #
 # Note: as I have noticed, merging sinks after the main merging process might result in some sinks becoming red (core) states
-#     that will remain sinks even if their count is larger than or equal to the `sinkcount` parameter 
+#     that will remain sinks even if their count is larger than or equal to the `sinkcount` parameter
 #     (due to extending a blue sink, i.e. colouring red, if it is the best refinement).
 #   Hence the statistics should be interpreted as follows:
 #     - Before merging sinks: #sinks = #blue + #white
@@ -26,6 +26,9 @@ umask 077
 function usage(){
     echo "Usage: $0 ExpName"
 }
+
+# Check the dependency
+bc --help > /dev/null
 
 # Check if exactly one argument is provided
 [[ $# -ne 1 ]] && { usage >&2 ; exit 1; }
