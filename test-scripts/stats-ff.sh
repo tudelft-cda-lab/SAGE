@@ -27,6 +27,9 @@ function usage(){
     echo "Usage: $0 ExpName"
 }
 
+# Check the dependency
+bc --help > /dev/null
+
 # Check if exactly one argument is provided
 [[ $# -ne 1 ]] && { usage >&2 ; exit 1; }
 
