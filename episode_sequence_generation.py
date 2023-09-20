@@ -1,4 +1,3 @@
-import math
 from itertools import accumulate
 
 import numpy as np
@@ -8,6 +7,16 @@ from signatures.mappings import micro
 
 
 def _get_ups_and_downs(frequencies, slopes):
+    """
+    Gets the positive and negative slopes as part of the episode generation, as defined in the paper, i.e.:
+    - when the frequency starts to increase (an up), we consider it the start of an episode
+    - when the frequency is continuously decreasing reaching a global minimum (a down),
+        we consider it the end of that episode
+
+    @param frequencies: the frequencies of the alerts in the corresponding alert windows
+    @param slopes: the slopes of the alerts in the corresponding alert windows
+    @return: positive and negative slopes (lists of (index, slope)) and their intersection
+    """
     positive = [(0, slopes[0])]  # (index, slope)
     positive.extend([(i, slopes[i]) for i in range(1, len(slopes)) if (slopes[i - 1] <= 0 and slopes[i] > 0)])
     negative = [(i + 1, slopes[i + 1]) for i in range(0, len(slopes) - 1) if (slopes[i] < 0 and slopes[i + 1] >= 0)]
@@ -25,9 +34,17 @@ def _get_ups_and_downs(frequencies, slopes):
     return positive, negative, common
 
 
-# Goal: (1) To first form a collective attack profile of a team
-# and then (2) To compare attack profiles of teams
 def _get_episodes(alert_seq, mcat, plot=False):
+    """
+    Gets the episodes from the given (hyper)alert sequence. An episode in this function is (start_index, end_index).
+    The goal is to: (1) first form a collective attack profile of a team, and then
+                    (2) compare attack profiles of teams
+
+    @param alert_seq: the (hyper)alert sequence for the current attacker-victim pair and mcat
+    @param mcat: the attack stage for the episodes
+    @param plot: whether to plot the episode slopes for the given (hyper)alert sequence
+    @return: the episodes for the given (hyper)alert sequence
+    """
     # x-axis represents the time, y-axis represents the frequencies of alerts within a window
     dx = 0.1
     frequencies = [len(x) for x in alert_seq]
@@ -83,6 +100,16 @@ def _get_episodes(alert_seq, mcat, plot=False):
 
 
 def _create_episode(hyperalert_seq_epi, mcat, team_start_time):
+    """
+    Creates an episode with all the required information based on the corresponding fragment of the alert sequence.
+    The format of an episode: (startTime, endTime, mcat, raw_events, volume(alerts), epiPeriod,
+                                epiServices, list of unique signatures, (1st timestamp, last timestamp).
+
+    @param hyperalert_seq_epi: the fragment of the (hyper)alert sequence for the given attacker-victim pair and mcat
+    @param mcat: the attack stage of the episodes
+    @param team_start_time: the first timestamp of the given team
+    @return: the created episode with all the required information
+    """
     # Flatten relevant data from the windows of the corresponding alert sequence
     services = [alert[3] for window in hyperalert_seq_epi for alert in window]
     unique_signatures = list(set([alert[4] for window in hyperalert_seq_epi for alert in window]))
@@ -105,6 +132,17 @@ def _create_episode(hyperalert_seq_epi, mcat, team_start_time):
 
 # Step 2: Create alert sequence and get episodes
 def aggregate_into_episodes(team_data, start_times, step=150, plot=False, plot_alert_volumes=False):
+    """
+    Converts the alerts (grouped per team and attacker-victim pair) into episodes.
+    Each episode is likely to correspond to a single attacker action.
+
+    @param team_data: the alerts grouped by team and attacker-victim pair
+    @param start_times: the first timestamp for each team
+    @param step: the alert aggregation window (aka w, default: 150 sec)
+    @param plot: whether to plot the episode slopes for the given (hyper)alert sequence
+    @param plot_alert_volumes: whether to plot the alert volume per episode for each attacker-victim pair and mcat
+    @return: episodes and the first elapsed time for each attacker-victim pair and mcat, both grouped by team
+    """
     team_episodes = []
     team_times = []
 
@@ -162,8 +200,14 @@ def aggregate_into_episodes(team_data, start_times, step=150, plot=False, plot_a
 
 
 # Step 3: Create episode sequences
-# Host = [connections] instead of team level representation
 def host_episode_sequences(team_episodes):
+    """
+    Convert the created episodes into episode sequences grouped per attacker host (e.g. 't0-10.0.254.30': <episodes>).
+    Host = [connections] instead of team level representation.
+
+    @param team_episodes: episodes for each attacker-victim pair and mcat, grouped by team
+    @return: episode sequences grouped by attacker host (victim is appended to the episode data)
+    """
     host_data = {}
     print('# teams:', len(team_episodes))
     print('----- TEAMS -----')
@@ -187,8 +231,14 @@ def host_episode_sequences(team_episodes):
 
 
 # Step 4.1: Split episode sequences for an attacker-victim pair into episode subsequences.
-# Each episode subsequence represents an attack attempt.
 def break_into_subbehaviors(host_data, full_seq=False):
+    """
+    Cuts the episode sequences into episode subsequences. Each episode subsequence represents an attack attempt.
+
+    @param host_data: episode sequences per attacker host
+    @param full_seq: whether to use full episode sequences (i.e. do not cut into episode subsequences)
+    @return: episode subsequences per attacker-victim pair
+    """
     subsequences = dict()
 
     print('----- Sub-sequences -----')

@@ -25,6 +25,12 @@ CPTC_BAD_IP = '169.254.169.254'
 
 
 def _get_attack_stage_mapping(signature):
+    """
+    Infers the attack stage based on the alert signature.
+
+    @param signature: the signature of the alert
+    @return: the inferred attack stage
+    """
     result = MicroAttackStage.NON_MALICIOUS
     if signature in usual_mapping.keys():
         result = usual_mapping[signature]
@@ -42,6 +48,11 @@ def _get_attack_stage_mapping(signature):
 
 # Step 0: Download the IANA port-service mapping
 def load_iana_mapping():
+    """
+    Downloads the IANA port-service mapping. In case of a failure or a timeout, retries IANA_NUM_RETRIES times.
+
+    @return: a dictionary that maps a port to the corresponding service based on the IANA mapping
+    """
     # Perform the first request and in case of a failure retry the specified number of times
     for attempt in range(IANA_NUM_RETRIES + 1):
         response = requests.get(IANA_CSV_FILE)
@@ -78,6 +89,12 @@ def load_iana_mapping():
 
 
 def _readfile(fname):
+    """
+    Reads the file with the alerts.
+
+    @param fname: the name of the file with the alerts
+    @return: the unparsed alerts
+    """
     with open(fname, 'r') as f:
         unparsed_data = json.load(f)
 
@@ -87,6 +104,13 @@ def _readfile(fname):
 
 # Step 1.1: Parse the input alerts
 def _parse(unparsed_data):
+    """
+    Parses the alerts and converts them into the specific format:
+        (diff_dt, src_ip, src_port, dst_ip, dst_port, sig, cat, host, dt, mcat).
+
+    @param unparsed_data: the unparsed alerts
+    @return: parsed alerts, sorted by the start time
+    """
     parsed_data = []
 
     prev = -1
@@ -134,6 +158,15 @@ def _parse(unparsed_data):
 
 # Step 1.2: Remove duplicate alerts (defined by the alert_filtering_window parameter)
 def _remove_duplicates(unfiltered_alerts, plot=False, gap=1.0):
+    """
+    Removes the duplicate alerts, i.e. all alerts with identical attributes that occur within a gap (=1.0),
+        keeping only the first occurrence, as defined in the paper.
+
+    @param unfiltered_alerts: the parsed alerts that have not yet been filtered
+    @param plot: whether to plot the alert frequencies per Micro Attack Stage before and after filtering
+    @param gap: the filtering gap, i.e. alert filtering window (parameter `t` in the paper, default 1.0 sec)
+    @return: the alerts without duplicates
+    """
     filtered_alerts = [unfiltered_alerts[x] for x in range(1, len(unfiltered_alerts))
                        if unfiltered_alerts[x][9] != MicroAttackStage.NON_MALICIOUS.value  # Skip non-malicious alerts
                        and not (unfiltered_alerts[x][0] <= gap  # Diff from previous alert is less than gap sec
@@ -151,6 +184,15 @@ def _remove_duplicates(unfiltered_alerts, plot=False, gap=1.0):
 
 # Step 1: Read the input alerts
 def load_data(path_to_alerts, filtering_window, start, end):
+    """
+    Reads the input alerts, parses them, removes duplicates, and groups them per attacker team.
+
+    @param path_to_alerts: the path to the directory with the alerts
+    @param filtering_window: filtering window (aka gap, aka t, default: 1.0)
+    @param start: the start hour to limit alerts based on the user preferences (default: 0)
+    @param end: the end hour to limit alerts based on the user preferences (default: 100)
+    @return: parsed and filtered alerts grouped by team, team labels and the first timestamp for each team
+    """
     _team_alerts = []
     _team_labels = []
     _team_start_times = []  # Record the first alert just to get the real elapsed time (if the user filters (s,e) range)
@@ -182,8 +224,14 @@ def load_data(path_to_alerts, filtering_window, start, end):
     return _team_alerts, _team_labels, _team_start_times
 
 
-# Reorganise alerts for each attacker per team
 def group_alerts_per_team(alerts, port_mapping):
+    """
+    Reorganises the alerts per team, for each attacker and victim pair.
+
+    @param alerts: the parsed and filtered alerts, grouped by team
+    @param port_mapping: the IANA port-service mapping
+    @return: alerts grouped by team and by (src_ip, dst_ip)
+    """
     _team_data = dict()
     for tid, team in enumerate(alerts):
         host_alerts = dict()  # (attacker, victim) -> alerts
