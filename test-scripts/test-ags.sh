@@ -57,7 +57,7 @@ passed_tests=0
 total_tests=0
 
 echo "Test 1: Performing diffs on traces"
-diff -q "$orig_traces" "$updated_traces" && { echo "Passed" ; passed_tests=$((passed_tests + 1)) ; } || echo "Failed"
+diff -q <(sort "$orig_traces") <(sort "$updated_traces") && { echo "Passed" ; passed_tests=$((passed_tests + 1)) ; } || echo "Failed"
 total_tests=$((total_tests + 1))
 echo "------------"
 

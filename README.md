@@ -48,14 +48,19 @@ Tip: in case you often use the same non-default values, you can create an alias 
 
 ## First time use
 
-- Clone [FlexFringe repository](https://github.com/tudelft-cda-lab/FlexFringe)
-- Move `spdfa-config.ini` file to `FlexFringe/ini/` directory. Alternatively, you can set the `path_to_ini` variable in `sage.py` to `"./spdfa-config.ini"`
+- Clone [FlexFringe repository](https://github.com/tudelft-cda-lab/FlexFringe).
+- Move `spdfa-config.ini` file to `FlexFringe/ini/` directory. Alternatively, you can set the `path_to_ini` variable in `sage.py` to `"./spdfa-config.ini"`.
 - In case you move the `FlexFringe/` directory to another location, update the function `flexfringe` in `model_learning.py` accordingly.
-- A sample alert file is provided with the name `sample-input.json` (T5 alerts from CPTC-2018) to test SAGE. Use the following command:
+- You can find the compressed alerts for the [Collegiate Penetration Testing Competition (CPTC)](https://cp.tc/research) and [Collegiate Cyber Defense Competition (CCDC)](https://github.com/FrankHassanabad/suricata-sample-data) datasets (taken from the linked sources) in the `alerts/` directory. To uncompress the alerts, run:
 
-`python sage.py alerts/ firstExp`
+  `find alerts/ -type f -name '*.gz' | xargs gunzip`
 
-where `alerts/` contains `sample-input.json`. For other options, see Usage section above.
+  from the root directory of the repository. You can add other datasets, however make sure that they follow the same format.
+- You can run SAGE with the default parameters using the following command:
+
+  `python sage.py alerts/ firstExp`,
+
+  where `alerts/` contains the uncompressed alerts. For other options, see Usage section above.
 
 **If you use SAGE in a scientific work, consider citing the following papers:**
 

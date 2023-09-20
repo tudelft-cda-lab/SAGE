@@ -16,6 +16,10 @@ Finally, write a Pull Request description and, if applicable, mention the issue 
 
 Follow the same procedure as above, however **do add a label `changes-ags`**. This will skip the regression tests and only run the sink tests and the Python tests. Since there is no ground truth for the attack graphs, make sure that the changes to the attack graphs make sense. Please carefully describe them in the Pull Request description.
 
+### Changes to the IDs
+
+State IDs in attack graphs depend on state IDs in the S-PDFA, which in turn depend on the episode traces that are passed to FlexFringe. For example, the traces might all be the same, but have a different order, in case of changes to the episode sequence generation. As a result, the attack graphs will be the same, even though the state IDs might be different, resulting in failing regression tests. To avoid this problem, you can add the label `changes-ids` to your Pull Request. This will remove the state IDs when comparing the attack graphs, so it is a way for you to verify that the attack graphs are indeed the same, despite having different state IDs. If you still run into anomalies, you can also set the `changes-ags` label to skip regression tests entirely.
+
 ### Adding more test cases
 
 If you want to add new test cases, feel free to do so. For Python tests, you can add them to the `tests.py` file. In addition, you can add the new tests to the GitHub Actions by modifying the `.github/workflows/test.yml` file. The tests, however, need first be approved, see the procedure above.
