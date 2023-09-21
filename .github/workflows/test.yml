@@ -164,7 +164,6 @@ jobs:
       - name: Run sinks tests on CPTC-2017
         shell: bash
         run: |
-          ls
           ./test-sinks.sh updated-2017
 
       - name: Run sinks tests on CPTC-2018
