@@ -27,7 +27,6 @@ def _get_ups_and_downs(frequencies, slopes):
     elif slopes[-1] == 0 and frequencies[-1] != 0:  # Special case where last slope is 0, but it is not the global min
         negative.append((len(slopes), slopes[-1]))
 
-
     common = set(negative).intersection(positive)
     negative = [item for item in negative if item not in common]
     positive = [item for item in positive if item not in common]
