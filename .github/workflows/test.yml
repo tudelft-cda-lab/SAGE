@@ -82,7 +82,8 @@ jobs:
           cd SAGE-updated/
           mkdir FlexFringe/
           mkdir FlexFringe/ini/
-          cp ../flexfringe-x64-linux FlexFringe/flexfringe  # Might have to be updated if FlexFringe decides to change the binary name chmod u+x FlexFringe/flexfringe
+          cp ../flexfringe-x64-linux FlexFringe/flexfringe  # Might have to be updated if FlexFringe decides to change the binary name
+          chmod u+x FlexFringe/flexfringe
           mv spdfa-config.ini FlexFringe/ini/
 
       - name: Copy the test file in the top directory
