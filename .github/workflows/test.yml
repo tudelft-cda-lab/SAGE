@@ -2,8 +2,8 @@ name: 'Run tests'
 
 on:
   pull_request:
-    branches:
-      - '*'
+    branches-ignore:
+      - 'docker'
 
 jobs:
   test:
@@ -132,22 +132,29 @@ jobs:
       ################################################################
 
       - name: Run regression tests on CPTC-2017
+        env:
+          CHANGES_IDS: 'contains(github.event.pull_request.labels.*.name, ''changes-ids'')'  # With 'changes-ids' label state IDs will be removed from the AGs
         if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
         shell: bash
         run: |
-          ./test-ags.sh orig-2017 updated-2017
+          [[ "$CHANGES_IDS" == "true" ]] && { echo "Running regression tests without state IDs" ; ./test-ags.sh -i orig-2017 updated-2017 ; } || { echo "Running regression tests with state IDs" ; ./test-ags.sh orig-2017 updated-2017 ; }
 
-      - name: Run regression tests CPTC-2018
-        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
-        shell: bash
-        run: |
-          ./test-ags.sh orig-2018 updated-2018
 
-      - name: Run regression tests CCDC-2018
+      - name: Run regression tests on CPTC-2018
+        env:
+          CHANGES_IDS: 'contains(github.event.pull_request.labels.*.name, ''changes-ids'')'  # With 'changes-ids' label state IDs will be removed from the AGs
         if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
         shell: bash
         run: |
-          ./test-ags.sh orig-ccdc updated-ccdc
+          [[ "$CHANGES_IDS" == "true" ]] && { echo "Running regression tests without state IDs" ; ./test-ags.sh -i orig-2018 updated-2018 ; } || { echo "Running regression tests with state IDs" ; ./test-ags.sh orig-2018 updated-2018 ; }
+
+      - name: Run regression tests on CCDC-2018
+        env:
+          CHANGES_IDS: 'contains(github.event.pull_request.labels.*.name, ''changes-ids'')'  # With 'changes-ids' label state IDs will be removed from the AGs
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
+        shell: bash
+        run: |
+          [[ "$CHANGES_IDS" == "true" ]] && { echo "Running regression tests without state IDs" ; ./test-ags.sh -i orig-ccdc updated-ccdc ; } || { echo "Running regression tests with state IDs" ; ./test-ags.sh orig-ccdc updated-ccdc ; }
 
 
       ################################################################

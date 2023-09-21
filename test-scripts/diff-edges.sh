@@ -67,7 +67,7 @@ parse_edges(){
     }' "$1")
 
     if [[ "$keep_ids" == "false" ]]; then
-        edges=$(echo -e "$edges" | sed 's/ | ID: -\?[0-9]\+//g')                # Remove the node ID (if `-i` option is used)
+        edges=$(echo -e "$edges" | sed 's/ | ID:.*//g')                         # Remove the node ID (if `-i` option is used)
     fi
 
     echo -e "$edges" |
