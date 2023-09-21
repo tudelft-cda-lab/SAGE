@@ -24,6 +24,10 @@ State IDs in attack graphs depend on state IDs in the S-PDFA, which in turn depe
 
 If you want to add new test cases, feel free to do so. For Python tests, you can add them to the `tests.py` file. In addition, you can add the new tests to the GitHub Actions by modifying the `.github/workflows/test.yml` file. The tests, however, need first be approved, see the procedure above.
 
+### Updating the docker branch
+
+Make sure that the changes that you have introduced do not affect the `docker` branch. In case they do, you also have to create a Pull Request to the `docker` branch that will take those changes into account. This might happen, for example, if you change the structure of the files.
+
 ## GitHub Actions
 
 The workflow of the GitHub Actions is structured as follows:
