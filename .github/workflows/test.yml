@@ -134,7 +134,7 @@ jobs:
 
       - name: Run regression tests on CPTC-2017
         env:
-          CHANGES_IDS: 'contains(github.event.pull_request.labels.*.name, ''changes-ids'')'  # With 'changes-ids' label state IDs will be removed from the AGs
+          CHANGES_IDS: ${{ contains(github.event.pull_request.labels.*.name, 'changes-ids') }}  # With 'changes-ids' label state IDs will be removed from the AGs
         if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
         shell: bash
         run: |
@@ -143,7 +143,7 @@ jobs:
 
       - name: Run regression tests on CPTC-2018
         env:
-          CHANGES_IDS: 'contains(github.event.pull_request.labels.*.name, ''changes-ids'')'  # With 'changes-ids' label state IDs will be removed from the AGs
+          CHANGES_IDS: ${{ contains(github.event.pull_request.labels.*.name, 'changes-ids') }}  # With 'changes-ids' label state IDs will be removed from the AGs
         if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
         shell: bash
         run: |
@@ -151,12 +151,11 @@ jobs:
 
       - name: Run regression tests on CCDC-2018
         env:
-          CHANGES_IDS: 'contains(github.event.pull_request.labels.*.name, ''changes-ids'')'  # With 'changes-ids' label state IDs will be removed from the AGs
+          CHANGES_IDS: ${{ contains(github.event.pull_request.labels.*.name, 'changes-ids') }}  # With 'changes-ids' label state IDs will be removed from the AGs
         if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
         shell: bash
         run: |
           [[ "$CHANGES_IDS" == "true" ]] && { echo "Running regression tests without state IDs" ; ./test-ags.sh -i orig-ccdc updated-ccdc ; } || { echo "Running regression tests with state IDs" ; ./test-ags.sh orig-ccdc updated-ccdc ; }
-
 
       ################################################################
       ###################    RUN SINKS TESTS    ######################
