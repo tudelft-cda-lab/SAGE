@@ -90,15 +90,26 @@ elif [[ -d "$original" ]] && [[ -d "$modified" ]]; then
     # This is the prefix used in every AG file name (ExpName-prefix-victim-mcatmserv)
     prefix="-attack-graph-for-victim-"
 
-    # Actually compare the corresponding AGs in the input directories 
+    # Actually compare the corresponding AGs in the input directories
     # First, find the AGs that are present in both directories (compare the file names without the experiment name and the prefix)
-    comm -12 <(find "$original" -type f -name '*.dot' -printf '%f\n' | sed 's@'"${exp_original}\.txt${prefix}"'@@' | sort)\
-             <(find "$modified" -type f -name '*.dot' -printf '%f\n' | sed 's@'"${exp_modified}\.txt${prefix}"'@@' | sort) |
-             sed 's@^\(.*\)$@./diff-ags.sh '"$opt_mode $opt_keep_ids ${original}${exp_original}\.txt${prefix}"'\1 '"${modified}${exp_modified}\.txt${prefix}"'\1@' |     # Create the commands for the shell
-         sh |                                                                                                                                                            # Execute these commands 
-         sed 's/^.*'"$prefix"'\(.*\)\.dot.*$/\1/' | sed 's/^\([0-9.]\+\)-/\1|/' | sed 's/\([A-Z]\+\)/\1|/'  # This line just creares consistent name (victim|mcat|mserv), instead of the default message
+    failed="false"
+    ags=$(comm -12 <(find "$original" -type f -name '*.dot' -printf '%f\n' | sed 's@'"${exp_original}\.txt${prefix}"'@@' | sort)\
+             <(find "$modified" -type f -name '*.dot' -printf '%f\n' | sed 's@'"${exp_modified}\.txt${prefix}"'@@' | sort))
+
+    # Exit with 1 if there is no overlap (i.e. if the directories are disjoint)
+    [[ -z "$ags" ]] && exit 1
+
+    # Recursively run the script on each pair of the matched attack graphs
+    # For the attack graphs that are different, print "victim|mcat|mserv" instead of the default error message
+    for ag in $(echo -e "$ags"); do
+        sh -c "./diff-ags.sh $opt_mode $opt_keep_ids ${original}${exp_original}\.txt${prefix}$ag ${modified}${exp_modified}\.txt${prefix}$ag" |
+          sed 's/^.*'"$prefix"'\(.*\)\.dot.*$/\1/' | sed 's/^\([0-9.]\+\)-/\1|/' | sed 's/\([A-Z]\+\)/\1|/' || failed="true"  # Check if the pipeline has failed
+    done
+
+    # Return the corresponding status code
+    [[ "$failed" == "true" ]] && exit 1 || exit 0
 else
    usage >&2
-   exit 1 
+   exit 1
 fi
 

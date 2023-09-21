@@ -85,7 +85,7 @@ echo "------------"
 echo "Test 5: Checking node stats"
 ./stats-ff.sh "$orig_exp_name" > /dev/null
 ./stats-ff.sh "$updated_exp_name" > /dev/null
-diff -q <(./stats-nodes-ags.sh "$orig_ags") <(./stats-nodes-ags.sh "$updated_ags") && { echo "Passed" ; passed_tests=$((passed_tests + 1)) ; } || echo "Failed"
+diff <(./stats-nodes-ags.sh "$orig_ags") <(./stats-nodes-ags.sh "$updated_ags") && { echo "Passed" ; passed_tests=$((passed_tests + 1)) ; } || echo "Failed"
 total_tests=$((total_tests + 1))
 echo "------------"
 
@@ -102,3 +102,4 @@ echo "------------"
 echo "Tests passed: ${passed_tests}/${total_tests}"
 
 [[ "$passed_tests" -eq "$total_tests" ]] && exit 0 || exit 1
+
