@@ -23,7 +23,7 @@ Repository to accompany our publications
 ## Usage Instructions
 
 - First, create a new folder SAGE and pull all relavent files and create relavent folders
-- Then open `input.ini` and update `experiment-name` field. To play around, you can also modify `alert-filtering-window`, `alert-aggr-window` and other parameters. To see how to set these values, look up the main branch of [SAGE](https://github.com/tudelft-cda-lab/SAGE).
+- Then open `input.ini` and update `experiment-name` field. In case you use CPTC dataset (e.g. CPTC-2017 or CPTC-2018), set `dataset=cptc`. To play around, you can also modify `alert-filtering-window`, `alert-aggr-window` and other parameters. To see how to set these values, look up the main branch of [SAGE](https://github.com/tudelft-cda-lab/SAGE).
 
 ### Option I: Fastest way
 
