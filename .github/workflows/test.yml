@@ -64,6 +64,8 @@ jobs:
           cd ..
           rm -rf SAGE-main/alers/
           cp -R SAGE-updated/alerts SAGE-main/alerts/
+          ls SAGE-main/alerts/cptc-2017/
+          ls SAGE-updated/alerts/cptc-2017/
 
       - name: Copy FlexFringe to SAGE (main branch)
         shell: bash
@@ -101,6 +103,7 @@ jobs:
         shell: bash
         run: |
           cd SAGE-main/
+          ls alerts/cptc-2017/
           echo "Running CPTC-2017..."
           python sage.py alerts/cptc-2017/ orig-2017 --dataset cptc --keep-files
           echo "Running CPTC-2018..."
