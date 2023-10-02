@@ -14,7 +14,7 @@ Repository to accompany our publications
 
 
 ## Create folders
-- `alerts/` containing intrusion alert files in `.json` format. You can find some example datasets on the main branch of [SAGE](https://github.com/tudelft-cda-lab/SAGE). However, make sure that you place only the `.json` files in the `alerts/` directory
+- `alerts/` containing intrusion alert files in `.json` format. You can find some example datasets on the main branch of [SAGE](https://github.com/tudelft-cda-lab/SAGE/tree/main/alerts). If you choose to use these alert datasets, make sure to unzip them and place only the `.json` files in the `alerts/` directory
 - `output/` will be mounted to docker and will contain all outputs
 
 ## Pre-reqs
