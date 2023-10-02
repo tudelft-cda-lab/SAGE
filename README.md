@@ -22,23 +22,23 @@ Repository to accompany our publications
 
 ## Usage Instructions
 
-- First, create a new folder X and pull all relavent files and create relavent folders
+- First, create a new folder SAGE and pull all relavent files and create relavent folders
 - Then open `input.ini` and update `experiment-name` field. To play around, you can also modify `alert-filtering-window`, `alert-aggr-window` and other parameters. To see how to set these values, look up the main branch of [SAGE](https://github.com/tudelft-cda-lab/SAGE).
 
 ### Option I: Fastest way
 
-- Open a cmd/shell in folder X and execute the following command:
+- Open a cmd/shell in folder SAGE and execute the following command:
 
   `start.sh {Image Name}`, \
   e.g. `start.sh ag-test .`
 
-- Wait for execution. Once finished, the attack graphs can be found in X/output/
+- Wait for execution. Once finished, the attack graphs can be found in SAGE/output/
 
 ### Option II: Configure Docker Yourself
 
 - Download and install Docker: https://docs.docker.com/get-docker/
 
-- Open a cmd/shell in folder X and build the docker image:
+- Open a cmd/shell in folder SAGE and build the docker image:
 
   `docker build -t {Image Name} . `, \
   e.g. `docker build -t ag-test .`
@@ -56,7 +56,7 @@ Repository to accompany our publications
 
 * For Linux, replace `%cd%` with `$(pwd)`.
 
-- Wait for execution. Once finished, the output artefacts can be found in X/output/
+- Wait for execution. Once finished, the output artefacts can be found in SAGE/output/
 
 **If you use SAGE in a scientific work, consider citing the following papers:**
 
