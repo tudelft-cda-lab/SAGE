@@ -269,10 +269,10 @@ ccdc_combined = {
 }
 
 usual_mapping = {
-    "ET ATTACK_RESPONSE Net User Command Response": MicroAttackStage.INFO_DISC,#
-    "ET ATTACK_RESPONSE Possible /etc/passwd via HTTP (linux style)": MicroAttackStage.DATA_EXFILTRATION,#
-    "ET ATTACK_RESPONSE Possible BeEF HTTP Headers Inbound": MicroAttackStage.COMMAND_AND_CONTROL,#
-    "ET ATTACK_RESPONSE python shell spawn attempt": MicroAttackStage.COMMAND_AND_CONTROL, #
+    "ET ATTACK_RESPONSE Net User Command Response": MicroAttackStage.INFO_DISC,  #
+    "ET ATTACK_RESPONSE Possible /etc/passwd via HTTP (linux style)": MicroAttackStage.DATA_EXFILTRATION,  #
+    "ET ATTACK_RESPONSE Possible BeEF HTTP Headers Inbound": MicroAttackStage.COMMAND_AND_CONTROL,  #
+    "ET ATTACK_RESPONSE python shell spawn attempt": MicroAttackStage.COMMAND_AND_CONTROL,  #
     "ET CURRENT_EVENTS Likely Linux/Xorddos DDoS Attack Participation (gggatat456.com)": MicroAttackStage.END_POINT_DOS,
     "ET CURRENT_EVENTS Likely Linux/Xorddos DDoS Attack Participation (xxxatat456.com)": MicroAttackStage.END_POINT_DOS,
     "ET CURRENT_EVENTS Malformed HeartBeat Request": MicroAttackStage.VULN_DISC,
@@ -325,7 +325,7 @@ usual_mapping = {
     "ET SCAN DirBuster Web App Scan in Progress": MicroAttackStage.VULN_DISC,
     "ET SCAN Hydra User-Agent": MicroAttackStage.BRUTE_FORCE_CREDS,
     "ET SCAN LibSSH Based Frequent SSH Connections Likely BruteForce Attack": MicroAttackStage.BRUTE_FORCE_CREDS,
-    "ET SCAN Multiple MySQL Login Failures Possible Brute Force Attempt": MicroAttackStage.BRUTE_FORCE_CREDS ,
+    "ET SCAN Multiple MySQL Login Failures Possible Brute Force Attempt": MicroAttackStage.BRUTE_FORCE_CREDS,
     "ET SCAN NMAP OS Detection Probe": MicroAttackStage.SERVICE_DISC,
     "ET SCAN NMAP SIP Version Detect OPTIONS Scan": MicroAttackStage.VULN_DISC,
     "ET SCAN Nessus FTP Scan detected (ftp_anonymous.nasl)": MicroAttackStage.SERVICE_DISC,
@@ -421,7 +421,7 @@ usual_mapping = {
     "GPL NETBIOS SMB-DS repeated logon failure": MicroAttackStage.BRUTE_FORCE_CREDS,
     "GPL POLICY Sun JavaServer default password login attempt": MicroAttackStage.BRUTE_FORCE_CREDS,
     "GPL POP3 POP3 PASS overflow attempt": MicroAttackStage.ARBITRARY_CODE_EXE,
-    "GPL RPC portmap bootparam request TCP": MicroAttackStage.SERVICE_DISC ,
+    "GPL RPC portmap bootparam request TCP": MicroAttackStage.SERVICE_DISC,
     "GPL RPC portmap cachefsd request TCP": MicroAttackStage.ARBITRARY_CODE_EXE,
     "GPL RPC portmap listing TCP 111": MicroAttackStage.SERVICE_DISC,
     "GPL RPC portmap listing UDP 111": MicroAttackStage.SERVICE_DISC,
@@ -945,7 +945,7 @@ unknown_mapping = {
     "INDICATOR-SCAN DirBuster brute forcing tool detected": MicroAttackStage.INFO_DISC,
     "INDICATOR-SCAN inbound probing for IPTUX messenger port": MicroAttackStage.SERVICE_DISC,
     "INDICATOR-SCAN SSH brute force login attempt": MicroAttackStage.BRUTE_FORCE_CREDS,
-    "SERVER-APACHE Apache server mod_proxy reverse proxy bypass attempt":  MicroAttackStage.PUBLIC_APP_EXP,
+    "SERVER-APACHE Apache server mod_proxy reverse proxy bypass attempt": MicroAttackStage.PUBLIC_APP_EXP,
     "SERVER-APACHE Apache header parsing space saturation denial of service attempt": MicroAttackStage.END_POINT_DOS,
     "SERVER-APACHE Apache malformed ipv6 uri overflow attempt": MicroAttackStage.END_POINT_DOS,
     "SERVER-APACHE Apache Struts remote code execution attempt - POST parameter": MicroAttackStage.ARBITRARY_CODE_EXE,
@@ -995,17 +995,17 @@ recent_suricata_alerts = {
 attack_stage_mapping = {
     MicroAttackStage.END_POINT_DOS: endpointDoS_signatures,
     MicroAttackStage.NETWORK_DOS: networkDoS_signatures,
-    MicroAttackStage.HOST_DISC : hostdisc_signatures,
-    MicroAttackStage.VULN_DISC : vuln_disc_signatures,
-    MicroAttackStage.INFO_DISC : info_disc_signatures,
-    MicroAttackStage.BRUTE_FORCE_CREDS : bruteforce_signatures,
-    MicroAttackStage.SERVICE_DISC : servicedisc_signatures,
-    MicroAttackStage.SERVICE_SPECIFIC : specific_exp_signatures,
-    MicroAttackStage.ARBITRARY_CODE_EXE : arbitary_exe_signatures,
-    MicroAttackStage.ROOT_PRIV_ESC : root_priv_signatures,
-    MicroAttackStage.USER_PRIV_ESC : user_priv_signatures,
-    MicroAttackStage.REMOTE_SERVICE_EXP : remote_serv_signatures,
-    MicroAttackStage.DEFENSE_EVASION : def_evasion_signatures,
-    MicroAttackStage.DATA_EXFILTRATION : exfiltration_signatures,
-    MicroAttackStage.NON_MALICIOUS : non_malicious_signatures,
+    MicroAttackStage.HOST_DISC: hostdisc_signatures,
+    MicroAttackStage.VULN_DISC: vuln_disc_signatures,
+    MicroAttackStage.INFO_DISC: info_disc_signatures,
+    MicroAttackStage.BRUTE_FORCE_CREDS: bruteforce_signatures,
+    MicroAttackStage.SERVICE_DISC: servicedisc_signatures,
+    MicroAttackStage.SERVICE_SPECIFIC: specific_exp_signatures,
+    MicroAttackStage.ARBITRARY_CODE_EXE: arbitary_exe_signatures,
+    MicroAttackStage.ROOT_PRIV_ESC: root_priv_signatures,
+    MicroAttackStage.USER_PRIV_ESC: user_priv_signatures,
+    MicroAttackStage.REMOTE_SERVICE_EXP: remote_serv_signatures,
+    MicroAttackStage.DEFENSE_EVASION: def_evasion_signatures,
+    MicroAttackStage.DATA_EXFILTRATION: exfiltration_signatures,
+    MicroAttackStage.NON_MALICIOUS: non_malicious_signatures,
 }

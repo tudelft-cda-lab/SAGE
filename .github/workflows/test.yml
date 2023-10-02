@@ -1,0 +1,186 @@
+name: 'Run tests'
+
+on:
+  pull_request:
+    branches-ignore:
+      - 'docker'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      ################################################################
+      #################   INSTALL DEPENDENCIES  ######################
+      ################################################################
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install graphviz bc
+          pip install requests numpy matplotlib pycodestyle
+
+      - name: Fetch flexfringe binary
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FF_REPO: "https://github.com/tudelft-cda-lab/FlexFringe"
+        shell: bash
+        run: |
+          gh release download latest -R $FF_REPO -p "flexfringe-x64-linux"  # Might have to be updated if FlexFringe decides to change the binary name
+
+      - name: Clone main branch of tudelft-cda-lab/SAGE
+        uses: actions/checkout@v4
+        with:
+          repository: 'tudelft-cda-lab/SAGE'
+          ref: 'main'
+          path: 'SAGE-main'
+
+      - name: Clone PR branch of tudelft-cda-lab/SAGE
+        uses: actions/checkout@v4
+        with:
+          path: 'SAGE-updated'
+
+
+      ################################################################
+      ##################    RUN STYLE CHECK    #######################
+      ################################################################
+
+      - name: Run Python style guide checker (PEP 8)
+        shell: bash
+        run: |
+          cd SAGE-updated/
+          pycodestyle --ignore=E501,W503,W504 *.py  # Ignore "E501 line too long", and warnings "Line break occurred before/after a binary operator"
+          pycodestyle --ignore=E501,W503,W504 signatures/*.py
+
+
+      ################################################################
+      ##############    PREPARE THE ENVIRONMENT    ##################
+      ################################################################
+
+      - name: Extract alerts
+        shell: bash
+        run: |
+          cd SAGE-updated/
+          find alerts/ -type f -name '*.gz' | xargs gunzip
+          cd ..
+          rm -rf SAGE-main/alers/
+          cp -R SAGE-updated/alerts SAGE-main/alerts/
+
+      - name: Copy FlexFringe to SAGE (main branch)
+        shell: bash
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
+        run: |
+          cd SAGE-main/
+          mkdir FlexFringe/
+          mkdir FlexFringe/ini/
+          cp ../flexfringe-x64-linux FlexFringe/flexfringe  # Might have to be updated if FlexFringe decides to change the binary name
+          chmod u+x FlexFringe/flexfringe
+          mv spdfa-config.ini FlexFringe/ini/
+
+      - name: Copy FlexFringe to SAGE (updated branch)
+        shell: bash
+        run: |
+          cd SAGE-updated/
+          mkdir FlexFringe/
+          mkdir FlexFringe/ini/
+          cp ../flexfringe-x64-linux FlexFringe/flexfringe  # Might have to be updated if FlexFringe decides to change the binary name
+          chmod u+x FlexFringe/flexfringe
+          mv spdfa-config.ini FlexFringe/ini/
+
+      - name: Copy the test file in the top directory
+        shell: bash
+        run: |
+          cd SAGE-updated/
+          mv test-scripts/* ..
+
+      ################################################################
+      #############    RUN BOTH VERSIONS OF SAGE     #################
+      ################################################################
+
+      - name: Run SAGE on the main branch
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'   # With 'changes-ags' label no regression tests will be run
+        shell: bash
+        run: |
+          cd SAGE-main/
+          echo "Running CPTC-2017..."
+          python sage.py alerts/cptc-2017/ orig-2017 --dataset cptc --keep-files
+          echo "Running CPTC-2018..."
+          python sage.py alerts/cptc-2018/ orig-2018 --dataset cptc --keep-files
+          echo "Running CCDC-2018..."
+          python sage.py alerts/ccdc/ orig-ccdc --dataset other --keep-files
+
+          cp -R orig-2017.txt orig-2017.txt.ff.final.json orig-2017.txt.ff.finalsinks.json orig-2017AGs/ ../  # Might have to be updated if FlexFringe changes the names
+          cp -R orig-2018.txt orig-2018.txt.ff.final.json orig-2018.txt.ff.finalsinks.json orig-2018AGs/ ../
+          cp -R orig-ccdc.txt orig-ccdc.txt.ff.final.json orig-ccdc.txt.ff.finalsinks.json orig-ccdcAGs/ ../
+
+      - name: Run SAGE on the updated branch
+        shell: bash
+        run: |
+          cd SAGE-updated/
+          echo "Running CPTC-2017..."
+          python sage.py alerts/cptc-2017 updated-2017 --dataset cptc --keep-files
+          echo "Running CPTC-2018..."
+          python sage.py alerts/cptc-2018/ updated-2018 --dataset cptc --keep-files
+          echo "Running CCDC-2018..."
+          python sage.py alerts/ccdc/ updated-ccdc --dataset other --keep-files
+
+          cp -R updated-2017.txt updated-2017.txt.ff.final.json updated-2017.txt.ff.finalsinks.json updated-2017AGs/ ../  # Might have to be updated if FlexFringe changes the names
+          cp -R updated-2018.txt updated-2018.txt.ff.final.json updated-2018.txt.ff.finalsinks.json updated-2018AGs/ ../
+          cp -R updated-ccdc.txt updated-ccdc.txt.ff.final.json updated-ccdc.txt.ff.finalsinks.json updated-ccdcAGs/ ../
+
+
+      ################################################################
+      #################    RUN REGRESSION TESTS    ###################
+      ################################################################
+
+      - name: Run regression tests on CPTC-2017
+        env:
+          CHANGES_IDS: ${{ contains(github.event.pull_request.labels.*.name, 'changes-ids') }}  # With 'changes-ids' label state IDs will be removed from the AGs
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
+        shell: bash
+        run: |
+          [[ "$CHANGES_IDS" == "true" ]] && { echo "Running regression tests without state IDs" ; ./test-ags.sh -i orig-2017 updated-2017 ; } || { echo "Running regression tests with state IDs" ; ./test-ags.sh orig-2017 updated-2017 ; }
+
+
+      - name: Run regression tests on CPTC-2018
+        env:
+          CHANGES_IDS: ${{ contains(github.event.pull_request.labels.*.name, 'changes-ids') }}  # With 'changes-ids' label state IDs will be removed from the AGs
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
+        shell: bash
+        run: |
+          [[ "$CHANGES_IDS" == "true" ]] && { echo "Running regression tests without state IDs" ; ./test-ags.sh -i orig-2018 updated-2018 ; } || { echo "Running regression tests with state IDs" ; ./test-ags.sh orig-2018 updated-2018 ; }
+
+      - name: Run regression tests on CCDC-2018
+        env:
+          CHANGES_IDS: ${{ contains(github.event.pull_request.labels.*.name, 'changes-ids') }}  # With 'changes-ids' label state IDs will be removed from the AGs
+        if: '!contains(github.event.pull_request.labels.*.name, ''changes-ags'')'  # With 'changes-ags' label no regression tests will be run
+        shell: bash
+        run: |
+          [[ "$CHANGES_IDS" == "true" ]] && { echo "Running regression tests without state IDs" ; ./test-ags.sh -i orig-ccdc updated-ccdc ; } || { echo "Running regression tests with state IDs" ; ./test-ags.sh orig-ccdc updated-ccdc ; }
+
+      ################################################################
+      ###################    RUN SINKS TESTS    ######################
+      ################################################################
+
+      - name: Run sinks tests on CPTC-2017
+        shell: bash
+        run: |
+          ./test-sinks.sh updated-2017
+
+      - name: Run sinks tests on CPTC-2018
+        shell: bash
+        run: |
+           ./test-sinks.sh updated-2018
+
+      - name: Run sinks tests on CCDC-2018
+        shell: bash
+        run: |
+           ./test-sinks.sh updated-ccdc
+
+      ################################################################
+      ##################    RUN PYTHON TESTS    ######################
+      ################################################################
+
+      - name: Run Python tests for episodes
+        run: |
+          cd SAGE-updated/
+          python tests.py

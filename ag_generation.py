@@ -11,7 +11,6 @@ def _translate(label, root=False):
     @param root: whether this node is a root node (will be prepended with 'Victim: <victim_ip>\n')
     @return: a new more human-readable version of the label
     """
-    print(label)
     new_label = ""
     parts = label.split("|")
     if root:
