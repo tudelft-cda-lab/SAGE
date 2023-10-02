@@ -26,7 +26,7 @@ Switch to the [`docker` branch](https://github.com/tudelft-cda-lab/SAGE/tree/doc
 
 **Required positional arguments:**
 
-* `path_to_json_files`: Directory containing intrusion alerts in json format. `sample-input.json` provides an example of the accepted file format.
+* `path_to_json_files`: Directory containing intrusion alerts in json format. See `alerts/` for examples of suricata alert datasets.
 > Ideal setting: One json file for each attacker/team. Filename considered as attacker/team label.
 * `experiment_name`: Custom name for all artefacts.
 > Figures, trace files, model files, attack graphs are saved with this prefix for easy identification.
