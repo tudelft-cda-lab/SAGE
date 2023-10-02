@@ -5,7 +5,13 @@ Repository to accompany our publications
 
 "Alert-driven Attack Graph Generation using S-PDFA" at TDSC'21.
 
-## Requires
+## Hassle-free way to run SAGE
+
+Switch to the [`docker` branch](https://github.com/tudelft-cda-lab/SAGE/tree/docker) to download and run SAGE inside a docker container. No additional installations are required in that case. 
+
+## Run SAGE yourself
+
+### Requires
 - Flexfringe (https://github.com/tudelft-cda-lab/FlexFringe)
 - Python packages
   - `graphviz`
@@ -13,32 +19,31 @@ Repository to accompany our publications
   - `numpy`
   - `matplotlib`
 
-**Or you can switch to the `docker` branch for a docker container.**
 
 
-## Usage
+### Usage
 `python sage.py path_to_json_files experiment_name [-h] [-t T] [-w W] [--timerange STARTRANGE ENDRANGE] [--dataset {cptc,other}] [--keep-files]`
 
-Required positional arguments:
+**Required positional arguments:**
 
 * `path_to_json_files`: Directory containing intrusion alerts in json format. `sample-input.json` provides an example of the accepted file format.
 > Ideal setting: One json file for each attacker/team. Filename considered as attacker/team label.
 * `experiment_name`: Custom name for all artefacts.
 > Figures, trace files, model files, attack graphs are saved with this prefix for easy identification.
 
-Options:
+**Options:**
 
 * `-h`, `--help`: Show the help message and exit.
-* `-t`: Time window in which duplicate alerts are discarded (default: 1.0 sec).
-* `-w`: Aggregate alerts occuring in this window as one episode (default: 150 sec).
-* `--timerange`: A floating-point tuple limiting the alerts that are parsed and involved in the final attack graphs (default: (0, 100)).
+* `-t`: Time window in which duplicate alerts are discarded (default: *1.0* sec).
+* `-w`: Aggregate alerts occuring in this window as one episode (default: *150* sec).
+* `--timerange`: A floating-point tuple limiting the alerts that are parsed and involved in the final attack graphs (default: *(0, 100)*).
 > If not provided, the default values of (0,100) are used, meaning alerts from 0-th to 100-th hour (relative to the start of the alert capture) are parsed.
-* `--dataset`: The name of the dataset with the alerts (default: other, available options: cptc, other).
+* `--dataset`: The name of the dataset with the alerts (default: *other*, available options: *cptc*, *other*).
 > Since the IP addresses of the attackers are known for the CPTC dataset, irrelevant alerts are filtered out.
-* `--keep-files`: Do not delete the dot files after the program ends.
+* `--keep-files`: Do not delete the .dot files after the program ends.
 > By default, the generated dot files with the attack graphs are deleted. They might, however, be useful for analytics or testing.
 
-Examples:
+**Examples:**
 
 * Run SAGE with the default parameters on the CPTC-2017 dataset: `python sage.py alerts/cptc-2017/ exp-2017 --dataset cptc`
 * Run SAGE with the time window of 2.0 seconds and the alert aggregation window of 200 seconds on the CPTC-2018 dataset: `python sage.py alerts/cptc-2018/ exp-2018 -t 2.0 -w 200 --dataset cptc`
@@ -46,7 +51,7 @@ Examples:
 
 Tip: in case you often use the same non-default values, you can create an alias (e.g `alias sage="python sage.py -t 1.5 --dataset cptc --keep-files"` and then run `sage alerts/cptc-2017/ exp-2017`)
 
-## First time use
+### First time use
 
 - Clone [FlexFringe repository](https://github.com/tudelft-cda-lab/FlexFringe).
 - Move `spdfa-config.ini` file to `FlexFringe/ini/` directory. Alternatively, you can set the `path_to_ini` variable in `sage.py` to `"./spdfa-config.ini"`.
