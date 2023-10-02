@@ -1,9 +1,9 @@
 # Docker for SAGE: Attack Graph Generator
-Repository to accompany our publications 
+Repository to accompany our publications
 
-"SAGE: Intrusion Alert-driven Attack Graph Extractor" at VizSec'21, and 
+"SAGE: Intrusion Alert-driven Attack Graph Extractor" at VizSec'21, and
 
-"Alert-driven Attack Graph Generation using S-PDFA" at TDSC'21..
+"Alert-driven Attack Graph Generation using S-PDFA" at TDSC'21.
 
 ## Important files
 - Dockerfile
@@ -14,8 +14,8 @@ Repository to accompany our publications
 
 
 ## Create folders
-- /alerts/ containing intrusion alert files in `.json` format
-- /output/ will be mounted to docker and will contain all outputs
+- `alerts/` containing intrusion alert files in `.json` format. You can find some example datasets on the main branch of [SAGE](https://github.com/tudelft-cda-lab/SAGE). However, make sure that you place only the `.json` files in the `alerts/` directory
+- `output/` will be mounted to docker and will contain all outputs
 
 ## Pre-reqs
 - Install and setup `docker`
@@ -29,8 +29,8 @@ Repository to accompany our publications
 
 - Open a cmd/shell in folder X and execute the following command:
 
-`start.sh {Image Name}`, \
-e.g. `start.sh ag-test .`
+  `start.sh {Image Name}`, \
+  e.g. `start.sh ag-test .`
 
 - Wait for execution. Once finished, the attack graphs can be found in X/output/
 
@@ -40,23 +40,23 @@ e.g. `start.sh ag-test .`
 
 - Open a cmd/shell in folder X and build the docker image:
 
-`docker build -t {Image Name} . `, \
-e.g. `docker build -t ag-test .`
+  `docker build -t {Image Name} . `, \
+  e.g. `docker build -t ag-test .`
 
 - Next, create a docker container based on the image while also mouting the local drive to store all outputs:
 
-`docker run -it \` \
-  `--mount src=%cd%/output,target=/home/out,type=bind \` \
-  `--mount src=%cd%/alerts,target=/root/input,type=bind \` \
-  `{Image Name}  `, \
-e.g. `docker run -it \` \
-  `--mount src=%cd%/output,target=/home/out,type=bind \` \
-  `--mount src=%cd%/alerts,target=/root/input,type=bind \` \
-  `ag-test`
+  `docker run -it \` \
+    `--mount src=%cd%/output,target=/home/out,type=bind \` \
+    `--mount src=%cd%/alerts,target=/root/input,type=bind \` \
+    `{Image Name}  `, \
+  e.g. `docker run -it \` \
+    `--mount src=%cd%/output,target=/home/out,type=bind \` \
+    `--mount src=%cd%/alerts,target=/root/input,type=bind \` \
+    `ag-test`
 
 * For Linux, replace `%cd%` with `$(pwd)`.
 
-- Wait for execution. Once finished, the output artefacts can be found in X/output/  
+- Wait for execution. Once finished, the output artefacts can be found in X/output/
 
 **If you use SAGE in a scientific work, consider citing the following papers:**
 
