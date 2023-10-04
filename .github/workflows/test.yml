@@ -62,7 +62,7 @@ jobs:
           cd SAGE-updated/
           find alerts/ -type f -name '*.gz' | xargs gunzip
           cd ..
-          rm -rf SAGE-main/alers/
+          rm -rf SAGE-main/alerts/
           cp -R SAGE-updated/alerts SAGE-main/alerts/
 
       - name: Copy FlexFringe to SAGE (main branch)
