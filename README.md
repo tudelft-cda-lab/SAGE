@@ -7,7 +7,7 @@ Repository to accompany our publications
 
 ## Hassle-free way to run SAGE
 
-Switch to the [`docker` branch](https://github.com/tudelft-cda-lab/SAGE/tree/docker) to download and run SAGE inside a docker container. No additional installations are required in that case. 
+Switch to the [`docker` branch](https://github.com/tudelft-cda-lab/SAGE/tree/docker) to download and run SAGE inside a docker container. No additional installations are required in that case.
 
 ## Run SAGE yourself
 
@@ -65,7 +65,12 @@ Tip: in case you often use the same non-default values, you can create an alias 
 
   `python sage.py alerts/ firstExp`,
 
-  where `alerts/` contains the uncompressed alerts. For other options, see Usage section above.
+  where `alerts/` contains the uncompressed alerts.
+- NB! If you use the CPTC dataset, don't forget to add `--dataset cptc`, e.g.:
+
+  `python sage.py alerts/ firstExp --dataset cptc`
+
+- For other options, see Usage section above.
 
 **If you use SAGE in a scientific work, consider citing the following papers:**
 
