@@ -42,10 +42,9 @@ COPY input.ini /root
 ##########################################
 ###### EXECUTE AG GENERATOR & COPY #######
 ##########################################
-RUN cd root/ \
-	&& chmod +x script.sh
-
 WORKDIR root/
+
+RUN chmod +x script.sh
 
 CMD ["./script.sh"]
 
