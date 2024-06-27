@@ -153,30 +153,43 @@ def traverse(dfa, sinks, sequence):
 
 
 # Step 6.2: Encode traces (include state IDs to mcat|mserv)
-def encode_sequences(dfa, sinks, flexfringe_traces):
+def encode_sequences(dfa, sinks, subsequences): 
     """
     Encodes the episode traces into state traces, i.e. gathers the state IDs.
 
     @param dfa: the loaded main model
     @param sinks: the loaded sinks model
-    @param flexfringe_traces: the traces that were passed to FlexFringe in the `generate_traces` function
+    @param subsequence: key-value dict of attacker-victim pair alerts
     @return: the state traces, the found medium- and high-severity states, and the medium- and high-severity sinks
     """
     traces_in_sinks, total_traces = 0, 0
     state_traces = dict()
+    attackers = []
     med_sev_states, high_sev_states, sev_sinks = set(), set(), set()
-    for i, sample in enumerate(flexfringe_traces):
-        sample = ' '.join(sample.strip('\n').split(' ')[2:])  # Remove the first number and len(mcats)
-        state_list, _sev_sinks = traverse(dfa, sinks, sample)
+    for i, (attacker, episodes) in enumerate(subsequences.items()):
+        if len(episodes) < 3:  # Discard subsequences of length < 3 (can be commented out, also in make_state_sequences)
+            continue
+        
+        mcats = [str(x[2]) for x in episodes]
+        max_services = [_most_frequent(epi[6]) for epi in episode_subsequence]
+        trace_ = [str(c)+"|"+str(s) for (c,s) in zip(mcats,max_servs)]
+        trace_.reverse()
+
+        attackers.append(attacker)
+        
+        state_list, _sev_sinks = traverse(dfa, sinks, trace_)
         state_list = state_list[1:]  # Remove the root node (with state ID 0)
-        state_traces[i] = state_list
+        state_trace = list(zip(trace_, state_list))
+        state_trace.reverse()
+
+        state_traces[attacker] = state_trace
 
         total_traces += len(state_list)
         traces_in_sinks += state_list.count('-1')
 
-        assert (len(sample.split(' ')) == len(state_traces[i]))
+        assert (len(trace_) == len(state_traces[attacker]))
 
-        sample = sample.split(' ')
+        sample = trace_
         med_sev = [int(state) for sym, state in zip(sample, state_list) if
                    len(str(rev_smallmapping[sym.split('|')[0]])) == 2]
         med_sev_states.update(med_sev)
@@ -185,49 +198,31 @@ def encode_sequences(dfa, sinks, flexfringe_traces):
         high_sev_states.update(high_sev)
         sev_sinks.update(_sev_sinks)
 
-    print('Traces in sinks:', traces_in_sinks, 'Total traces:', total_traces, 'Percentage:',
-          100 * (traces_in_sinks / float(total_traces)))
-    print('Total medium-severity states:', len(med_sev_states))
-    print('Total high-severity states:', len(high_sev_states))
-    print('Total severe sinks:', len(sev_sinks))
-    return state_traces, med_sev_states, high_sev_states, sev_sinks
+        
+        new_state = [int(x) for x in state_list][::-1]
+        assert(len(state_list) == len(episodes))
 
 
-# Step 6.3: Create state sequences
-def make_state_sequences(episode_subsequences, state_traces):
-    """
-    Creates state sequences, i.e. collects the sub-behaviors back into a single sequence, augmenting with state IDs.
-
-    @param episode_subsequences: the previously created episode subsequences
-    @param state_traces: the previously created state traces (the lists of state IDs)
-    @return: state sequences per each attacker-victim pair
-    """
-    state_sequences = dict()
-    counter = -1
-    for tid, (attack, episode_subsequence) in enumerate(episode_subsequences.items()):
-
-        if len(episode_subsequence) < 3:  # Discard subsequences of length < 3 (as in generate_traces)
-            continue
-        counter += 1
-
-        trace = [int(state) for state in state_traces[counter]]
-        max_services = [_most_frequent(epi[6]) for epi in episode_subsequence]
-
-        trace = trace[::-1]  # Reverse the trace from the S-PDFA back
 
         # start_time, end_time, mcat, state_ID, mserv, list of unique signatures, (1st and last timestamp)
-        state_subsequence = [(epi[0], epi[1], epi[2], trace[i], max_services[i], epi[7], epi[8])
+        state_subsequence = [(epi[0], epi[1], epi[2], state_trace[i][1], max_services[i], epi[7], epi[8])
                              for i, epi in enumerate(episode_subsequence)]
-
+                             
         parts = attack.split('->')
         attacker_victim = parts[0] + '->' + parts[1].split('-')[0]  # Remove the subsequence number (if present)
 
         if attacker_victim not in state_sequences.keys():
             state_sequences[attacker_victim] = []
         state_sequences[attacker_victim].extend(state_subsequence)
-        state_sequences[attacker_victim].sort(key=lambda epi: epi[0])  # Sort in place based on starting times
+        state_sequences[attacker_victim].sort(key=lambda epi: epi[0])  # Sort in place based on starting times                     
 
-    return state_sequences
+    print('Traces in sinks:', traces_in_sinks, 'Total traces:', total_traces, 'Percentage:',
+          100 * (traces_in_sinks / float(total_traces)))
+    print('Total medium-severity states:', len(med_sev_states))
+    print('Total high-severity states:', len(high_sev_states))
+    print('Total severe sinks:', len(sev_sinks))
+    return state_sequences, sev_sinks
+
 
 
 def group_episodes_per_av(state_sequences):

@@ -227,7 +227,7 @@ def make_attack_graphs(state_sequences, sev_sinks, datafile, dir_name, save_ag=T
             # If no team has obtained this objective or has targeted this victim, don't generate its AG
             if sum([len(attempt) for attempt in team_attack_attempts.values()]) == 0:
                 continue
-            print('\t     Created')
+            
 
             ag_name = objective.replace('|', '').replace('_', '').replace('-', '').replace('(', '').replace(')', '')
             lines = [(0, 'digraph ' + ag_name + ' {'),
@@ -312,7 +312,8 @@ def make_attack_graphs(state_sequences, sev_sinks, datafile, dir_name, save_ag=T
                 # Add a tooltip with signatures
                 lines.append((1, '"' + _translate(vname) + '"' + ' [tooltip="' + "\n".join(signatures) + '"]'))
             lines.append((1000, '}'))
-
+            print('\t     Created')
+            
             # _print_simplicity(ag_name, lines)
             if save_ag:
                 out_filename = datafile + '-attack-graph-for-victim-' + victim + '-' + ag_name

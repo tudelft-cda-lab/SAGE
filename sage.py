@@ -345,8 +345,7 @@ main_model = load_model(path_to_traces + ".ff.final.json")
 sinks_model = load_model(path_to_traces + ".ff.finalsinks.json")
 
 print('------ Encoding traces into state sequences ------')
-state_traces, med_sev_states, high_sev_states, severe_sinks = encode_sequences(main_model, sinks_model, episode_traces)
-state_sequences = make_state_sequences(episode_subsequences, state_traces)
+state_sequences, severe_sinks = encode_sequences(main_model, sinks_model, episode_subsequences)
 
 # print('------ Clustering state groups ------')
 # state_groups = plot_state_groups(state_sequences, path_to_traces)
