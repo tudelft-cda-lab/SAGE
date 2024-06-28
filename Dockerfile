@@ -29,7 +29,7 @@ RUN cd root/ \
 
 RUN cd /root \
 	&& git clone https://github.com/tudelft-cda-lab/FlexFringe.git \
-	&& cd FlexFringe && git checkout a39cd54 && make clean all
+	&& cd FlexFringe && git checkout 1a87e3b && make clean all
 
 RUN cd /root \
     && git clone https://github.com/tudelft-cda-lab/SAGE.git \
