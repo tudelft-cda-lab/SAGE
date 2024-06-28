@@ -130,10 +130,9 @@ def traverse(dfa, sinks, sequence):
     sev_sinks = set()
     state = "0"
     state_list = ["0"]
-    for event in sequence.split(" "):
+    for event in sequence:
         sym = event.split(":")[0]  # This is needed for the multivariate case in `generate_traces` function
         sev = rev_smallmapping[sym.split('|')[0]]
-
         if state in dfa and sym in dfa[state]:  # Use the main model if possible, otherwise use the model with the sinks
             state = dfa[state][sym]
             state_list.append(state)
@@ -142,7 +141,6 @@ def traverse(dfa, sinks, sequence):
                 state = sinks[state][sym]
             else:
                 state = '-1'  # With `printblue = 1` in spdfa-config.ini this should not happen
-
             state_to_save = state if len(str(sev)) >= 2 else '-1'  # Discard IDs from low-severity sinks
             state_list.append(state_to_save)
 
@@ -165,14 +163,15 @@ def encode_sequences(dfa, sinks, subsequences):
     traces_in_sinks, total_traces = 0, 0
     state_traces = dict()
     attackers = []
+    state_sequences = dict()
     med_sev_states, high_sev_states, sev_sinks = set(), set(), set()
     for i, (attacker, episodes) in enumerate(subsequences.items()):
         if len(episodes) < 3:  # Discard subsequences of length < 3 (can be commented out, also in make_state_sequences)
             continue
         
-        mcats = [str(x[2]) for x in episodes]
-        max_services = [_most_frequent(epi[6]) for epi in episode_subsequence]
-        trace_ = [str(c)+"|"+str(s) for (c,s) in zip(mcats,max_servs)]
+        mcats = [x[2] for x in episodes]
+        max_services = [_most_frequent(epi[6]) for epi in episodes]
+        trace_ = [str(small_mapping[c])+"|"+str(s) for (c,s) in zip(mcats,max_services)]
         trace_.reverse()
 
         attackers.append(attacker)
@@ -206,9 +205,9 @@ def encode_sequences(dfa, sinks, subsequences):
 
         # start_time, end_time, mcat, state_ID, mserv, list of unique signatures, (1st and last timestamp)
         state_subsequence = [(epi[0], epi[1], epi[2], state_trace[i][1], max_services[i], epi[7], epi[8])
-                             for i, epi in enumerate(episode_subsequence)]
+                             for i, epi in enumerate(episodes)]
                              
-        parts = attack.split('->')
+        parts = attacker.split('->')
         attacker_victim = parts[0] + '->' + parts[1].split('-')[0]  # Remove the subsequence number (if present)
 
         if attacker_victim not in state_sequences.keys():

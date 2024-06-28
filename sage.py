@@ -11,7 +11,7 @@ import requests
 
 from ag_generation import make_attack_graphs
 from episode_sequence_generation import aggregate_into_episodes, host_episode_sequences, break_into_subbehaviors
-from model_learning import generate_traces, flexfringe, load_model, encode_sequences, make_state_sequences
+from model_learning import generate_traces, flexfringe, load_model, encode_sequences
 from plotting import plot_alert_filtering, plot_histogram, plot_state_groups
 from signatures.attack_stages import MicroAttackStage
 from signatures.mappings import micro_inv
